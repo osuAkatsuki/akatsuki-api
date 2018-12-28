@@ -29,7 +29,7 @@ const rxUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 
-			rx_stats.username_aka, rx_stats.country,
+			rx_stats.username_aka, users_stats.country,
 			rx_stats.play_style, rx_stats.favourite_mode,
 
 			rx_stats.ranked_score_%[1]s, rx_stats.total_score_%[1]s, rx_stats.playcount_%[1]s,
@@ -37,6 +37,7 @@ const rxUserQuery = `
 			rx_stats.avg_accuracy_%[1]s, rx_stats.pp_%[1]s
 		FROM users
 		INNER JOIN rx_stats ON rx_stats.id = users.id
+		INNER JOIN users_stats ON users_stats.id = users.id
 		WHERE users.id IN (?)
 		`
 

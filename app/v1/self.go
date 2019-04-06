@@ -59,26 +59,25 @@ type userSettingsData struct {
 	PlayStyle *int `json:"play_style"`
 }
 
-/*
 func StringValue(v *string) string {
 	if v != nil {
 		return *v
 	}
 	return ""
 }
-*/
 
 // UsersSelfSettingsPOST allows to modify information about the current user.
 func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	var d userSettingsData
+	var r userSettingsResponse
 	md.Unmarshal(&d)
 	
-	/*username := StringValue(&r.Username)
+	username := StringValue(&r.Username)
 	
 	aka := strings.TrimSpace(*d.UsernameAKA)
 	if aka == "" {
 		*d.UsernameAKA = username
-	}*/
+	}
 
 	// input sanitisation
 	if md.User.UserPrivileges&common.UserPrivilegeDonor > 0 {

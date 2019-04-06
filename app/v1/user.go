@@ -371,6 +371,8 @@ LIMIT 1
 		r.Email = ""
 	}
 
+
+
 	rows, err = md.DB.Query("SELECT tb.id, tb.name, tb.icon FROM user_tourmnt_badges tub "+
 		"LEFT JOIN tourmnt_badges tb ON tub.badge = tb.id WHERE user = ?", r.ID)
 	if err != nil {

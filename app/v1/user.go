@@ -197,7 +197,8 @@ type userFullResponse struct {
 	FavouriteMode int                   `json:"favourite_mode"`
 	Badges        []singleBadge         `json:"badges"`
 	Clan          singleClan            `json:"clan"`
-	TBadges        []TsingleBadge       `json:"tbadges"`
+	Followers     int                   `json:"followers"`
+	TBadges       []TsingleBadge        `json:"tbadges"`
 	CustomBadge   *singleBadge          `json:"custom_badge"`
 	SilenceInfo   silenceInfo           `json:"silence_info"`
 	CMNotes       *string               `json:"cm_notes,omitempty"`
@@ -354,11 +355,26 @@ LIMIT 1
 		}
 	}
 
-	rows, err := md.DB.Query("SELECT b.id, b.name, b.icon FROM user_badges ub "+
+	var follower int
+	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user1 = ?", r.ID)
+	if err != nil {
+		md.Err(err)
+	}
+	for rows.Next() {
+		err := rows.Scan(&follower)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+	}
+	r.Followers = follower
+	
+	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon FROM user_badges ub "+
 		"LEFT JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}
+
 
 	for rows.Next() {
 		var badge singleBadge
@@ -375,8 +391,6 @@ LIMIT 1
 		r.BanDate = nil
 		r.Email = ""
 	}
-
-
 
 	rows, err = md.DB.Query("SELECT tb.id, tb.name, tb.icon FROM user_tourmnt_badges tub "+
 		"LEFT JOIN tourmnt_badges tb ON tub.badge = tb.id WHERE user = ?", r.ID)
@@ -515,7 +529,21 @@ LIMIT 1
 		}
 	}
 
-	rows, err := md.DB.Query("SELECT b.id, b.name, b.icon FROM user_badges ub "+
+	var follower int
+	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user1 = ?", r.ID)
+	if err != nil {
+		md.Err(err)
+	}
+	for rows.Next() {
+		err := rows.Scan(&follower)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+	}
+	r.Followers = follower
+
+	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon FROM user_badges ub "+
 		"LEFT JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
 	if err != nil {
 		md.Err(err)

@@ -132,18 +132,18 @@ func AllClanStatsGET(md common.MethodData) common.CodeMessager {
 		rid := r.Clans[i].ID
 		
 		err := md.DB.Select(&members.Members, `SELECT users.id, users.username, users.register_datetime, users.privileges,
-		latest_activity, users_stats.username_aka,
+		latest_activity, rx_stats.username_aka,
 		
-		users_stats.country, users_stats.user_color,
-		users_stats.ranked_score_std, users_stats.total_score_std, users_stats.pp_std, users_stats.playcount_std, users_stats.replays_watched_std, users_stats.total_hits_std,
-		users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.pp_taiko, users_stats.playcount_taiko, users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
-		users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.pp_ctb, users_stats.playcount_ctb, users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
-		users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.pp_mania, users_stats.playcount_mania, users_stats.replays_watched_mania, users_stats.total_hits_mania
+		rx_stats.country, rx_stats.user_color,
+		rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.pp_std, rx_stats.playcount_std, rx_stats.replays_watched_std, rx_stats.total_hits_std,
+		rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.pp_taiko, rx_stats.playcount_taiko, rx_stats.replays_watched_taiko, rx_stats.total_hits_taiko,
+		rx_stats.ranked_score_ctb, rx_stats.total_score_ctb, rx_stats.pp_ctb, rx_stats.playcount_ctb, rx_stats.replays_watched_ctb, rx_stats.total_hits_ctb,
+		rx_stats.ranked_score_mania, rx_stats.total_score_mania, rx_stats.pp_mania, rx_stats.playcount_mania, rx_stats.replays_watched_mania, rx_stats.total_hits_mania
 		
 		FROM user_clans uc
 		INNER JOIN users
 		ON users.id = uc.user
-		INNER JOIN users_stats ON users_stats.id = uc.user
+		INNER JOIN rx_stats ON rx_stats.id = uc.user
 		WHERE clan = ? AND privileges & 1 = 1
 		`, rid)
 
@@ -254,18 +254,18 @@ func TotalClanStatsGET(md common.MethodData) common.CodeMessager {
 		rid := r.Clans[i].ID
 		
 		err := md.DB.Select(&members.Members, `SELECT users.id, users.username, users.register_datetime, users.privileges,
-		latest_activity, users_stats.username_aka,
+		latest_activity, rx_stats.username_aka,
 		
-		users_stats.country, users_stats.user_color,
-		users_stats.ranked_score_std, users_stats.total_score_std, users_stats.pp_std, users_stats.playcount_std, users_stats.replays_watched_std, users_stats.total_hits_std,
-		users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.pp_taiko, users_stats.playcount_taiko, users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
-		users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.pp_ctb, users_stats.playcount_ctb, users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
-		users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.pp_mania, users_stats.playcount_mania, users_stats.replays_watched_mania, users_stats.total_hits_mania
+		rx_stats.country, rx_stats.user_color,
+		rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.pp_std, rx_stats.playcount_std, rx_stats.replays_watched_std, rx_stats.total_hits_std,
+		rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.pp_taiko, rx_stats.playcount_taiko, rx_stats.replays_watched_taiko, rx_stats.total_hits_taiko,
+		rx_stats.ranked_score_ctb, rx_stats.total_score_ctb, rx_stats.pp_ctb, rx_stats.playcount_ctb, rx_stats.replays_watched_ctb, rx_stats.total_hits_ctb,
+		rx_stats.ranked_score_mania, rx_stats.total_score_mania, rx_stats.pp_mania, rx_stats.playcount_mania, rx_stats.replays_watched_mania, rx_stats.total_hits_mania
 		
 		FROM user_clans uc
 		INNER JOIN users
 		ON users.id = uc.user
-		INNER JOIN users_stats ON users_stats.id = uc.user
+		INNER JOIN rx_stats ON rx_stats.id = uc.user
 		WHERE clan = ? AND privileges & 1 = 1
 		`, rid)
 
@@ -413,16 +413,16 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 		var members clanMembersData
 
 	err := md.DB.Select(&members.Members, `SELECT users.id, users.username, users.register_datetime, users.privileges,
-	latest_activity, users_stats.username_aka,
+	latest_activity, rx_stats.username_aka,
 	
-	users_stats.country, users_stats.user_color,
-	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.pp_std, users_stats.playcount_std, users_stats.replays_watched_std, users_stats.total_hits_std,
-	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.pp_taiko, users_stats.playcount_taiko, users_stats.replays_watched_taiko, users_stats.total_hits_taiko
+	rx_stats.country, rx_stats.user_color,
+	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.pp_std, rx_stats.playcount_std, rx_stats.replays_watched_std, rx_stats.total_hits_std,
+	rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.pp_taiko, rx_stats.playcount_taiko, rx_stats.replays_watched_taiko, rx_stats.total_hits_taiko
 	
 FROM user_clans uc
 INNER JOIN users
 ON users.id = uc.user
-INNER JOIN users_stats ON users_stats.id = uc.user
+INNER JOIN rx_stats ON rx_stats.id = uc.user
 WHERE clan = ?
 ORDER BY id ASC `, i)
 
@@ -437,16 +437,16 @@ ORDER BY id ASC `, i)
 		var members clanMembersData
 
 	err := md.DB.Select(&members.Members, `SELECT users.id, users.username, users.register_datetime, users.privileges,
-	latest_activity, users_stats.username_aka,
+	latest_activity, rx_stats.username_aka,
 	
-	users_stats.country, users_stats.user_color,
-	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.pp_std, users_stats.playcount_std, users_stats.replays_watched_std,
-	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.pp_taiko, users_stats.playcount_taiko, users_stats.replays_watched_taiko
+	rx_stats.country, rx_stats.user_color,
+	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.pp_std, rx_stats.playcount_std, rx_stats.replays_watched_std,
+	rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.pp_taiko, rx_stats.playcount_taiko, rx_stats.replays_watched_taiko
 	
 FROM user_clans uc
 INNER JOIN users
 ON users.id = uc.user
-INNER JOIN users_stats ON users_stats.id = uc.user
+INNER JOIN rx_stats ON rx_stats.id = uc.user
 WHERE clan = ? AND perms = ?
 ORDER BY id ASC `, i, r)
 

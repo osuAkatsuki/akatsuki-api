@@ -530,7 +530,7 @@ LIMIT 1
 	}
 
 	var follower int
-	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user1 = ?", r.ID)
+	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user2 = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}

@@ -39,23 +39,23 @@ const relaxScoreSelectBase = `
 		`
 
 const userScoreSelectBase = `
-SELECT
-	scores.id, scores.beatmap_md5, scores.score,
-	scores.max_combo, scores.full_combo, scores.mods,
-	scores.300_count, scores.100_count, scores.50_count,
-	scores.gekis_count, scores.katus_count, scores.misses_count,
-	scores.time, scores.play_mode, scores.accuracy, scores.pp,
-	scores.completed,
+		SELECT
+			scores.id, scores.beatmap_md5, scores.score,
+			scores.max_combo, scores.full_combo, scores.mods,
+			scores.300_count, scores.100_count, scores.50_count,
+			scores.gekis_count, scores.katus_count, scores.misses_count,
+			scores.time, scores.play_mode, scores.accuracy, scores.pp,
+			scores.completed,
 
-	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-	beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-	beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
-	beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
-	beatmaps.ranked_status_freezed, beatmaps.latest_update
-FROM scores
-INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
-INNER JOIN users ON users.id = scores.userid
-`
+			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
+			beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+			beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
+			beatmaps.ranked_status_freezed, beatmaps.latest_update
+		FROM scores
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
+		INNER JOIN users ON users.id = scores.userid
+		`
 
 // UserScoresBestGET retrieves the best scores of an user, sorted by PP if
 // mode is standard and sorted by ranked score otherwise.

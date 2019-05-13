@@ -42,29 +42,31 @@ const rxUserQuery = `
 		`
 
 const lbUserQuery = `
-SELECT
-	users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+		SELECT
+			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 
-	users_stats.username_aka, users_stats.country,
-	users_stats.play_style, users_stats.favourite_mode,
+			users_stats.username_aka, users_stats.country,
+			users_stats.play_style, users_stats.favourite_mode,
 
-	users_stats.ranked_score_%[1]s, users_stats.total_score_%[1]s, users_stats.playcount_%[1]s,
-	users_stats.replays_watched_%[1]s, users_stats.total_hits_%[1]s,
-	users_stats.avg_accuracy_%[1]s, users_stats.pp_%[1]s
-FROM users
-INNER JOIN users_stats ON users_stats.id = users.id
-WHERE users.id IN (?)
-`
+			users_stats.ranked_score_%[1]s, users_stats.total_score_%[1]s, users_stats.playcount_%[1]s,
+			users_stats.replays_watched_%[1]s, users_stats.total_hits_%[1]s,
+			users_stats.avg_accuracy_%[1]s, users_stats.pp_%[1]s
+		FROM users
+		INNER JOIN users_stats ON users_stats.id = users.id
+		WHERE users.id IN (?)
+		`
 
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))
+
 	// md.Query.Country
 	p := common.Int(md.Query("p")) - 1
 	if p < 0 {
 		p = 0
 	}
 	l := common.InString(1, md.Query("l"), 500, 50)
+
 	key := "ripple:leaderboard:" + m
 	if common.Int(md.Query("rx")) != 0 {
 		key = "ripple:relaxboard:" + m
@@ -85,6 +87,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	if len(results) == 0 {
 		return resp
 	}
+
 	query := fmt.Sprintf(lbUserQuery+` ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC`, m)
 	if common.Int(md.Query("rx")) != 0 {
 		query = fmt.Sprintf(rxUserQuery+` ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC`, m)

@@ -115,17 +115,17 @@ func SLeaderboardGET(md common.MethodData) common.CodeMessager {
 		}
 		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
 		if common.Int(md.Query("rx")) != 0 {
-			if i := relaxboardPosition(md.R, m, u.ID); i != nil {
+			if i := SrelaxboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i
 			}
-			if i := rxcountryPosition(md.R, m, u.ID, u.Country); i != nil {
+			if i := SrxcountryPosition(md.R, m, u.ID, u.Country); i != nil {
 				u.ChosenMode.CountryLeaderboardRank = i
 			}
 		} else {
-			if i := leaderboardPosition(md.R, m, u.ID); i != nil {
+			if i := SleaderboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i
 			}
-			if i := countryPosition(md.R, m, u.ID, u.Country); i != nil {
+			if i := ScountryPosition(md.R, m, u.ID, u.Country); i != nil {
 				u.ChosenMode.CountryLeaderboardRank = i
 			}
 		}
@@ -142,11 +142,11 @@ func ScountryPosition(r *redis.Client, mode string, user int, country string) *i
 	return S_position(r, "ripple:leaderboard:"+mode+":"+strings.ToLower(country), user)
 }
 
-func relaxboardPosition(r *redis.Client, mode string, user int) *int {
+func SrelaxboardPosition(r *redis.Client, mode string, user int) *int {
 	return _position(r, "ripple:relaxboard:"+mode, user)
 }
 
-func rxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
+func SrxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
 	return _position(r, "ripple:relaxboard:"+mode+":"+strings.ToLower(country), user)
 }
 

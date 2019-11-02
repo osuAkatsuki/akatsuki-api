@@ -197,7 +197,7 @@ type userFullResponse struct {
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
 	Badges        []singleBadge         `json:"badges"`
-	Clan          singleClan            `json:"clan"`
+	Clan          Clan            		`json:"clan"`
 	Followers     int                   `json:"followers"`
 	TBadges       []TsingleBadge        `json:"tbadges"`
 	CustomBadge   *singleBadge          `json:"custom_badge"`
@@ -209,53 +209,6 @@ type userFullResponse struct {
 type silenceInfo struct {
 	Reason string               `json:"reason"`
 	End    common.UnixTimestamp `json:"end"`
-}
-
-type userNotFullResponseLmao struct {
-	Id                       int                      `json:"id"`
-	Username                 string                   `json:"username"`
-	UsernameAKA              string                   `json:"username_aka"`
-	RegisteredOn             common.UnixTimestamp     `json:"registered_on"`
-	Privileges               uint64                   `json:"privileges"`
-	LatestActivity           common.UnixTimestamp     `json:"latest_activity"`
-	Country                  string                   `json:"country"`
-	UserColor                string                   `json:"user_color"`
-	RankedScoreStd           uint64                   `json:"ranked_score_std"`
-	TotalScoreStd            uint64                   `json:"total_score_std"`
-	PlaycountStd             int                      `json:"playcount_std"`
-	PlayTimeStd              int                      `json:"playtime_std"`
-	Total_PlayTimeStd        int                      `json:"total_playtime_std"`
-	ReplaysWatchedStd        int                      `json:"replays_watched_std"`
-	TotalHitsStd             int                      `json:"total_hits_std"`
-	PpStd                    int                      `json:"pp_std"`
-	RankedScoreTaiko         uint64                   `json:"ranked_score_taiko"`
-	TotalScoreTaiko          uint64                   `json:"total_score_taiko"`
-	PlaycountTaiko           int                      `json:"playcount_taiko"`
-	PlayTimeTaiko            int                      `json:"playtime_taiko"`
-	Total_PlayTimeTaiko      int                      `json:"total_playtime_taiko"`
-	ReplaysWatchedTaiko      int                      `json:"replays_watched_taiko"`
-	TotalHitsTaiko           int                      `json:"total_hits_taiko"`
-	PpTaiko                  int                      `json:"pp_taiko"`
-	RankedScoreCtb           uint64                   `json:"ranked_score_ctb"`
-	TotalScoreCtb            uint64                   `json:"total_score_ctb"`
-	PlaycountCtb             int                      `json:"playcount_ctb"`
-	PlayTimeCtb              int                      `json:"playtime_ctb"`
-	Total_PlayTimeCtb        int                      `json:"total_playtime_ctb"`
-	ReplaysWatchedCtb        int                      `json:"replays_watched_ctb"`
-	TotalHitsCtb             int                      `json:"total_hits_ctb"`
-	PpCtb                    int                      `json:"pp_ctb"`
-	RankedScoreMania         uint64                   `json:"ranked_score_mania"`
-	TotalScoreMania          uint64                   `json:"total_score_mania"`
-	PlaycountMania           int                      `json:"playcount_mania"`
-	PlayTimeMania            int                      `json:"playtime_mania"`
-	Total_PlayTimeMania      int                      `json:"total_playtime_mania"`
-	ReplaysWatchedMania      int                      `json:"replays_watched_mania"`
-	TotalHitsMania           int                      `json:"total_hits_mania"`
-	PpMania                  int                      `json:"pp_mania"`
-	// STD                   clappedModeData          `json:"std"`
-	// Taiko                 clappedModeData          `json:"taiko"`
-	// CTB                   clappedModeData          `json:"ctb"`
-	// Mania                 clappedModeData          `json:"mania"`
 }
 
 func RelaxUserFullGET(md common.MethodData) common.CodeMessager {
@@ -420,7 +373,7 @@ LIMIT 1
 	}
 
 	for rows.Next() {
-		var clan singleClan
+		var clan Clan
 		err = rows.Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon)
 		if err != nil {
 			md.Err(err)
@@ -593,7 +546,7 @@ LIMIT 1
 	}
 
 	for rows.Next() {
-		var clan singleClan
+		var clan Clan
 		err = rows.Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon)
 		if err != nil {
 			md.Err(err)

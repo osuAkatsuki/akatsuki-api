@@ -64,10 +64,9 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		page = 1
 	}
 	type clanLbData struct {
-		PP int 		`json:"pp"`
-		Name string	`json:"name"`
 		ID int		`json:"id"`
-		Rank int	`json:"rank"`
+		Name string	`json:"name"`
+		ChosenMode modeData `json:"chosen_mode"`
 	}
 	type clanLeaderboard struct {
 		Page int			`json:"page"`
@@ -79,7 +78,8 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		tableName = "rx"
 	}
 	cl := clanLeaderboard{Page: page}
-	rows, err := md.DB.Query("SELECT SUM(pp_"+dbmode[mode]+") / (1+(SELECT COUNT(*) FROM "+ tableName +"_stats WHERE clan = clans.id)) AS pp, clans.id, clans.name FROM clans INNER JOIN "+tableName+"_stats ON "+tableName+"_stats.clan = clans.id GROUP BY clans.id ORDER BY pp DESC LIMIT ?,50", (page-1)*50)
+	q := strings.ReplaceAll("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + table + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + table + "_stats.id WHERE clan <> 0 AND (users.privileges&3)>=3 GROUP BY clan ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode])
+	rows, err := md.DB.Query(q, (page-1)*50)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -88,13 +88,14 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	for i := 1; rows.Next(); i++ {
 		clan := clanLbData{}
 		var pp float64
-		err = rows.Scan(&pp, &clan.ID, &clan.Name)
+		rows.Scan(&pp, &clan.ChosenMode.RankedScore, &clan.TotalScore, &clan.ChosenMode.PlayCount, &clan.ChosenMode.Accuracy, &clan.Name, &clan.ID)
 		if err != nil {
 			md.Err(err)
-		return Err500
+			return Err500
 		}
 		clan.PP = int(pp)
-		clan.Rank = i + (page - 1) * 50
+		rank := i + (page - 1) * 50
+		clan.ChosenMode.GlobalLeaderboardRank = &rank
 		cl.Clans = append(cl.Clans, clan)
 	}
 	type Res struct {

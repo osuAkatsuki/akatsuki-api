@@ -5,6 +5,7 @@ import (
 	"zxq.co/ripple/rippleapi/common"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type Clan struct {
@@ -78,7 +79,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		tableName = "rx"
 	}
 	cl := clanLeaderboard{Page: page}
-	q := strings.ReplaceAll("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + table + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + table + "_stats.id WHERE clan <> 0 AND (users.privileges&3)>=3 GROUP BY clan ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode])
+	q := strings.ReplaceAll("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan <> 0 AND (users.privileges&3)>=3 GROUP BY clan ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode])
 	rows, err := md.DB.Query(q, (page-1)*50)
 	if err != nil {
 		md.Err(err)
@@ -88,7 +89,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	for i := 1; rows.Next(); i++ {
 		clan := clanLbData{}
 		var pp float64
-		rows.Scan(&pp, &clan.ChosenMode.RankedScore, &clan.TotalScore, &clan.ChosenMode.PlayCount, &clan.ChosenMode.Accuracy, &clan.Name, &clan.ID)
+		rows.Scan(&pp, &clan.ChosenMode.RankedScore, &clan.ChosenMode.TotalScore, &clan.ChosenMode.PlayCount, &clan.ChosenMode.Accuracy, &clan.Name, &clan.ID)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -138,17 +139,14 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		return Res{Clan:cms}
 	}
-	err = md.DB.QueryRow(fmt.Sprintf("SELECT SUM(pp_%s), SUM(ranked_score_%s), SUM(total_score_%s), SUM(playcount_%s), SUM(replays_watched_%s), AVG(avg_accuracy_%s), SUM(total_hits_%s) FROM clans INNER JOIN " + tableName +  "_stats ON clans.id = "+tableName+"_stats.clan WHERE clans.id = ?", dbmode[mode], dbmode[mode], dbmode[mode], dbmode[mode], dbmode[mode], dbmode[mode], dbmode[mode]), id).Scan(&cms.ChosenMode.PP, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE), clans.name FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan = ? AND (users.privileges&3)>=3 LIMIT 1", dbmode[mode])
+	var pp float64
+	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
 	if err != nil {
 		return Err500
 	}
 	
-	var members int
-	err = md.DB.QueryRow("SELECT COUNT(id) FROM users_stats WHERE clan = ?", id).Scan(&members)
-	if err != nil {
-		return Err500
-	}
-	cms.ChosenMode.PP /= (members+1)
+	cms.ChosenMode.PP = int(pp)
 	var rank int
 	err = md.DB.QueryRow("SELECT COUNT(*) FROM (SELECT SUM(pp_" + dbmode[mode] + ") / (1+(SELECT COUNT(id) FROM "+tableName+"_stats WHERE clan = clans.id)) AS pp FROM clans INNER JOIN " + tableName + "_stats ON " + tableName + "_stats.clan = clans.id GROUP BY clans.id) s WHERE s.pp >= ?", cms.ChosenMode.PP).Scan(&rank)
 	if err != nil {

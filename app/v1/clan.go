@@ -3,7 +3,6 @@ package v1
 import (
 	// "database/sql"
 	"zxq.co/ripple/rippleapi/common"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -79,7 +78,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		tableName = "rx"
 	}
 	cl := clanLeaderboard{Page: page}
-	q := strings.ReplaceAll("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan <> 0 AND (users.privileges&3)>=3 GROUP BY clan ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode])
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan <> 0 AND (users.privileges&3)>=3 GROUP BY clan ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode], -1)
 	rows, err := md.DB.Query(q, (page-1)*50)
 	if err != nil {
 		md.Err(err)
@@ -94,7 +93,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 			md.Err(err)
 			return Err500
 		}
-		clan.PP = int(pp)
+		clan.ChosenMode.PP = int(pp)
 		rank := i + (page - 1) * 50
 		clan.ChosenMode.GlobalLeaderboardRank = &rank
 		cl.Clans = append(cl.Clans, clan)
@@ -139,7 +138,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		return Res{Clan:cms}
 	}
-	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE), clans.name FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan = ? AND (users.privileges&3)>=3 LIMIT 1", dbmode[mode])
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE), clans.name FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan = ? AND (users.privileges&3)>=3 LIMIT 1", "DBMODE", dbmode[mode], -1)
 	var pp float64
 	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
 	if err != nil {

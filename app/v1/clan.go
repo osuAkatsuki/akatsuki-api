@@ -138,7 +138,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		return Res{Clan:cms}
 	}
-	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE), clans.name FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan = ? AND (users.privileges&3)>=3 LIMIT 1", "DBMODE", dbmode[mode], -1)
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE) FROM " + tableName + "_stats LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan = ? AND users.privileges & 3 LIMIT 1", "DBMODE", dbmode[mode], -1)
 	var pp float64
 	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
 	if err != nil {

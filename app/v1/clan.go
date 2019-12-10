@@ -178,6 +178,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
 	rows, err := md.DB.Query(userFields + " WHERE users.privileges & 3 AND clan = ?", i);
 	if err != nil {
 		md.Err(err)
@@ -186,6 +187,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	defer rows.Close()
 	for rows.Next() {
 		a := aMem{}
+
 		err = rows.Scan(&a.ID, &a.Username, &a.RegisteredOn, &a.Privileges, &a.LatestActivity, &a.UsernameAKA, &a.Country)
 		if err != nil {
 			md.Err(err)

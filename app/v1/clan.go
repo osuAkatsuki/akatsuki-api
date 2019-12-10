@@ -142,6 +142,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	var pp float64
 	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
 	if err != nil {
+		md.Err(err)
 		return Err500
 	}
 	
@@ -149,6 +150,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	var rank int
 	err = md.DB.QueryRow("SELECT COUNT(*) FROM (SELECT SUM(pp_" + dbmode[mode] + ") / (1+(SELECT COUNT(id) FROM "+tableName+"_stats WHERE clan = clans.id)) AS pp FROM clans INNER JOIN " + tableName + "_stats ON " + tableName + "_stats.clan = clans.id GROUP BY clans.id) s WHERE s.pp >= ?", cms.ChosenMode.PP).Scan(&rank)
 	if err != nil {
+		md.Err(err)
 		return Err500
 	}
 	cms.ChosenMode.GlobalLeaderboardRank = &rank

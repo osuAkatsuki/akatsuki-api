@@ -163,13 +163,9 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	if i == 0 {
 		return ErrMissingField("id")
 	}
-	type aMem struct {
-		userData
-		Owner bool	`json:"owner"`
-	}
 	type clanMembersData struct {
 		Clan
-		Members []aMem `json:"members"`
+		Members []userData `json:"members"`
 	}
 	cmd := clanMembersData{}
 	var err error
@@ -186,14 +182,13 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		a := aMem{}
+		a := userData{}
 
 		err = rows.Scan(&a.ID, &a.Username, &a.RegisteredOn, &a.Privileges, &a.LatestActivity, &a.UsernameAKA, &a.Country)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
-		a.Owner = cmd.Clan.Owner == a.ID
 		cmd.Members = append(cmd.Members, a)
 	}
 	type Res struct {

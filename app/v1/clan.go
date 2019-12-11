@@ -138,10 +138,11 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		return Res{Clan:cms}
 	}
-	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE), clans.name FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan = ? AND (users.privileges&3)>=3 LIMIT 1", "DBMODE", dbmode[mode], -1)
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE) FROM " + tableName + "_stats LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan = ? AND users.privileges & 3 LIMIT 1", "DBMODE", dbmode[mode], -1)
 	var pp float64
 	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
 	if err != nil {
+		md.Err(err)
 		return Err500
 	}
 	
@@ -149,6 +150,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	var rank int
 	err = md.DB.QueryRow("SELECT COUNT(*) FROM (SELECT SUM(pp_" + dbmode[mode] + ") / (1+(SELECT COUNT(id) FROM "+tableName+"_stats WHERE clan = clans.id)) AS pp FROM clans INNER JOIN " + tableName + "_stats ON " + tableName + "_stats.clan = clans.id GROUP BY clans.id) s WHERE s.pp >= ?", cms.ChosenMode.PP).Scan(&rank)
 	if err != nil {
+		md.Err(err)
 		return Err500
 	}
 	cms.ChosenMode.GlobalLeaderboardRank = &rank
@@ -163,13 +165,9 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	if i == 0 {
 		return ErrMissingField("id")
 	}
-	type aMem struct {
-		userData
-		Owner bool	`json:"owner"`
-	}
 	type clanMembersData struct {
 		Clan
-		Members []aMem `json:"members"`
+		Members []userData `json:"members"`
 	}
 	cmd := clanMembersData{}
 	var err error
@@ -186,14 +184,13 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		a := aMem{}
+		a := userData{}
 
 		err = rows.Scan(&a.ID, &a.Username, &a.RegisteredOn, &a.Privileges, &a.LatestActivity, &a.UsernameAKA, &a.Country)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
-		a.Owner = cmd.Clan.Owner == a.ID
 		cmd.Members = append(cmd.Members, a)
 	}
 	type Res struct {

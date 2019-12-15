@@ -197,7 +197,7 @@ type userFullResponse struct {
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
 	Badges        []singleBadge         `json:"badges"`
-	Clan          Clan            		`json:"clan"`
+	Clan          Clan                  `json:"clan"`
 	Followers     int                   `json:"followers"`
 	TBadges       []TsingleBadge        `json:"tbadges"`
 	CustomBadge   *singleBadge          `json:"custom_badge"`
@@ -257,7 +257,7 @@ LIMIT 1
 	// Fuck.
 	r := userFullResponse{}
 	var (
-		b    singleBadge
+		b singleBadge
 
 		can  bool
 		show bool
@@ -333,7 +333,6 @@ LIMIT 1
 		md.Err(err)
 	}
 
-
 	for rows.Next() {
 		var badge singleBadge
 		err := rows.Scan(&badge.ID, &badge.Name, &badge.Icon)
@@ -365,9 +364,8 @@ LIMIT 1
 		}
 		r.TBadges = append(r.TBadges, Tbadge)
 	}
-
-	rows, err = md.DB.Query("SELECT c.id, c.name, c.description, c.tag, c.icon FROM user_clans uc "+
-		"LEFT JOIN clans c ON uc.clan = c.id WHERE user = ?", r.ID)
+	rows, err = md.DB.Query("SELECT c.id, c.name, c.description, c.tag, c.icon FROM users "+
+		"LEFT JOIN clans c ON users.clan_id = c.id WHERE users.id = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}
@@ -431,7 +429,7 @@ LIMIT 1
 	// Fuck.
 	r := userFullResponse{}
 	var (
-		b    singleBadge
+		b singleBadge
 
 		can  bool
 		show bool
@@ -539,8 +537,8 @@ LIMIT 1
 		r.TBadges = append(r.TBadges, Tbadge)
 	}
 
-	rows, err = md.DB.Query("SELECT c.id, c.name, c.description, c.tag, c.icon FROM user_clans uc "+
-		"LEFT JOIN clans c ON uc.clan = c.id WHERE user = ?", r.ID)
+	rows, err = md.DB.Query("SELECT c.id, c.name, c.description, c.tag, c.icon FROM users "+
+		"LEFT JOIN clans c ON users.clan_id = c.id WHERE users.id = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}
@@ -627,8 +625,8 @@ type userLookupResponse struct {
 	Users []lookupUser `json:"users"`
 }
 type lookupUser struct {
-	ID       int       `json:"id"`
-	Username string    `json:"username"`
+	ID       int    `json:"id"`
+	Username string `json:"username"`
 }
 
 // UserLookupGET does a quick lookup of users beginning with the passed

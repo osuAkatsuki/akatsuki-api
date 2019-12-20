@@ -1,7 +1,7 @@
 package v1
 
 import (
-	// "database/sql"
+	"database/sql"
 	"zxq.co/ripple/rippleapi/common"
 	"strconv"
 	"strings"
@@ -155,6 +155,31 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	}
 	cms.ChosenMode.GlobalLeaderboardRank = &rank
 	r := Res{Clan: cms}
+	r.ResponseBase.Code = 200
+	return r
+}
+
+func ResolveInviteGET(md common.MethodData) common.CodeMessager {
+	s := md.Query("invite")
+	if s == "" {
+		return ErrMissingField("invite")
+	}
+	type Res struct {
+		common.ResponseBase
+		Clan Clan `json:"clan"`
+	}
+	
+	clan := Clan{}
+	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner FROM clans WHERE invite = ? LIMIT 1").Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon, &clan.Owner)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(404, "No clan with given invite found.")
+		} else {
+			md.Err(err)
+			return Err500	
+		}
+	}
+	r := Res{Clan: clan}
 	r.ResponseBase.Code = 200
 	return r
 }

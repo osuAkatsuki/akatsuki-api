@@ -170,7 +170,7 @@ func ResolveInviteGET(md common.MethodData) common.CodeMessager {
 	}
 	
 	clan := Clan{}
-	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner FROM clans WHERE invite = ? LIMIT 1").Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon, &clan.Owner)
+	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner FROM clans WHERE invite = ? LIMIT 1", s).Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon, &clan.Owner)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return common.SimpleResponse(404, "No clan with given invite found.")

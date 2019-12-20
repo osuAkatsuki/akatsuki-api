@@ -104,6 +104,7 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.Method("/api/v1/clans/members", v1.ClanMembersGET)
 		r.Method("/api/v1/clans/stats", v1.ClanStatsGET)
 		r.Method("/api/v1/clans/stats/all", v1.ClanLeaderboardGET)
+		r.Method("/api/v1/clans/invite", v1.ResolveInviteGET)
 		// r.Method("/api/v1/clans/getinvite", v1.ClanInviteGET)
 		// r.Method("/api/v1/clans/isclan", v1.IsInClanGET)
 		r.Method("/api/v1/tbadges", v1.TBadgesGET)

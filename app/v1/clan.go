@@ -78,7 +78,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		tableName = "rx"
 	}
 	cl := clanLeaderboard{Page: page}
-	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + tableName + "_stats INNER JOIN clans ON clans.id=clan_id LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode], -1)
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + tableName + "_stats LEFT JOIN users ON users.id = " + tableName + "_stats.id INNER JOIN clans ON clans.id=users.clan_id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode], -1)
 	rows, err := md.DB.Query(q, (page-1)*50)
 	if err != nil {
 		md.Err(err)

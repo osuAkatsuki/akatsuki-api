@@ -37,9 +37,7 @@ const rxUserQuery = `
 			rx_stats.avg_accuracy_%[1]s, rx_stats.pp_%[1]s
 		FROM users
 		INNER JOIN rx_stats ON rx_stats.id = users.id
-		INNER JOIN users_stats ON users_stats.id = users.id
-		WHERE users.id IN (?)
-		`
+		INNER JOIN users_stats ON users_stats.id = users.id `
 
 const lbUserQuery = `
 		SELECT
@@ -52,9 +50,56 @@ const lbUserQuery = `
 			users_stats.replays_watched_%[1]s, users_stats.total_hits_%[1]s,
 			users_stats.avg_accuracy_%[1]s, users_stats.pp_%[1]s
 		FROM users
-		INNER JOIN users_stats ON users_stats.id = users.id
-		WHERE users.id IN (?)
-		`
+		INNER JOIN users_stats ON users_stats.id = users.id `
+
+// previously done horrible hardcoding makes this the spaghetti it is
+func getLbUsersDb(p, l int, rx bool, m, sort string, md *common.MethodData) []leaderboardUser {
+	var query, order string
+	if sort == "score" {
+		if rx {
+			order = "ORDER BY rx_stats.ranked_score_%[1]s DESC, rx_stats.pp_%[1]s DESC"
+		} else {
+			order = "ORDER BY users_stats.ranked_score_%[1]s DESC, users_stats.pp_%[1]s DESC"
+		}
+	} else {
+		if rx {
+			order = "ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC"
+		} else {
+			order = "ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC"
+		}
+	}
+	if rx {
+		query = fmt.Sprintf(rxUserQuery + "WHERE (users.privileges & 3) >= 3 " + order + " LIMIT %d, %d", m, p * l, l)
+	} else {
+		query = fmt.Sprintf(lbUserQuery + "WHERE (users.privileges & 3) >= 3 " + order + " LIMIT %d, %d", m, p * l, l)
+	}
+	rows, err := md.DB.Query(query)
+	if err != nil {
+		md.Err(err)
+		return make([]leaderboardUser, 0)
+	}
+	defer rows.Close()
+	var users []leaderboardUser
+	for i := 1; rows.Next(); i++ {
+		u := leaderboardUser{}
+		err := rows.Scan(
+			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity,
+
+			&u.UsernameAKA, &u.Country, &u.PlayStyle, &u.FavouriteMode,
+
+			&u.ChosenMode.RankedScore, &u.ChosenMode.TotalScore, &u.ChosenMode.PlayCount,
+			&u.ChosenMode.ReplaysWatched, &u.ChosenMode.TotalHits,
+			&u.ChosenMode.Accuracy, &u.ChosenMode.PP,
+		)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
+		users = append(users, u)
+	}
+	return users
+}
 
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
@@ -66,7 +111,17 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		p = 0
 	}
 	l := common.InString(1, md.Query("l"), 500, 50)
-
+	rx := md.Query("rx") == "1"
+	sort := md.Query("sort")
+	if sort == "" {
+		sort = "pp"
+	}
+	
+	if sort != "pp" {
+		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, m, sort, &md)}
+		resp.Code = 200
+		return resp
+	}
 	key := "ripple:leaderboard:" + m
 	if common.Int(md.Query("rx")) != 0 {
 		key = "ripple:relaxboard:" + m
@@ -83,14 +138,16 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 
 	var resp leaderboardResponse
 	resp.Code = 200
-
 	if len(results) == 0 {
+		resp.Users = getLbUsersDb(p, l, rx, m, sort, &md)
 		return resp
 	}
 
-	query := fmt.Sprintf(lbUserQuery+` ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC`, m)
-	if common.Int(md.Query("rx")) != 0 {
-		query = fmt.Sprintf(rxUserQuery+` ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC`, m)
+	var query string
+	if rx {
+		query = fmt.Sprintf(rxUserQuery+`WHERE users.id IN (?) ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC`, m)
+	} else {
+		query = fmt.Sprintf(lbUserQuery+`WHERE users.id IN (?) ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC`, m)
 	}
 	query, params, _ := sqlx.In(query, results)
 	rows, err := md.DB.Query(query, params...)
@@ -98,6 +155,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var u leaderboardUser
 		err := rows.Scan(
@@ -114,7 +172,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 			continue
 		}
 		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
-		if common.Int(md.Query("rx")) != 0 {
+		if rx {
 			if i := relaxboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i
 			}

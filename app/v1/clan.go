@@ -204,6 +204,12 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 
 	rows, err := md.DB.Query(userFields + " WHERE users.privileges & 3 AND clan_id = ?", i);
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return struct {
+				common.ResponseBase
+				Clan clanMembersData `json:"clan"`
+			}{Clan: cmd}
+		}
 		md.Err(err)
 		return Err500
 	}
@@ -218,11 +224,10 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 		}
 		cmd.Members = append(cmd.Members, a)
 	}
-	type Res struct {
+	res := struct {
 		common.ResponseBase
 		Clan clanMembersData `json:"clan"`
-	}
-	res := Res{Clan: cmd}
+	}{Clan: cmd}
 	res.ResponseBase.Code = 200
 	return res
 }

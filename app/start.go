@@ -133,6 +133,8 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/users/self/settings", v1.UsersSelfSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/userpage", v1.UserSelfUserpagePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/beatmaps/rank_requests", v1.BeatmapRankRequestsSubmitPOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/clans/join", v1.ClanJoinPOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/clans/invite", v1.ClanGenerateInvitePOST, common.PrivilegeWrite)
 
 		// Admin: RAP
 		r.POSTMethod("/api/v1/rap/log", v1.RAPLogPOST)

@@ -256,6 +256,52 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	return r
 }
 
+func ClanLeavePOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+	
+	u := struct {
+		ID int `json:"id"`
+	}{}
+	
+	md.Unmarshal(&u)
+	
+	if u.ID <= 0 {
+		return common.SimpleResponse(400, "invalid id")
+	}
+	
+	c, err := getClan(u.ID, md)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(404, "clan not found")
+		}
+		md.Err(err)
+		return Err500
+	}
+	
+	_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	
+	if c.Owner == md.ID() {
+		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", c.ID)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+		_, err = md.DB.Exec("DELETE FROM clans WHERE id = ?", c.ID)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+	}
+	
+	return common.SimpleResponse(200, "")
+}
+
 func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
@@ -272,7 +318,7 @@ func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 	}
 	
 	invite := rs.String(8)
-	err = md.DB.Exec("UPDATE clans SET invite = ? WHERE id = ?", invite, id)
+	_, err = md.DB.Exec("UPDATE clans SET invite = ? WHERE id = ?", invite, id)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -281,8 +327,8 @@ func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 	r := struct {
 		common.ResponseBase
 		Invite string `json:"invite"`
-	}{Code: 200, Invite: invite}
-	
+	}{Invite: invite}
+	r.Code = 200
 	return r
 }
 

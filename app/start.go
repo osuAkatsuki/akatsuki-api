@@ -136,6 +136,7 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/clans/join", v1.ClanJoinPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/invite", v1.ClanGenerateInvitePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/leave", v1.ClanLeavePOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/clans/settings", v1.ClanSettingsPOST, common.PrivilegeWrite)
 
 		// Admin: RAP
 		r.POSTMethod("/api/v1/rap/log", v1.RAPLogPOST)

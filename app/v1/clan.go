@@ -2,9 +2,11 @@ package v1
 
 import (
 	"database/sql"
-	"zxq.co/ripple/rippleapi/common"
 	"strconv"
 	"strings"
+	
+	"zxq.co/ripple/rippleapi/common"
+	"zxq.co/x/rs"
 )
 
 type Clan struct {
@@ -254,6 +256,82 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	return r
 }
 
+func ClanLeavePOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+	
+	u := struct {
+		ID int `json:"id"`
+	}{}
+	
+	md.Unmarshal(&u)
+	
+	if u.ID <= 0 {
+		return common.SimpleResponse(400, "invalid id")
+	}
+	
+	c, err := getClan(u.ID, md)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(404, "clan not found")
+		}
+		md.Err(err)
+		return Err500
+	}
+	
+	_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	
+	if c.Owner == md.ID() {
+		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", c.ID)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+		_, err = md.DB.Exec("DELETE FROM clans WHERE id = ?", c.ID)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+	}
+	
+	return common.SimpleResponse(200, "")
+}
+
+func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+	
+	var id int
+	err := md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(401, "not authorised")
+		}
+		md.Err(err)
+		return Err500
+	}
+	
+	invite := rs.String(8)
+	_, err = md.DB.Exec("UPDATE clans SET invite = ? WHERE id = ?", invite, id)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	
+	r := struct {
+		common.ResponseBase
+		Invite string `json:"invite"`
+	}{Invite: invite}
+	r.Code = 200
+	return r
+}
+
 // ClanMembersGET retrieves the people who are in a certain clan.
 func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	i := common.Int(md.Query("id"))
@@ -268,6 +346,9 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	var err error
 	cmd.Clan, err = getClan(i, md)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(404, "clan not found")
+		}
 		md.Err(err)
 		return Err500
 	}
@@ -307,7 +388,7 @@ func getClan(id int, md common.MethodData) (Clan, error) {
 	if id == 0 {
 		return c, nil // lol?
 	}
-	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner FROM clans WHERE id = ? LIMIT 1", md.Query("id")).Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner)
+	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner FROM clans WHERE id = ? LIMIT 1", id).Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner)
 	if err != nil {
 		return c, err
 	}

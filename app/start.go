@@ -134,6 +134,8 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/users/self/userpage", v1.UserSelfUserpagePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/beatmaps/rank_requests", v1.BeatmapRankRequestsSubmitPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/join", v1.ClanJoinPOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/clans/invite", v1.ClanGenerateInvitePOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/clans/leave", v1.ClanLeavePOST, common.PrivilegeWrite)
 
 		// Admin: RAP
 		r.POSTMethod("/api/v1/rap/log", v1.RAPLogPOST)
@@ -147,6 +149,8 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/users/edit", v1.UserEditPOST, common.PrivilegeManageUser)
 		r.POSTMethod("/api/v1/users/wipe", v1.WipeUserPOST, common.PrivilegeManageUser)
 		r.POSTMethod("/api/v1/scores/reports", v1.ScoreReportPOST, common.PrivilegeManageUser)
+		r.Method("/api/v1/users/unweighted", v1.UserUnweightedPerformanceGET, common.PrivilegeManageUser)
+		
 
 		// M E T A
 		// E     T    "wow thats so meta"

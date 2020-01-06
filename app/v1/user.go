@@ -3,6 +3,7 @@ package v1
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode"
@@ -618,6 +619,41 @@ func whereClauseUser(md common.MethodData, tableName string) (*common.CodeMessag
 	}
 	a := common.SimpleResponse(400, "you need to pass either querystring parameters name or id")
 	return &a, "", nil
+}
+
+func UserUnweightedPerformanceGET(md common.MethodData) common.CodeMessager {
+	id := common.Int(md.Query("id"))
+	if id <= 0 {
+		return ErrMissingField("id")
+	}
+	mode := common.Int(md.Query("mode"))
+	tab := ""
+	if md.Query("rx") == "1" {
+		tab = "_relax"
+	}
+	
+	if err := md.DB.QueryRow("SELECT 1 FROM users WHERE id = ?", id).Scan(&id); err == sql.ErrNoRows {
+		return common.SimpleResponse(404, "user not found")
+	} else if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	
+	r := struct {
+		common.ResponseBase
+		performance float32 `json:"performance"`
+	}{}
+	err := md.DB.QueryRow("SELECT SUM(pp) FROM scores" + tab + " WHERE userid = ? AND completed = 3 AND mode = ?", id, mode).Scan(&r.performance)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Println("User", id, "has no scores in scores" + tab, "???")
+			return r
+		}
+		return Err500
+	}
+	
+	r.Code = 200
+	return r
 }
 
 type userLookupResponse struct {

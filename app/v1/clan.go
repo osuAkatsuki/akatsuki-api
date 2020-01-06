@@ -304,6 +304,76 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 	return common.SimpleResponse(200, msg)
 }
 
+func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+	
+	var id int
+	err := md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(401, "not authorised")
+		}
+		md.Err(err)
+		return Err500
+	}
+	
+	u := struct {
+		Tag string `json:"tag,omitempty"`
+		Description string `json:"desc,omitempty"`
+		Icon string `json:"icon,omitempty"`
+		Background string `json"bg,omitempty"`
+	}{}
+	
+	md.Unmarshal(&u)
+	
+	if len(u.Tag) > 6 || (len(u.Tag) > 0 && len(u.Tag) < 2) {
+		return common.SimpleResponse(400, "invalid tag length")
+	}
+	
+	if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ?", u.Tag).Scan(new(int)) != sql.ErrNoRows {
+		return common.SimpleResponse(200, "tag already exists")
+	}
+	
+	i := make([]interface{}, 0) // probably a bad idea lol
+	query := "UPDATE clans SET "
+	if u.Tag != "" {
+		query += "tag = ?"
+		i = append(i, u.Tag)
+	}
+	if u.Description != "" {
+		if len(i) != 0 {
+			query += ", "
+		}
+		query += "description = ?"
+		i = append(i, u.Description)
+	}
+	if u.Icon != "" {
+		if len(i) != 0 {
+			query += ", "
+		}
+		query += "icon = ?"
+		i = append(i, u.Icon)
+	}
+	if u.Background != "" {
+		if len(i) != 0 {
+			query += ", "
+		}
+		query += "bg = ?"
+		i = append(i, u.Background)
+	}
+	
+	if len(i) == 0 {
+		return common.SimpleResponse(400, "No fields filled.")
+	}
+	query += " WHERE id = ?"
+	i = append(i, id)
+	_, err = md.DB.Exec(query, i...)
+	
+	return common.SimpleResponse(200, "n")
+}
+
 func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")

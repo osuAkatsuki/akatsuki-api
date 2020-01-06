@@ -286,7 +286,9 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 	
+	var msg string
 	if c.Owner == md.ID() {
+		msg = "disbanded"
 		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", c.ID)
 		if err != nil {
 			md.Err(err)
@@ -299,7 +301,7 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		}
 	}
 	
-	return common.SimpleResponse(200, "")
+	return common.SimpleResponse(200, msg)
 }
 
 func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {

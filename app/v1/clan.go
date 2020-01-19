@@ -410,7 +410,7 @@ func ClanKickPOST(md common.MethodData) common.CodeMessager {
 	}
 	
 	var clan int
-	if md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(clan) == sql.ErrNoRows {
+	if md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&clan) == sql.ErrNoRows {
 		return common.SimpleResponse(401, "not authorised")
 	}
 	
@@ -428,7 +428,7 @@ func ClanKickPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(401, "not authorised")
 	}*/
 	
-	_, err := md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ? AND clan_id = ?", u.User, clan)
+	_, err := md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ? AND clan_id = ?", u.User, clan)
 	if err != nil {
 		md.Err(err)
 		return Err500

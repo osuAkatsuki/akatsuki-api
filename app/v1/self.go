@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"zxq.co/ripple/rippleapi/common"
+	"zxq.co/ripple/semantic-icons-ugc"
 )
 
 type donorInfoResponse struct {

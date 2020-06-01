@@ -351,13 +351,12 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		i = append(i, u.Description)
 	}
 	if u.Icon != "" {
-		if len(i) != 0 {
-			query += ", "
-		}
-
 		// TODO: this should probably be an uploaded image to be safer..
 		match, _ = regexp.MatchString("^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$", u.Icon)
 		if match {
+			if len(i) != 0 {
+				query += ", "
+			}
 			query += "icon = ?"
 			i = append(i, u.Icon)
 		}

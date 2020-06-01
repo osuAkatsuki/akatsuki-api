@@ -334,7 +334,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	// TODO: this should probably be an uploaded image to be safer..
-	if u.Tag != "" {
+	if u.Icon != "" {
 		match, _ := regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
 		if !match {
 			return common.SimpleResponse(200, "invalid icon url")

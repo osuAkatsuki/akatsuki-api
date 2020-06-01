@@ -2,20 +2,21 @@ package v1
 
 import (
 	"database/sql"
+	"regexp"
 	"strconv"
 	"strings"
-	
+
 	"zxq.co/ripple/rippleapi/common"
 	"zxq.co/x/rs"
 )
 
 type Clan struct {
-	ID int				`json:"id"`
-	Name string			`json:"name"`
-	Tag string			`json:"tag"`
-	Description string	`json:"description"`
-	Icon string 		`json:"icon"`
-	Owner int			`json:"owner"`
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Tag         string `json:"tag"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	Owner       int    `json:"owner"`
 }
 
 // clansGET retrieves all the clans on this ripple instance.
@@ -27,7 +28,7 @@ func ClansGET(md common.MethodData) common.CodeMessager {
 		}
 		r := Res{}
 		var err error
-		r.Clan, err = getClan(common.Int(md.Query("id")), md);
+		r.Clan, err = getClan(common.Int(md.Query("id")), md)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -66,13 +67,13 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		page = 1
 	}
 	type clanLbData struct {
-		ID int		`json:"id"`
-		Name string	`json:"name"`
+		ID         int      `json:"id"`
+		Name       string   `json:"name"`
 		ChosenMode modeData `json:"chosen_mode"`
 	}
 	type clanLeaderboard struct {
-		Page int			`json:"page"`
-		Clans []clanLbData	`json:"clans"`
+		Page  int          `json:"page"`
+		Clans []clanLbData `json:"clans"`
 	}
 	relax := md.Query("rx") == "1"
 	tableName := "users"
@@ -80,7 +81,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		tableName = "rx"
 	}
 	cl := clanLeaderboard{Page: page}
-	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM " + tableName + "_stats LEFT JOIN users ON users.id = " + tableName + "_stats.id INNER JOIN clans ON clans.id=users.clan_id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode], -1)
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), AVG(avg_accuracy_DBMODE), clans.name, clans.id FROM "+tableName+"_stats LEFT JOIN users ON users.id = "+tableName+"_stats.id INNER JOIN clans ON clans.id=users.clan_id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id ORDER BY pp DESC LIMIT ?,50", "DBMODE", dbmode[mode], -1)
 	rows, err := md.DB.Query(q, (page-1)*50)
 	if err != nil {
 		md.Err(err)
@@ -96,7 +97,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 			return Err500
 		}
 		clan.ChosenMode.PP = int(pp)
-		rank := i + (page - 1) * 50
+		rank := i + (page-1)*50
 		clan.ChosenMode.GlobalLeaderboardRank = &rank
 		cl.Clans = append(cl.Clans, clan)
 	}
@@ -109,7 +110,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	return r
 }
 
-var dbmode = [...]string{"std", "taiko","ctb","mania"}
+var dbmode = [...]string{"std", "taiko", "ctb", "mania"}
 
 func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if md.Query("id") == "" {
@@ -117,10 +118,10 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	}
 	id, err := strconv.Atoi(md.Query("id"))
 	if err != nil {
-			return common.SimpleResponse(400, "please pass a valid ID")
+		return common.SimpleResponse(400, "please pass a valid ID")
 	}
 	mode := common.Int(md.Query("m"))
-	
+
 	type clanModeStats struct {
 		Clan
 		ChosenMode modeData `json:"chosen_mode"`
@@ -138,19 +139,19 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	cms := clanModeStats{}
 	cms.Clan, err = getClan(id, md)
 	if err != nil {
-		return Res{Clan:cms}
+		return Res{Clan: cms}
 	}
-	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE) FROM " + tableName + "_stats LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE users.clan_id = ? AND (users.privileges & 3) >= 3 LIMIT 1", "DBMODE", dbmode[mode], -1)
+	q := strings.Replace("SELECT SUM(pp_DBMODE)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_DBMODE), SUM(total_score_DBMODE), SUM(playcount_DBMODE), SUM(replays_watched_DBMODE), AVG(avg_accuracy_DBMODE), SUM(total_hits_DBMODE) FROM "+tableName+"_stats LEFT JOIN users ON users.id = "+tableName+"_stats.id WHERE users.clan_id = ? AND (users.privileges & 3) >= 3 LIMIT 1", "DBMODE", dbmode[mode], -1)
 	var pp float64
 	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	cms.ChosenMode.PP = int(pp)
 	var rank int
-	err = md.DB.QueryRow("SELECT COUNT(pp) FROM (SELECT SUM(pp_" + dbmode[mode] + ")/(COUNT(clan_id)+1) AS pp FROM " + tableName + "_stats LEFT JOIN users ON users.id = " + tableName + "_stats.id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id) x WHERE x.pp >= ?", cms.ChosenMode.PP).Scan(&rank)
+	err = md.DB.QueryRow("SELECT COUNT(pp) FROM (SELECT SUM(pp_"+dbmode[mode]+")/(COUNT(clan_id)+1) AS pp FROM "+tableName+"_stats LEFT JOIN users ON users.id = "+tableName+"_stats.id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id) x WHERE x.pp >= ?", cms.ChosenMode.PP).Scan(&rank)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -170,7 +171,7 @@ func ResolveInviteGET(md common.MethodData) common.CodeMessager {
 		common.ResponseBase
 		Clan Clan `json:"clan"`
 	}
-	
+
 	clan := Clan{}
 	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner FROM clans WHERE invite = ? LIMIT 1", s).Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon, &clan.Owner)
 	if err != nil {
@@ -178,7 +179,7 @@ func ResolveInviteGET(md common.MethodData) common.CodeMessager {
 			return common.SimpleResponse(404, "No clan with given invite found.")
 		} else {
 			md.Err(err)
-			return Err500	
+			return Err500
 		}
 	}
 	r := Res{Clan: clan}
@@ -190,7 +191,7 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
 	}
-	
+
 	var cID int
 	err := md.DB.QueryRow("SELECT clan_id FROM users WHERE id = ?", md.ID()).Scan(&cID)
 	if err != nil {
@@ -200,23 +201,23 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	if cID != 0 {
 		return common.SimpleResponse(403, "already joined a clan")
 	}
-	
+
 	var u struct {
-		ID int `json:"id,omitempty"`
+		ID     int    `json:"id,omitempty"`
 		Invite string `json:"invite,omitempty"`
 	}
-	
+
 	md.Unmarshal(&u)
 	if u.ID == 0 && u.Invite == "" {
 		return common.SimpleResponse(400, "id or invite required")
 	}
-	
+
 	r := struct {
 		common.ResponseBase
 		Clan Clan `json:"clan"`
 	}{}
 	var hInvite bool
-	hinvite:
+hinvite:
 	if u.ID > 0 {
 		var status int
 		err = md.DB.QueryRow("SELECT status FROM clans WHERE id = ?", u.ID).Scan(&status)
@@ -252,7 +253,7 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	} else if u.ID <= 0 {
 		return common.SimpleResponse(400, "invalid id parameter")
 	}
-	
+
 	return r
 }
 
@@ -260,17 +261,17 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
 	}
-	
+
 	u := struct {
 		ID int `json:"id"`
 	}{}
-	
+
 	md.Unmarshal(&u)
-	
+
 	if u.ID <= 0 {
 		return common.SimpleResponse(400, "invalid id")
 	}
-	
+
 	c, err := getClan(u.ID, md)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -279,13 +280,13 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	var msg string
 	if c.Owner == md.ID() {
 		msg = "disbanded"
@@ -300,7 +301,7 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 			return Err500
 		}
 	}
-	
+
 	return common.SimpleResponse(200, msg)
 }
 
@@ -308,7 +309,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
 	}
-	
+
 	var id int
 	err := md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&id)
 	if err != nil {
@@ -318,24 +319,24 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	u := struct {
-		Tag string `json:"tag,omitempty"`
+		Tag         string `json:"tag,omitempty"`
 		Description string `json:"desc,omitempty"`
-		Icon string `json:"icon,omitempty"`
-		Background string `json"bg,omitempty"`
+		Icon        string `json:"icon,omitempty"`
+		Background  string `json"bg,omitempty"`
 	}{}
-	
+
 	md.Unmarshal(&u)
-	
+
 	if len(u.Tag) > 6 || (len(u.Tag) > 0 && len(u.Tag) < 2) {
 		return common.SimpleResponse(400, "invalid tag length")
 	}
-	
+
 	if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ?", u.Tag).Scan(new(int)) != sql.ErrNoRows {
 		return common.SimpleResponse(200, "tag already exists")
 	}
-	
+
 	i := make([]interface{}, 0) // probably a bad idea lol
 	query := "UPDATE clans SET "
 	if u.Tag != "" {
@@ -353,8 +354,13 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		if len(i) != 0 {
 			query += ", "
 		}
-		query += "icon = ?"
-		i = append(i, u.Icon)
+
+		// TODO: this should probably be an uploaded image to be safer..
+		match, _ = regexp.MatchString("^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$", u.Icon)
+		if match {
+			query += "icon = ?"
+			i = append(i, u.Icon)
+		}
 	}
 	if u.Background != "" {
 		if len(i) != 0 {
@@ -363,14 +369,14 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		query += "bg = ?"
 		i = append(i, u.Background)
 	}
-	
+
 	if len(i) == 0 {
 		return common.SimpleResponse(400, "No fields filled.")
 	}
 	query += " WHERE id = ?"
 	i = append(i, id)
 	_, err = md.DB.Exec(query, i...)
-	
+
 	return common.SimpleResponse(200, "n")
 }
 
@@ -378,7 +384,7 @@ func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
 	}
-	
+
 	var id int
 	err := md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&id)
 	if err != nil {
@@ -388,14 +394,14 @@ func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	invite := rs.String(8)
 	_, err = md.DB.Exec("UPDATE clans SET invite = ? WHERE id = ?", invite, id)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	r := struct {
 		common.ResponseBase
 		Invite string `json:"invite"`
@@ -408,32 +414,32 @@ func ClanKickPOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
 	}
-	
+
 	var clan int
 	if md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&clan) == sql.ErrNoRows {
 		return common.SimpleResponse(401, "not authorised")
 	}
-	
+
 	u := struct {
 		User int `json:"user"`
 	}{}
-	
+
 	md.Unmarshal(&u)
-	
+
 	if u.User == 0 {
 		return common.SimpleResponse(400, "bad user id")
 	}
-	
+
 	/*if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND clan_id = ?", md.ID()).Scan(new(int)) == sql.ErrNoRows {
 		return common.SimpleResponse(401, "not authorised")
 	}*/
-	
+
 	_, err := md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ? AND clan_id = ?", u.User, clan)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	return common.SimpleResponse(200, "success")
 }
 
@@ -458,7 +464,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	rows, err := md.DB.Query(userFields + " WHERE users.privileges & 3 AND clan_id = ?", i);
+	rows, err := md.DB.Query(userFields+" WHERE users.privileges & 3 AND clan_id = ?", i)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return struct {

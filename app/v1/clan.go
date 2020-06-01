@@ -333,6 +333,14 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(400, "invalid tag length")
 	}
 
+	// TODO: this should probably be an uploaded image to be safer..
+	if u.Tag != "" {
+		match, _ := regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
+		if !match {
+			return common.SimpleResponse(200, "invalid icon url")
+		}
+	}
+
 	if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ?", u.Tag).Scan(new(int)) != sql.ErrNoRows {
 		return common.SimpleResponse(200, "tag already exists")
 	}
@@ -351,15 +359,11 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		i = append(i, u.Description)
 	}
 	if u.Icon != "" {
-		// TODO: this should probably be an uploaded image to be safer..
-		match, _ := regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
-		if match {
-			if len(i) != 0 {
-				query += ", "
-			}
-			query += "icon = ?"
-			i = append(i, u.Icon)
+		if len(i) != 0 {
+			query += ", "
 		}
+		query += "icon = ?"
+		i = append(i, u.Icon)
 	}
 	if u.Background != "" {
 		if len(i) != 0 {

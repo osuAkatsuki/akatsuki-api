@@ -352,7 +352,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 	if u.Icon != "" {
 		// TODO: this should probably be an uploaded image to be safer..
-		match, _ = regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
+		match, _ := regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
 		if match {
 			if len(i) != 0 {
 				query += ", "

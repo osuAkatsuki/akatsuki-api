@@ -188,13 +188,18 @@ type modeData struct {
 	GlobalLeaderboardRank  *int    `json:"global_leaderboard_rank"`
 	CountryLeaderboardRank *int    `json:"country_leaderboard_rank"`
 }
-type userFullResponse struct {
-	common.ResponseBase
-	userData
+
+type userStats struct {
 	STD           modeData              `json:"std"`
 	Taiko         modeData              `json:"taiko"`
 	CTB           modeData              `json:"ctb"`
 	Mania         modeData              `json:"mania"`
+}
+
+type userFullResponse struct {
+	common.ResponseBase
+	userData
+	Stats         [2]userStats          `json:"stats"`
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
 	Badges        []singleBadge         `json:"badges"`
@@ -212,7 +217,8 @@ type silenceInfo struct {
 	End    common.UnixTimestamp `json:"end"`
 }
 
-func RelaxUserFullGET(md common.MethodData) common.CodeMessager {
+// UserFullGET gets all of an user's information, with one exception: their userpage.
+func UserFullGET(md common.MethodData) common.CodeMessager {
 	shouldRet, whereClause, param := whereClauseUser(md, "users")
 	if shouldRet != nil {
 		return *shouldRet
@@ -228,6 +234,22 @@ SELECT
 	users_stats.custom_badge_icon, users_stats.custom_badge_name, users_stats.can_custom_badge,
 	users_stats.show_custom_badge,
 
+	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
+	users_stats.replays_watched_std, users_stats.total_hits_std,
+	users_stats.avg_accuracy_std, users_stats.pp_std,
+
+	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
+	users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
+	users_stats.avg_accuracy_taiko, users_stats.pp_taiko,
+
+	users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
+	users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
+	users_stats.avg_accuracy_ctb, users_stats.pp_ctb,
+
+	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
+	users_stats.replays_watched_mania, users_stats.total_hits_mania,
+	users_stats.avg_accuracy_mania, users_stats.pp_mania,
+	
 	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
 	rx_stats.replays_watched_std, rx_stats.total_hits_std,
 	rx_stats.avg_accuracy_std, rx_stats.pp_std,
@@ -271,193 +293,37 @@ LIMIT 1
 
 		&b.Icon, &b.Name, &can, &show,
 
-		&r.STD.RankedScore, &r.STD.TotalScore, &r.STD.PlayCount, &r.STD.PlayTime, &r.STD.Total_PlayTime,
-		&r.STD.ReplaysWatched, &r.STD.TotalHits,
-		&r.STD.Accuracy, &r.STD.PP,
+		&r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime, &r.Stats[0].STD.Total_PlayTime,
+		&r.Stats[0].STD.ReplaysWatched, &r.Stats[0].STD.TotalHits,
+		&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP,
 
-		&r.Taiko.RankedScore, &r.Taiko.TotalScore, &r.Taiko.PlayCount, &r.Taiko.PlayTime, &r.Taiko.Total_PlayTime,
-		&r.Taiko.ReplaysWatched, &r.Taiko.TotalHits,
-		&r.Taiko.Accuracy, &r.Taiko.PP,
+		&r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime, &r.Stats[0].Taiko.Total_PlayTime,
+		&r.Stats[0].Taiko.ReplaysWatched, &r.Stats[0].Taiko.TotalHits,
+		&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP,
 
-		&r.CTB.RankedScore, &r.CTB.TotalScore, &r.CTB.PlayCount, &r.CTB.PlayTime, &r.CTB.Total_PlayTime,
-		&r.CTB.ReplaysWatched, &r.CTB.TotalHits,
-		&r.CTB.Accuracy, &r.CTB.PP,
+		&r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime, &r.Stats[0].CTB.Total_PlayTime,
+		&r.Stats[0].CTB.ReplaysWatched, &r.Stats[0].CTB.TotalHits,
+		&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP,
 
-		&r.Mania.RankedScore, &r.Mania.TotalScore, &r.Mania.PlayCount, &r.Mania.PlayTime, &r.Mania.Total_PlayTime,
-		&r.Mania.ReplaysWatched, &r.Mania.TotalHits,
-		&r.Mania.Accuracy, &r.Mania.PP,
+		&r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime, &r.Stats[0].Mania.Total_PlayTime,
+		&r.Stats[0].Mania.ReplaysWatched, &r.Stats[0].Mania.TotalHits,
+		&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP,
 
-		&r.SilenceInfo.Reason, &r.SilenceInfo.End,
-		&r.CMNotes, &r.BanDate, &r.Email,
-	)
-	switch {
-	case err == sql.ErrNoRows:
-		return common.SimpleResponse(404, "That user could not be found!")
-	case err != nil:
-		md.Err(err)
-		return Err500
-	}
+		&r.Stats[1].STD.RankedScore, &r.Stats[1].STD.TotalScore, &r.Stats[1].STD.PlayCount, &r.Stats[1].STD.PlayTime, &r.Stats[1].STD.Total_PlayTime,
+		&r.Stats[1].STD.ReplaysWatched, &r.Stats[1].STD.TotalHits,
+		&r.Stats[1].STD.Accuracy, &r.Stats[1].STD.PP,
 
-	can = can && show && common.UserPrivileges(r.Privileges)&common.UserPrivilegeDonor > 0
-	if can && (b.Name != "" || b.Icon != "") {
-		r.CustomBadge = &b
-	}
+		&r.Stats[1].Taiko.RankedScore, &r.Stats[1].Taiko.TotalScore, &r.Stats[1].Taiko.PlayCount, &r.Stats[1].Taiko.PlayTime, &r.Stats[1].Taiko.Total_PlayTime,
+		&r.Stats[1].Taiko.ReplaysWatched, &r.Stats[1].Taiko.TotalHits,
+		&r.Stats[1].Taiko.Accuracy, &r.Stats[1].Taiko.PP,
 
-	for modeID, m := range [...]*modeData{&r.STD, &r.Taiko, &r.CTB, &r.Mania} {
-		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+		&r.Stats[1].CTB.RankedScore, &r.Stats[1].CTB.TotalScore, &r.Stats[1].CTB.PlayCount, &r.Stats[1].CTB.PlayTime, &r.Stats[1].CTB.Total_PlayTime,
+		&r.Stats[1].CTB.ReplaysWatched, &r.Stats[1].CTB.TotalHits,
+		&r.Stats[1].CTB.Accuracy, &r.Stats[1].CTB.PP,
 
-		if i := relaxboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
-			m.GlobalLeaderboardRank = i
-		}
-		if i := rxcountryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
-			m.CountryLeaderboardRank = i
-		}
-	}
-
-	var follower int
-	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user2 = ?", r.ID)
-	if err != nil {
-		md.Err(err)
-	}
-	for rows.Next() {
-		err := rows.Scan(&follower)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-	}
-	r.Followers = follower
-
-	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon FROM user_badges ub "+
-		"LEFT JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
-	if err != nil {
-		md.Err(err)
-	}
-
-	for rows.Next() {
-		var badge singleBadge
-		err := rows.Scan(&badge.ID, &badge.Name, &badge.Icon)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-		r.Badges = append(r.Badges, badge)
-	}
-
-	if md.User.TokenPrivileges&common.PrivilegeManageUser == 0 {
-		r.CMNotes = nil
-		r.BanDate = nil
-		r.Email = ""
-	}
-
-	rows, err = md.DB.Query("SELECT tb.id, tb.name, tb.icon FROM user_tourmnt_badges tub "+
-		"LEFT JOIN tourmnt_badges tb ON tub.badge = tb.id WHERE user = ?", r.ID)
-	if err != nil {
-		md.Err(err)
-	}
-
-	for rows.Next() {
-		var Tbadge TsingleBadge
-		err := rows.Scan(&Tbadge.ID, &Tbadge.Name, &Tbadge.Icon)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-		r.TBadges = append(r.TBadges, Tbadge)
-	}
-	rows, err = md.DB.Query("SELECT c.id, c.name, c.description, c.tag, c.icon FROM users "+
-		"LEFT JOIN clans c ON users.clan_id = c.id WHERE users.id = ?", r.ID)
-	if err != nil {
-		md.Err(err)
-	}
-
-	for rows.Next() {
-		var clan Clan
-		err = rows.Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-		r.Clan = clan
-	}
-
-	r.Code = 200
-	return r
-}
-
-// UserFullGET gets all of an user's information, with one exception: their userpage.
-func UserFullGET(md common.MethodData) common.CodeMessager {
-	shouldRet, whereClause, param := whereClauseUser(md, "users")
-	if shouldRet != nil {
-		return *shouldRet
-	}
-
-	// Hellest query I've ever done.
-	query := `
-SELECT
-	users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-	users_stats.username_aka, users_stats.country, users_stats.play_style, users_stats.favourite_mode,
-
-	users_stats.custom_badge_icon, users_stats.custom_badge_name, users_stats.can_custom_badge,
-	users_stats.show_custom_badge,
-
-	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
-	users_stats.replays_watched_std, users_stats.total_hits_std,
-	users_stats.avg_accuracy_std, users_stats.pp_std,
-
-	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
-	users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
-	users_stats.avg_accuracy_taiko, users_stats.pp_taiko,
-
-	users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
-	users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
-	users_stats.avg_accuracy_ctb, users_stats.pp_ctb,
-
-	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
-	users_stats.replays_watched_mania, users_stats.total_hits_mania,
-	users_stats.avg_accuracy_mania, users_stats.pp_mania,
-
-	users.silence_reason, users.silence_end,
-	users.notes, users.ban_datetime, users.email
-
-FROM users
-LEFT JOIN users_stats
-ON users.id=users_stats.id
-WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
-LIMIT 1
-`
-	// Fuck.
-	r := userFullResponse{}
-	var (
-		b singleBadge
-
-		can  bool
-		show bool
-	)
-	err := md.DB.QueryRow(query, param).Scan(
-		&r.ID, &r.Username, &r.RegisteredOn, &r.Privileges, &r.LatestActivity,
-
-		&r.UsernameAKA, &r.Country,
-		&r.PlayStyle, &r.FavouriteMode,
-
-		&b.Icon, &b.Name, &can, &show,
-
-		&r.STD.RankedScore, &r.STD.TotalScore, &r.STD.PlayCount, &r.STD.PlayTime, &r.STD.Total_PlayTime,
-		&r.STD.ReplaysWatched, &r.STD.TotalHits,
-		&r.STD.Accuracy, &r.STD.PP,
-
-		&r.Taiko.RankedScore, &r.Taiko.TotalScore, &r.Taiko.PlayCount, &r.Taiko.PlayTime, &r.Taiko.Total_PlayTime,
-		&r.Taiko.ReplaysWatched, &r.Taiko.TotalHits,
-		&r.Taiko.Accuracy, &r.Taiko.PP,
-
-		&r.CTB.RankedScore, &r.CTB.TotalScore, &r.CTB.PlayCount, &r.CTB.PlayTime, &r.CTB.Total_PlayTime,
-		&r.CTB.ReplaysWatched, &r.CTB.TotalHits,
-		&r.CTB.Accuracy, &r.CTB.PP,
-
-		&r.Mania.RankedScore, &r.Mania.TotalScore, &r.Mania.PlayCount, &r.Mania.PlayTime, &r.Mania.Total_PlayTime,
-		&r.Mania.ReplaysWatched, &r.Mania.TotalHits,
-		&r.Mania.Accuracy, &r.Mania.PP,
+		&r.Stats[1].Mania.RankedScore, &r.Stats[1].Mania.TotalScore, &r.Stats[1].Mania.PlayCount, &r.Stats[1].Mania.PlayTime, &r.Stats[1].Mania.Total_PlayTime,
+		&r.Stats[1].Mania.ReplaysWatched, &r.Stats[1].Mania.TotalHits,
+		&r.Stats[1].Mania.Accuracy, &r.Stats[1].Mania.PP,
 
 		&r.SilenceInfo.Reason, &r.SilenceInfo.End,
 		&r.CMNotes, &r.BanDate, &r.Email,
@@ -475,13 +341,24 @@ LIMIT 1
 		r.CustomBadge = &b
 	}
 
-	for modeID, m := range [...]*modeData{&r.STD, &r.Taiko, &r.CTB, &r.Mania} {
+	for modeID, m := range [...]*modeData{&r.Stats[0].STD, &r.Stats[0].Taiko, &r.Stats[0].CTB, &r.Stats[0].Mania} {
 		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
 
 		if i := leaderboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
 			m.GlobalLeaderboardRank = i
 		}
 		if i := countryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
+			m.CountryLeaderboardRank = i
+		}
+	}
+	// I'm sorry for this horribleness but ripple and past mistakes have forced my hand
+	for modeID, m := range [...]*modeData{&r.Stats[1].STD, &r.Stats[1].Taiko, &r.Stats[1].CTB, &r.Stats[1].Mania} {
+		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+
+		if i := relaxboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
+			m.GlobalLeaderboardRank = i
+		}
+		if i := rxcountryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
 			m.CountryLeaderboardRank = i
 		}
 	}

@@ -44,7 +44,7 @@ func ClansGET(md common.MethodData) common.CodeMessager {
 		Clans []Clan `json:"clans"`
 	}
 	r := Res{}
-	rows, err := md.DB.Query("SELECT id, name, description, tag, icon, owner FROM clans " + common.Paginate(md.Query("p"), md.Query("l"), 50))
+	rows, err := md.DB.Query("SELECT id, name, description, tag, icon, owner, status FROM clans " + common.Paginate(md.Query("p"), md.Query("l"), 50))
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -52,7 +52,7 @@ func ClansGET(md common.MethodData) common.CodeMessager {
 	defer rows.Close()
 	for rows.Next() {
 		var c Clan
-		err = rows.Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner)
+		err = rows.Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner, &c.Status)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -523,10 +523,8 @@ func getClan(id int, md common.MethodData) (Clan, error) {
 		return c, nil // lol?
 	}
 	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner, status FROM clans WHERE id = ? LIMIT 1", id).Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner, &c.Status)
-	if err != nil {
-		return c, err
-	}
-	return c, nil
+
+	return c, err
 }
 
 func getUserData(id int, md common.MethodData) (userData, error) {
@@ -535,8 +533,6 @@ func getUserData(id int, md common.MethodData) (userData, error) {
 		return u, nil
 	}
 	err := md.DB.QueryRow("SELECT users.id, users.username, register_datetime, privileges, latest_activity, username_aka, country FROM users LEFT JOIN users_stats ON users.id = users_stats.id WHERE users.id = ? LIMIT 1", id).Scan(&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity, &u.UsernameAKA, &u.Country)
-	if err != nil {
-		return u, err
-	}
-	return u, nil
+
+	return u, err
 }

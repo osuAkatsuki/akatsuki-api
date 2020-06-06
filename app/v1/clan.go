@@ -17,7 +17,10 @@ type Clan struct {
 	Description string `json:"description"`
 	Icon        string `json:"icon"`
 	Owner       int    `json:"owner"`
+	Status		int	   `json:"status"`
 }
+
+const clanMemberLimit = 20
 
 // clansGET retrieves all the clans on this ripple instance.
 func ClansGET(md common.MethodData) common.CodeMessager {
@@ -187,6 +190,13 @@ func ResolveInviteGET(md common.MethodData) common.CodeMessager {
 	return r
 }
 
+func resolveInvite(c string, md *common.MethodData) (id int, err error) {
+	row := md.DB.QueryRow("SELECT id FROM clans where invite = ?", c)
+	err = row.Scan(&id)
+
+	return
+}
+
 func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
@@ -216,14 +226,23 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 		common.ResponseBase
 		Clan Clan `json:"clan"`
 	}{}
-	var hInvite bool
-hinvite:
-	if u.ID > 0 {
-		var status int
-		err = md.DB.QueryRow("SELECT status FROM clans WHERE id = ?", u.ID).Scan(&status)
-		if status == 0 || (status == 2 && !hInvite) {
-			return common.SimpleResponse(200, "closed")
+	var hasInvite bool
+
+	if u.Invite != "" {
+		u.ID, err = resolveInvite(u.Invite, &md)
+		
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return common.SimpleResponse(404, "invalid invite provided")
+			}
+			md.Err(err)
+			return Err500
 		}
+		
+		hasInvite = true
+	}
+	
+	if u.ID > 0 {	
 		c, err := getClan(u.ID, md)
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -232,29 +251,30 @@ hinvite:
 			md.Err(err)
 			return Err500
 		}
-		_, err = md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ?", u.ID, md.ID())
-		r.Clan = c
-		r.Code = 200
-	} else if u.Invite != "" {
-		if len(u.Invite) != 8 {
-			return common.SimpleResponse(400, "invalid invite parameter")
+		
+		if c.Status == 0 || (c.Status == 2 && !hasInvite) {
+			return common.SimpleResponse(403, "closed")
 		}
-		err := md.DB.QueryRow("SELECT id FROM clans WHERE invite = ?", u.Invite).Scan(&u.ID)
+		
+		var count int
+		err = md.DB.QueryRow("SELECT COUNT(id) FROM users WHERE clan_id = ?", u.ID).Scan(&count)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				return common.SimpleResponse(404, "clan not found")
-			}
 			md.Err(err)
 			return Err500
 		}
-		u.Invite = ""
-		hInvite = true
-		goto hinvite
-	} else if u.ID <= 0 {
+		
+		if count >= clanMemberLimit {
+			return common.SimpleResponse(403, "clan is full")
+		}
+		
+		_, err = md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ?", u.ID, md.ID())
+		r.Clan = c
+		r.Code = 200
+		
+		return r
+	} else {
 		return common.SimpleResponse(400, "invalid id parameter")
 	}
-
-	return r
 }
 
 func ClanLeavePOST(md common.MethodData) common.CodeMessager {
@@ -502,7 +522,7 @@ func getClan(id int, md common.MethodData) (Clan, error) {
 	if id == 0 {
 		return c, nil // lol?
 	}
-	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner FROM clans WHERE id = ? LIMIT 1", id).Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner)
+	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner, status FROM clans WHERE id = ? LIMIT 1", id).Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner, &c.Status)
 	if err != nil {
 		return c, err
 	}

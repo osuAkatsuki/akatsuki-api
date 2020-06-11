@@ -218,10 +218,11 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	md.Unmarshal(&u)
+	u.Invite = strings.TrimSpace(u.Invite)
 	if u.ID == 0 && u.Invite == "" {
 		return common.SimpleResponse(400, "id or invite required")
 	}
-
+	
 	r := struct {
 		common.ResponseBase
 		Clan Clan `json:"clan"`

@@ -350,9 +350,6 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	
 	md.Unmarshal(&u)
 	u.Tag = strings.TrimSpace(u.Tag)
-	if len(u.Tag) > 6 || len(u.Tag) < 1 {
-		return common.SimpleResponse(400, "invalid tag length")
-	}
 
 	// TODO: this should probably be an uploaded image to be safer..
 	if u.Icon != "" {
@@ -369,6 +366,9 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	i := make([]interface{}, 0) // probably a bad idea lol
 	query := "UPDATE clans SET "
 	if u.Tag != c.Tag {
+		if len(u.Tag) > 6 || len(u.Tag) < 1 {
+			return common.SimpleResponse(400, "invalid tag length")
+		}
 		query += "tag = ?"
 		i = append(i, u.Tag)
 	}

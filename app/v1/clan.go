@@ -359,15 +359,13 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		}
 	}
 
-	if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
-		return common.SimpleResponse(200, "tag already exists")
-	}
-
 	i := make([]interface{}, 0) // probably a bad idea lol
 	query := "UPDATE clans SET "
 	if u.Tag != c.Tag {
 		if len(u.Tag) > 6 || len(u.Tag) < 1 {
 			return common.SimpleResponse(400, "invalid tag length")
+		} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
+			return common.SimpleResponse(200, "tag already exists")
 		}
 		query += "tag = ?"
 		i = append(i, u.Tag)

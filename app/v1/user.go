@@ -267,7 +267,8 @@ SELECT
 	rx_stats.avg_accuracy_mania, rx_stats.pp_mania,
 
 	users.silence_reason, users.silence_end,
-	users.notes, users.ban_datetime, users.email
+	users.notes, users.ban_datetime, users.email,
+	users.clan_id
 
 FROM users
 LEFT JOIN users_stats
@@ -326,7 +327,7 @@ LIMIT 1
 		&r.Stats[1].Mania.Accuracy, &r.Stats[1].Mania.PP,
 
 		&r.SilenceInfo.Reason, &r.SilenceInfo.End,
-		&r.CMNotes, &r.BanDate, &r.Email,
+		&r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID,
 	)
 	switch {
 	case err == sql.ErrNoRows:
@@ -415,22 +416,11 @@ LIMIT 1
 		r.TBadges = append(r.TBadges, Tbadge)
 	}
 
-	rows, err = md.DB.Query("SELECT c.id, c.name, c.description, c.tag, c.icon FROM users "+
-		"LEFT JOIN clans c ON users.clan_id = c.id WHERE users.id = ?", r.ID)
+	r.Clan, err = getClan(r.Clan.ID, md)
 	if err != nil {
 		md.Err(err)
 	}
-
-	for rows.Next() {
-		var clan Clan
-		err = rows.Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-		r.Clan = clan
-	}
-
+	
 	r.Code = 200
 	return r
 }

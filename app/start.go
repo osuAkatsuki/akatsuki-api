@@ -66,7 +66,7 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 	go tokenUpdater(db)
 
 	// start websocket
-	websockets.Start(red, db)
+	// websockets.Start(red, db)
 
 	// start load achievements
 	go v1.LoadAchievementsEvery(db, time.Minute*10)

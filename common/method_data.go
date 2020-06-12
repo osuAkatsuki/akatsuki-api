@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -57,6 +58,7 @@ func (md MethodData) Err(err error) {
 		"endpoint": string(md.Ctx.RequestURI()),
 		"token":    md.User.Value,
 	}
+	
 	_err(err, tags, user, md.Ctx)
 }
 
@@ -84,7 +86,10 @@ func GenericError(err error) {
 
 func _err(err error, tags map[string]string, user *raven.User, c *fasthttp.RequestCtx) {
 	if RavenClient == nil {
-		fmt.Println("ERROR!!!!")
+		_, file, no, ok := runtime.Caller(2)
+		if ok {
+			fmt.Println("ERROR in", file, "at line", no)
+		}
 		fmt.Println(err)
 		return
 	}

@@ -331,8 +331,8 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(401, "not authorised")
 	}
 
-	var id int
-	err := md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&id)
+	var c Clan
+	err := md.DB.QueryRow("SELECT id, tag, description, icon FROM clans WHERE owner = ?", md.ID()).Scan(&c.ID, &c.Tag, &c.Description, &c.Icon)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return common.SimpleResponse(401, "not authorised")
@@ -347,10 +347,10 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		Icon        string `json:"icon,omitempty"`
 		Background  string `json"bg,omitempty"`
 	}{}
-
+	
 	md.Unmarshal(&u)
-
-	if len(u.Tag) > 6 || (len(u.Tag) > 0 && len(u.Tag) < 2) {
+	u.Tag = strings.TrimSpace(u.Tag)
+	if len(u.Tag) > 6 || len(u.Tag) < 1 {
 		return common.SimpleResponse(400, "invalid tag length")
 	}
 
@@ -362,24 +362,24 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		}
 	}
 
-	if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ?", u.Tag).Scan(new(int)) != sql.ErrNoRows {
+	if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
 		return common.SimpleResponse(200, "tag already exists")
 	}
 
 	i := make([]interface{}, 0) // probably a bad idea lol
 	query := "UPDATE clans SET "
-	if u.Tag != "" {
+	if u.Tag != c.Tag {
 		query += "tag = ?"
 		i = append(i, u.Tag)
 	}
-	if u.Description != "" {
+	if u.Description != c.Description {
 		if len(i) != 0 {
 			query += ", "
 		}
 		query += "description = ?"
 		i = append(i, u.Description)
 	}
-	if u.Icon != "" {
+	if u.Icon != c.Icon {
 		if len(i) != 0 {
 			query += ", "
 		}
@@ -398,7 +398,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(400, "No fields filled.")
 	}
 	query += " WHERE id = ?"
-	i = append(i, id)
+	i = append(i, c.ID)
 	_, err = md.DB.Exec(query, i...)
 
 	return common.SimpleResponse(200, "n")

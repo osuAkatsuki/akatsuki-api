@@ -361,7 +361,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 
 	i := make([]interface{}, 0) // probably a bad idea lol
 	query := "UPDATE clans SET "
-	if u.Tag != c.Tag {
+	if u.Tag != "" && u.Tag != c.Tag {
 		if len(u.Tag) > 6 || len(u.Tag) < 1 {
 			return common.SimpleResponse(400, "invalid tag length")
 		} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
@@ -370,14 +370,14 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		query += "tag = ?"
 		i = append(i, u.Tag)
 	}
-	if u.Description != c.Description {
+	if u.Description != "" && u.Description != c.Description {
 		if len(i) != 0 {
 			query += ", "
 		}
 		query += "description = ?"
 		i = append(i, u.Description)
 	}
-	if u.Icon != c.Icon {
+	if u.Icon != "" && u.Icon != c.Icon {
 		if len(i) != 0 {
 			query += ", "
 		}

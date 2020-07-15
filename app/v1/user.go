@@ -190,10 +190,10 @@ type modeData struct {
 }
 
 type userStats struct {
-	STD           modeData              `json:"std"`
-	Taiko         modeData              `json:"taiko"`
-	CTB           modeData              `json:"ctb"`
-	Mania         modeData              `json:"mania"`
+	STD   modeData `json:"std"`
+	Taiko modeData `json:"taiko"`
+	CTB   modeData `json:"ctb"`
+	Mania modeData `json:"mania"`
 }
 
 type userFullResponse struct {
@@ -420,7 +420,7 @@ LIMIT 1
 	if err != nil {
 		md.Err(err)
 	}
-	
+
 	r.Code = 200
 	return r
 }
@@ -498,27 +498,27 @@ func UserUnweightedPerformanceGET(md common.MethodData) common.CodeMessager {
 	if md.Query("rx") == "1" {
 		tab = "_relax"
 	}
-	
+
 	if err := md.DB.QueryRow("SELECT 1 FROM users WHERE id = ?", id).Scan(&id); err == sql.ErrNoRows {
 		return common.SimpleResponse(404, "user not found")
 	} else if err != nil {
 		md.Err(err)
 		return Err500
 	}
-	
+
 	r := struct {
 		common.ResponseBase
 		performance float32 `json:"performance"`
 	}{}
-	err := md.DB.QueryRow("SELECT SUM(pp) FROM scores" + tab + " WHERE userid = ? AND completed = 3 AND mode = ?", id, mode).Scan(&r.performance)
+	err := md.DB.QueryRow("SELECT SUM(pp) FROM scores"+tab+" WHERE userid = ? AND completed = 3 AND mode = ?", id, mode).Scan(&r.performance)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Println("User", id, "has no scores in scores" + tab, "???")
+			fmt.Println("User", id, "has no scores in scores"+tab, "???")
 			return r
 		}
 		return Err500
 	}
-	
+
 	r.Code = 200
 	return r
 }

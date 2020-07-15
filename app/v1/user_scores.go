@@ -64,7 +64,7 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 	if cm != nil {
 		return *cm
 	}
-	
+
 	mc := genModeClause(md)
 	// For all modes that have PP, we leave out 0 PP scores.
 

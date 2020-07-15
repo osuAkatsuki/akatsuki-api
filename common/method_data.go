@@ -58,7 +58,7 @@ func (md MethodData) Err(err error) {
 		"endpoint": string(md.Ctx.RequestURI()),
 		"token":    md.User.Value,
 	}
-	
+
 	_err(err, tags, user, md.Ctx)
 }
 

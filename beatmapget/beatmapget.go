@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"zxq.co/ripple/rippleapi/common"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/thehowl/go-osuapi.v1"
+	"zxq.co/ripple/rippleapi/common"
 )
 
 // Expire is the duration after which a beatmap expires.

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"zxq.co/ripple/rippleapi/common"
 	"gopkg.in/thehowl/go-osuapi.v1"
+	"zxq.co/ripple/rippleapi/common"
 )
 
 // Set checks if an update is required for all beatmaps in a set.

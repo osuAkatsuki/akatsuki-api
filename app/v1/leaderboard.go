@@ -69,9 +69,9 @@ func getLbUsersDb(p, l int, rx bool, m, sort string, md *common.MethodData) []le
 		}
 	}
 	if rx {
-		query = fmt.Sprintf(rxUserQuery + "WHERE (users.privileges & 3) >= 3 " + order + " LIMIT %d, %d", m, p * l, l)
+		query = fmt.Sprintf(rxUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
 	} else {
-		query = fmt.Sprintf(lbUserQuery + "WHERE (users.privileges & 3) >= 3 " + order + " LIMIT %d, %d", m, p * l, l)
+		query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
 	}
 	rows, err := md.DB.Query(query)
 	if err != nil {
@@ -116,7 +116,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	if sort == "" {
 		sort = "pp"
 	}
-	
+
 	if sort != "pp" {
 		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, m, sort, &md)}
 		resp.Code = 200

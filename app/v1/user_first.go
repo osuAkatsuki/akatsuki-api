@@ -42,7 +42,7 @@ func UserFirstGET(md common.MethodData) common.CodeMessager {
 		beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
 		beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 		beatmaps.ranked_status_freezed, beatmaps.latest_update
-		FROM %[1]s
+		FROM scores_first
 		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_first.beatmap_md5
 		INNER JOIN %[1]s ON %[1]s.id = scores_first.scoreid WHERE userid = ? AND mode = ? AND rx = ?`, table)
 

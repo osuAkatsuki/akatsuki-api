@@ -44,7 +44,7 @@ func UserFirstGET(md common.MethodData) common.CodeMessager {
 		beatmaps.ranked_status_freezed, beatmaps.latest_update
 		FROM scores_first
 		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_first.beatmap_md5
-		INNER JOIN %[1]s ON %[1]s.id = scores_first.scoreid WHERE userid = ? AND mode = ? AND rx = ?`, table)
+		INNER JOIN %[1]s ON %[1]s.id = scores_first.scoreid WHERE scores_first.userid = ? AND mode = ? AND rx = ?`, table)
 
 	rows, err := md.DB.Query(query, id, mode, rx)
 	if err != nil {

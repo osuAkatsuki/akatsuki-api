@@ -22,14 +22,15 @@ type Clan struct {
 
 const clanMemberLimit = 20
 
+type SingleClanResponse struct {
+	common.ResponseBase
+	Clan `json:"clan"`
+}
+
 // clansGET retrieves all the clans on this ripple instance.
 func ClansGET(md common.MethodData) common.CodeMessager {
 	if md.Query("id") != "" {
-		type Res struct {
-			common.ResponseBase
-			Clan Clan `json:"clan"`
-		}
-		r := Res{}
+		r := SingleClanResponse{}
 		var err error
 		r.Clan, err = getClan(common.Int(md.Query("id")), md)
 		if err != nil {
@@ -359,47 +360,25 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		}
 	}
 
-	i := make([]interface{}, 0) // probably a bad idea lol
-	query := "UPDATE clans SET "
-	if u.Tag != "" && u.Tag != c.Tag {
-		if len(u.Tag) > 6 || len(u.Tag) < 1 {
-			return common.SimpleResponse(400, "invalid tag length")
-		} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
-			return common.SimpleResponse(200, "tag already exists")
-		}
-		query += "tag = ?"
-		i = append(i, u.Tag)
-	}
-	if u.Description != "" && u.Description != c.Description {
-		if len(i) != 0 {
-			query += ", "
-		}
-		query += "description = ?"
-		i = append(i, u.Description)
-	}
-	if u.Icon != "" && u.Icon != c.Icon {
-		if len(i) != 0 {
-			query += ", "
-		}
-		query += "icon = ?"
-		i = append(i, u.Icon)
-	}
-	if u.Background != "" {
-		if len(i) != 0 {
-			query += ", "
-		}
-		query += "bg = ?"
-		i = append(i, u.Background)
+	if len(u.Tag) > 6 || len(u.Tag) < 1 {
+		return common.SimpleResponse(400, "The given tag is too short or too long")
+	} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
+		return common.SimpleResponse(403, "Another Clan has already taken this Tag")
 	}
 
-	if len(i) == 0 {
-		return common.SimpleResponse(400, "No fields filled.")
-	}
-	query += " WHERE id = ?"
-	i = append(i, c.ID)
-	_, err = md.DB.Exec(query, i...)
+	_, err = md.DB.Exec("UPDATE clans SET tag = ?, description = ?, icon = ?, background = ? WHERE id = ?", u.Tag, u.Description, u.Icon, u.Background, c.ID)
 
-	return common.SimpleResponse(200, "n")
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	return SingleClanResponse{
+		common.ResponseBase{
+			Code: 200,
+		},
+		c,
+	}
 }
 
 func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {

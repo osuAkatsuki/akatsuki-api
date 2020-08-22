@@ -36,12 +36,10 @@ func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	
 	table := "scores"
 	switch rx {
-	case "1":
-	case "true":
-	case "True":
+	case "1","true","True":
 		table = "scores_relax"
 	}
-	
+	fmt.Println(table)
 	var sb = table + ".score"
 	if rankable(query(c, "m")) {
 		sb = table + ".pp"

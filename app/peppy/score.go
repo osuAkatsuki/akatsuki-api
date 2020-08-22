@@ -62,7 +62,7 @@ SELECT
 	%[1]s.50_count, %[1]s.misses_count, %[1]s.gekis_count, %[1]s.katus_count,
 	%[1]s.max_combo, %[1]s.full_combo, %[1]s.mods, users.id, %[1]s.time, %[1]s.pp,
 	%[1]s.accuracy
-FROM scores
+FROM %[1]s
 INNER JOIN users ON users.id = %[1]s.userid
 WHERE %[1]s.completed = '3'
   AND users.privileges & 1 > 0

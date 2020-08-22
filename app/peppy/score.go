@@ -2,6 +2,7 @@ package peppy
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -30,9 +31,20 @@ func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		json(c, 200, defaultResponse)
 		return
 	}
-	var sb = "scores.score"
+	
+	rx := query(c, "rx")
+	
+	table := "scores"
+	switch rx {
+	case "1":
+	case "true":
+	case "True":
+		table = "scores_relax"
+	}
+	
+	var sb = table + ".score"
 	if rankable(query(c, "m")) {
-		sb = "scores.pp"
+		sb = table + ".pp"
 	}
 	var (
 		extraWhere  string
@@ -44,21 +56,21 @@ func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		extraParams = append(extraParams, p)
 	}
 	mods := common.Int(query(c, "mods"))
-	rows, err := db.Query(`
+	rows, err := db.Query(fmt.Sprintf(`
 SELECT
-	scores.id, scores.score, users.username, scores.300_count, scores.100_count,
-	scores.50_count, scores.misses_count, scores.gekis_count, scores.katus_count,
-	scores.max_combo, scores.full_combo, scores.mods, users.id, scores.time, scores.pp,
-	scores.accuracy
+	%[1]s.id, %[1]s.score, users.username, %[1]s.300_count, %[1]s.100_count,
+	%[1]s.50_count, %[1]s.misses_count, %[1]s.gekis_count, %[1]s.katus_count,
+	%[1]s.max_combo, %[1]s.full_combo, %[1]s.mods, users.id, %[1]s.time, %[1]s.pp,
+	%[1]s.accuracy
 FROM scores
-INNER JOIN users ON users.id = scores.userid
-WHERE scores.completed = '3'
+INNER JOIN users ON users.id = %[1]s.userid
+WHERE %[1]s.completed = '3'
   AND users.privileges & 1 > 0
-  AND scores.beatmap_md5 = ?
-  AND scores.play_mode = ?
-  AND scores.mods & ? = ?
+  AND %[1]s.beatmap_md5 = ?
+  AND %[1]s.play_mode = ?
+  AND %[1]s.mods & ? = ?
   `+extraWhere+`
-ORDER BY `+sb+` DESC LIMIT `+strconv.Itoa(common.InString(1, query(c, "limit"), 100, 50)),
+ORDER BY `+sb+` DESC LIMIT `+strconv.Itoa(common.InString(1, query(c, "limit"), 100, 50)), table),
 		append([]interface{}{beatmapMD5, genmodei(query(c, "m")), mods, mods}, extraParams...)...)
 	if err != nil {
 		common.Err(c, err)

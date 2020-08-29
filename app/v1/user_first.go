@@ -26,9 +26,11 @@ func UserFirstGET(md common.MethodData) common.CodeMessager {
 
 	r := struct {
 		common.ResponseBase
+		Total  int         `json:"total"`
 		Scores []userScore `json:"scores"`
 	}{}
 
+	md.DB.Get(&r.Total, "SELECT COUNT(scoreid) FROM scores_first WHERE userid = ? AND mode = ? AND rx = ?", id, mode, rx)
 	query := fmt.Sprintf(`SELECT
 		%[1]s.id, %[1]s.beatmap_md5, %[1]s.score,
 		%[1]s.max_combo, %[1]s.full_combo, %[1]s.mods,

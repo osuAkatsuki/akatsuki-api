@@ -66,13 +66,13 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 	}
 
 	mc := genModeClause(md)
-	// For all modes that have PP, we leave out 0 PP scores.
 
 	if common.Int(md.Query("rx")) != 0 {
 		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
 		return relaxPuts(md, fmt.Sprintf(
 			`WHERE
-				scores_relax.completed = '3'
+				scores_relax.completed = 3
+				AND beatmaps.ranked IN (2, 3)
 				AND %s
 				%s
 				AND `+md.User.OnlyUserPublic(true)+`
@@ -82,7 +82,8 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 	} else {
 		return scoresPuts(md, fmt.Sprintf(
 			`WHERE
-				scores.completed = '3'
+				scores.completed = 3
+				AND beatmaps.ranked IN (2, 3)
 				AND %s
 				%s
 				AND `+md.User.OnlyUserPublic(true)+`
@@ -116,7 +117,7 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 				%s
 				AND `+md.User.OnlyUserPublic(true)+`
 			ORDER BY scores.id DESC %s`,
-			wc, genModeClause(md), common.Paginate(md.Query("p"), md.Query("l"), 100),
+			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
 		), param)
 	}
 }

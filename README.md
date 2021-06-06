@@ -9,16 +9,24 @@ This is the source code for Akatsuki's API.
 
 # Setting up
 `go get -u -f -d github.com/osuAkatsuki/akatsuki-api`
+
 `cd $GOPATH/src/github.com/osuAkatsuki/akatsuki-api`
 
 Download all dependencies:
-`go mod download`
+
+  `go mod download`
+
+
 Compile:
-`go build`
+
+  `go build`
+
 Run API
 - On Windows:
-`akatsuki-api` (located in `./akatsuki-api.exe`)
+
+  `akatsuki-api` (located in `./akatsuki-api.exe`)
 - On Linux:
-`./akatsuki-api`
+
+  `./akatsuki-api`
 
 Then configure in `api.conf` and run the API again.

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 
-	"zxq.co/ripple/rippleapi/common"
 	"zxq.co/ripple/schiavolib"
 )
 

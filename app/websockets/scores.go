@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/osuAkatsuki/akatsuki-api/app/v1"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/thehowl/go-osuapi.v1"
-	"zxq.co/ripple/rippleapi/app/v1"
-	"zxq.co/ripple/rippleapi/common"
 	"zxq.co/x/getrank"
 )
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
-	"zxq.co/ripple/rippleapi/common"
 )
 
 // Method wraps an API method to a HandlerFunc.

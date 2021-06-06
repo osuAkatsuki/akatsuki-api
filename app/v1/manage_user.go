@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"zxq.co/ripple/rippleapi/common"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
 type setAllowedData struct {

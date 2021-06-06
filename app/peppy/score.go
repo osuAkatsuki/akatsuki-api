@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"zxq.co/ripple/rippleapi/common"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/valyala/fasthttp"
@@ -31,12 +31,12 @@ func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		json(c, 200, defaultResponse)
 		return
 	}
-	
+
 	rx := query(c, "rx")
-	
+
 	table := "scores"
 	switch rx {
-	case "1","true","True":
+	case "1", "true", "True":
 		table = "scores_relax"
 	}
 	fmt.Println(table)

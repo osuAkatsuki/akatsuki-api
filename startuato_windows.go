@@ -9,8 +9,8 @@ import (
 	"log"
 	"net"
 
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
-	"zxq.co/ripple/rippleapi/common"
 )
 
 func startuato(hn fasthttp.RequestHandler) {

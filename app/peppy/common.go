@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
-	"zxq.co/ripple/rippleapi/common"
 )
 
 var modes = []string{"std", "taiko", "ctb", "mania"}

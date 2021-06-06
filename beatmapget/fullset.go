@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/thehowl/go-osuapi.v1"
-	"zxq.co/ripple/rippleapi/common"
 )
 
 // Set checks if an update is required for all beatmaps in a set.

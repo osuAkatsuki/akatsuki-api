@@ -8,9 +8,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/rcrowley/goagain"
 	"github.com/valyala/fasthttp"
-	"zxq.co/ripple/rippleapi/common"
 	"zxq.co/ripple/schiavolib"
 )
 

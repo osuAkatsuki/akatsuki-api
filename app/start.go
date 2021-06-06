@@ -8,12 +8,12 @@ import (
 	fhr "github.com/buaazp/fasthttprouter"
 	"github.com/getsentry/raven-go"
 	"github.com/jmoiron/sqlx"
+	"github.com/osuAkatsuki/akatsuki-api/app/internals"
+	"github.com/osuAkatsuki/akatsuki-api/app/peppy"
+	"github.com/osuAkatsuki/akatsuki-api/app/v1"
+	"github.com/osuAkatsuki/akatsuki-api/app/websockets"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/redis.v5"
-	"zxq.co/ripple/rippleapi/app/internals"
-	"zxq.co/ripple/rippleapi/app/peppy"
-	"zxq.co/ripple/rippleapi/app/v1"
-	"zxq.co/ripple/rippleapi/app/websockets"
-	"zxq.co/ripple/rippleapi/common"
 )
 
 var (

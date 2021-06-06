@@ -3,7 +3,7 @@ package v1
 import (
 	"database/sql"
 
-	"zxq.co/ripple/rippleapi/common"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
 type singleBadge struct {

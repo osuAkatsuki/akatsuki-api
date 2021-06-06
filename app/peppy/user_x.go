@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
 	"gopkg.in/thehowl/go-osuapi.v1"
-	"zxq.co/ripple/rippleapi/common"
 	"zxq.co/x/getrank"
 )
 

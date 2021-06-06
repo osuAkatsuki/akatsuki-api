@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/thehowl/go-osuapi"
 	"github.com/valyala/fasthttp"
 	"gopkg.in/redis.v5"
 	"zxq.co/ripple/ocl"
-	"zxq.co/ripple/rippleapi/common"
 )
 
 // R is a redis client.

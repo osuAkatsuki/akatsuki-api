@@ -3,7 +3,7 @@ package v1
 import (
 	"database/sql"
 	"fmt"
-	"regexp"
+	// "regexp"
 	"strconv"
 	"strings"
 
@@ -21,7 +21,14 @@ type Clan struct {
 	Status      int    `json:"status"`
 }
 
-const clanMemberLimit = 20
+const (
+	ClanClosed = iota
+	ClanOpen
+	ClanInviteOnly
+	ClanRequestsOpen
+)
+
+const clanMemberLimit = 25
 
 type SingleClanResponse struct {
 	common.ResponseBase
@@ -272,7 +279,7 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 		}
 
 		var count int
-		err = md.DB.QueryRow("SELECT COUNT(id) FROM users WHERE clan_id = ?", u.ID).Scan(&count)
+		err = md.DB.QueryRow("SELECT COUNT(id) FROM users WHERE clan_id = ?", c.ID).Scan(&count)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -281,8 +288,12 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 		if count >= clanMemberLimit {
 			return common.SimpleResponse(403, "clan is full")
 		}
-
-		_, err = md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ?", u.ID, md.ID())
+		
+		if c.Status == 3 {
+			_, err = md.DB.Exec("INSERT INTO clan_requests VALUES (?, ?, DEFAULT) ON DUPLICATE KEY UPDATE time = NOW()", c.ID, md.ID())
+			return common.SimpleResponse(200, "join request sent")
+		}
+		_, err = md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ?", c.ID, md.ID())
 		r.Clan = c
 		r.Code = 200
 
@@ -358,28 +369,29 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	u := struct {
 		Tag         string `json:"tag,omitempty"`
 		Description string `json:"desc,omitempty"`
-		Icon        string `json:"icon,omitempty"`
+		// Icon        string `json:"icon,omitempty"`
 		Background  string `json"bg,omitempty"`
+		Status      int    `json:"status"`
 	}{}
 
 	md.Unmarshal(&u)
 	u.Tag = strings.TrimSpace(u.Tag)
 
 	// TODO: this should probably be an uploaded image to be safer..
-	if u.Icon != "" {
+	/* if u.Icon != "" {
 		match, _ := regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
 		if !match {
 			return common.SimpleResponse(200, "invalid icon url")
 		}
-	}
-
-	if len(u.Tag) > 6 || len(u.Tag) < 1 {
+	} */
+	rss := []rune(u.Tag)
+	if len(rss) > 6 || len(rss) < 1 {
 		return common.SimpleResponse(400, "The given tag is too short or too long")
 	} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
 		return common.SimpleResponse(403, "Another Clan has already taken this Tag")
 	}
 
-	_, err = md.DB.Exec("UPDATE clans SET tag = ?, description = ?, icon = ?, background = ? WHERE id = ?", u.Tag, u.Description, u.Icon, u.Background, c.ID)
+	_, err = md.DB.Exec("UPDATE clans SET tag = ?, description = ?, background = ?, status = ? WHERE id = ?", u.Tag, u.Description, u.Background, u.Status, c.ID)
 
 	if err != nil {
 		md.Err(err)

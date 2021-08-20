@@ -573,3 +573,53 @@ func UserLookupGET(md common.MethodData) common.CodeMessager {
 	r.Code = 200
 	return r
 }
+
+func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
+	user := common.Int(md.Query("u"))
+	if user == 0 {
+		return common.SimpleResponse(401, "Invalid user id!")
+	}
+	
+	relax := common.Int(md.Query("rx")) > 0
+	mode := common.Int(md.Query("m")) & 0b11
+
+	type BeatmapPlaycount struct {
+		Count   int     `json:"playcount"`
+		Beatmap beatmap `json:"beatmap"`
+	}
+
+	type MostPlayedBeatmaps struct {
+		common.ResponseBase
+		BeatmapsPlaycount []BeatmapPlaycount `json:"most_played_beatmaps"`
+	}
+	
+	// i will query some additional info about the beatmap for later?
+	rows, err := md.DB.Query(
+		`SELECT beatmaps_playcounts.count,
+		beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
+		beatmaps.song_name, beatmaps.ranked FROM beatmaps_playcounts
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = beatmaps_playcounts.beatmap
+		WHERE user = ? AND relax = ? AND beatmaps_playcounts.mode = ? ORDER BY count DESC`, user, relax, mode)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	defer rows.Close()
+	
+	r := MostPlayedBeatmaps{}
+	
+	for rows.Next() {
+		bmc := BeatmapPlaycount{}
+	
+		err = rows.Scan(&bmc.Count, &bmc.Beatmap.BeatmapID, &bmc.Beatmap.BeatmapsetID, 
+			&bmc.Beatmap.BeatmapMD5, &bmc.Beatmap.SongName, &bmc.Beatmap.Ranked)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+		
+		r.BeatmapsPlaycount = append(r.BeatmapsPlaycount, bmc)
+	}
+	
+	return r
+}

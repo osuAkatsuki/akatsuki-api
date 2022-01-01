@@ -25,35 +25,19 @@ type SleaderboardResponse struct {
 	Users []SleaderboardUser `json:"users"`
 }
 
-const SrxUserQuery = `
-		SELECT
-			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-			rx_stats.username_aka, users_stats.country,
-			rx_stats.play_style, rx_stats.favourite_mode,
-
-			rx_stats.ranked_score_%[1]s, rx_stats.total_score_%[1]s, rx_stats.playcount_%[1]s,
-			rx_stats.replays_watched_%[1]s, rx_stats.total_hits_%[1]s,
-			rx_stats.avg_accuracy_%[1]s
-		FROM users
-		INNER JOIN rx_stats ON rx_stats.id = users.id
-		INNER JOIN users_stats ON users_stats.id = users.id
-		WHERE users.id IN (?)
-		`
-
 const SlbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 
-			users_stats.username_aka, users_stats.country,
-			users_stats.play_style, users_stats.favourite_mode,
+			users.username_aka, users.country,
+			stats.play_style, stats.favourite_mode,
 
-			users_stats.ranked_score_%[1]s, users_stats.total_score_%[1]s, users_stats.playcount_%[1]s,
-			users_stats.replays_watched_%[1]s, users_stats.total_hits_%[1]s,
-			users_stats.avg_accuracy_%[1]s
+			stats.rscore, stats.tscore, stats.plays,
+			stats.replay_views, stats.total_hits,
+			stats.acc
 		FROM users
-		INNER JOIN users_stats ON users_stats.id = users.id
-		WHERE users.id IN (?)
+		INNER JOIN stats USING(id)
+		WHERE users.id IN (?) AND scores.mode = ?
 		`
 
 // LeaderboardGET gets the leaderboard.
@@ -88,11 +72,8 @@ func SLeaderboardGET(md common.MethodData) common.CodeMessager {
 		return resp
 	}
 
-	query := fmt.Sprintf(lbUserQuery+` ORDER BY users_stats.ranked_score_%[1]s DESC`, m)
-	if common.Int(md.Query("rx")) != 0 {
-		query = fmt.Sprintf(rxUserQuery+` ORDER BY rx_stats.ranked_score_%[1]s DESC`, m)
-	}
-	query, params, _ := sqlx.In(query, results)
+	query := fmt.Sprintf(lbUserQuery+` ORDER BY stats.rscore DESC`, m)
+	query, params, _ := sqlx.In(query, append(results, string(common.Int(md.Query("rx")) + common.Int(md.Query("mode")))))
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)

@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/app/internals"
 	"github.com/osuAkatsuki/akatsuki-api/app/peppy"
-	"github.com/osuAkatsuki/akatsuki-api/app/v1"
+	v1 "github.com/osuAkatsuki/akatsuki-api/app/v1"
 	"github.com/osuAkatsuki/akatsuki-api/app/websockets"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/redis.v5"
@@ -138,9 +138,6 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/clans/settings", v1.ClanSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/kick", v1.ClanKickPOST, common.PrivilegeWrite)
 
-		// Admin: RAP
-		r.POSTMethod("/api/v1/rap/log", v1.RAPLogPOST)
-
 		// Admin: beatmap
 		r.POSTMethod("/api/v1/beatmaps/set_status", v1.BeatmapSetStatusPOST, common.PrivilegeBeatmap)
 		r.Method("/api/v1/beatmaps/ranked_frozen_full", v1.BeatmapRankedFrozenFullGET, common.PrivilegeBeatmap)
@@ -149,7 +146,6 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/users/manage/set_allowed", v1.UserManageSetAllowedPOST, common.PrivilegeManageUser)
 		r.POSTMethod("/api/v1/users/edit", v1.UserEditPOST, common.PrivilegeManageUser)
 		r.POSTMethod("/api/v1/users/wipe", v1.WipeUserPOST, common.PrivilegeManageUser)
-		r.POSTMethod("/api/v1/scores/reports", v1.ScoreReportPOST, common.PrivilegeManageUser)
 		r.Method("/api/v1/users/unweighted", v1.UserUnweightedPerformanceGET, common.PrivilegeManageUser)
 
 		// M E T A

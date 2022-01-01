@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
-	"zxq.co/ripple/semantic-icons-ugc"
+	semanticiconsugc "zxq.co/ripple/semantic-icons-ugc"
 )
 
 type donorInfoResponse struct {
@@ -18,14 +18,14 @@ type donorInfoResponse struct {
 func UsersSelfDonorInfoGET(md common.MethodData) common.CodeMessager {
 	var r donorInfoResponse
 	var privileges uint64
-	err := md.DB.QueryRow("SELECT privileges, donor_expire FROM users WHERE id = ?", md.ID()).
+	err := md.DB.QueryRow("SELECT priv, donor_end FROM users WHERE id = ?", md.ID()).
 		Scan(&privileges, &r.Expiration)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
-	r.HasDonor = common.UserPrivileges(privileges)&common.UserPrivilegeDonor > 0
-	r.HasPremium = common.UserPrivileges(privileges)&common.UserPrivilegePremium > 0
+	r.HasDonor = common.Privileges(privileges) & common.SUPPORTER > 0
+	r.HasPremium = common.Privileges(privileges) & common.PREMIUM > 0
 	r.Code = 200
 	return r
 }
@@ -42,7 +42,7 @@ func UsersSelfFavouriteModeGET(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return f
 	}
-	err := md.DB.QueryRow("SELECT users_stats.favourite_mode FROM users_stats WHERE id = ?", md.ID()).
+	err := md.DB.QueryRow("SELECT preferred_mode FROM users WHERE id = ?", md.ID()).
 		Scan(&f.FavouriteMode)
 	if err != nil {
 		md.Err(err)
@@ -72,7 +72,7 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	// input sanitisation
-	if md.User.UserPrivileges&common.UserPrivilegeDonor > 0 {
+	if md.User.UserPrivileges & common.DONATOR > 0 {
 		d.CustomBadge.Name = common.SanitiseString(d.CustomBadge.Name)
 		d.CustomBadge.Icon = sanitiseIconName(d.CustomBadge.Icon)
 	} else {
@@ -82,13 +82,12 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
 	q := new(common.UpdateQuery).
-		Add("s.username_aka", d.UsernameAKA).
-		Add("s.favourite_mode", d.FavouriteMode).
-		Add("s.custom_badge_name", d.CustomBadge.Name).
-		Add("s.custom_badge_icon", d.CustomBadge.Icon).
-		Add("s.show_custom_badge", d.CustomBadge.Show).
-		Add("s.play_style", d.PlayStyle)
-	_, err := md.DB.Exec("UPDATE users u, users_stats s SET "+q.Fields()+" WHERE s.id = u.id AND u.id = ?", append(q.Parameters, md.ID())...)
+		Add("u.username_aka", d.UsernameAKA).
+		Add("u.preferred_mode", d.FavouriteMode).
+		Add("u.custom_badge_name", d.CustomBadge.Name).
+		Add("u.custom_badge_icon", d.CustomBadge.Icon).
+		Add("u.play_style", d.PlayStyle)
+	_, err := md.DB.Exec("UPDATE users u SET "+q.Fields()+" WHERE u.id = ?", append(q.Parameters, md.ID())...)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -128,33 +127,25 @@ type userSettingsResponse struct {
 // UsersSelfSettingsGET allows to get "sensitive" information about the current user.
 func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	var r userSettingsResponse
-	var ccb bool
 	r.Code = 200
 	err := md.DB.QueryRow(`
 SELECT
 	u.id, u.username,
-	u.email, s.username_aka, s.favourite_mode,
-	s.show_custom_badge, s.custom_badge_icon,
-	s.custom_badge_name, s.can_custom_badge,
-	s.play_style, u.flags
+	u.email, s.username_aka, u.favourite_mode,
+	u.custom_badge_icon,
+	u.custom_badge_name,
+	u.play_style
 FROM users u
-LEFT JOIN users_stats s ON u.id = s.id
 WHERE u.id = ?`, md.ID()).Scan(
 		&r.ID, &r.Username,
 		&r.Email, &r.UsernameAKA, &r.FavouriteMode,
-		&r.CustomBadge.Show, &r.CustomBadge.Icon,
-		&r.CustomBadge.Name, &ccb,
-		&r.PlayStyle, &r.Flags,
+		&r.CustomBadge.Icon,
+		&r.CustomBadge.Name,
+		&r.PlayStyle,
 	)
 	if err != nil {
 		md.Err(err)
 		return Err500
-	}
-	if !ccb {
-		r.CustomBadge = struct {
-			singleBadge
-			Show *bool `json:"show"`
-		}{}
 	}
 	return r
 }

@@ -10,6 +10,23 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
+func rapLog(md common.MethodData, message string) {
+	ua := string(md.Ctx.UserAgent())
+	if len(ua) > 20 {
+		ua = ua[:20] + "…"
+	}
+	through := "API"
+	if ua != "" {
+		through += " (" + ua + ")"
+	}
+
+	_, err := md.DB.Exec("INSERT INTO rap_logs(userid, text, datetime, through) VALUES (?, ?, ?, ?)",
+		md.User.UserID, message, time.Now().Unix(), through)
+	if err != nil {
+		md.Err(err)
+	}
+}
+
 type setAllowedData struct {
 	UserID  int `json:"user_id"`
 	Allowed int `json:"allowed"`
@@ -27,13 +44,11 @@ func UserManageSetAllowedPOST(md common.MethodData) common.CodeMessager {
 	var banDatetime int64
 	var privsSet string
 	if data.Allowed == 0 {
-		banDatetime = time.Now().Unix()
-		privsSet = "privileges = (privileges & ~3)"
+		privsSet = "priv = (priv & ~3)"
 	} else {
-		banDatetime = 0
-		privsSet = "privileges = (privileges | 3)"
+		privsSet = "priv = (priv | 3)"
 	}
-	_, err := md.DB.Exec("UPDATE users SET "+privsSet+", ban_datetime = ? WHERE id = ?", banDatetime, data.UserID)
+	_, err := md.DB.Exec("UPDATE users SET "+privsSet+" WHERE id = ?", banDatetime, data.UserID)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -41,12 +56,10 @@ func UserManageSetAllowedPOST(md common.MethodData) common.CodeMessager {
 	rapLog(md, fmt.Sprintf("changed UserID:%d's allowed to %d. This was done using the API's terrible ManageSetAllowed.", data.UserID, data.Allowed))
 	go fixPrivileges(data.UserID, md.DB)
 	query := `
-SELECT users.id, users.username, register_datetime, privileges,
-	latest_activity, users_stats.username_aka,
-	users_stats.country
+SELECT users.id, users.name, creation_time, priv,
+	latest_activity, username_aka,
+	country
 FROM users
-LEFT JOIN users_stats
-ON users.id=users_stats.id
 WHERE users.id=?
 LIMIT 1`
 	return userPutsSingle(md, md.DB.QueryRowx(query, data.UserID))
@@ -54,7 +67,7 @@ LIMIT 1`
 
 type userEditData struct {
 	ID          int     `json:"id"`
-	Username    *string `json:"username"`
+	Username    *string `json:"name"`
 	UsernameAKA *string `json:"username_aka"`
 	//Privileges    *uint64      `json:"privileges"`
 	Country       *string      `json:"country"`
@@ -79,7 +92,7 @@ func UserEditPOST(md common.MethodData) common.CodeMessager {
 		Username   string
 		Privileges uint64
 	}
-	err := md.DB.Get(&prevUser, "SELECT username, privileges FROM users WHERE id = ? LIMIT 1", data.ID)
+	err := md.DB.Get(&prevUser, "SELECT name, priv FROM users WHERE id = ? LIMIT 1", data.ID)
 
 	switch err {
 	case nil: // carry on
@@ -97,11 +110,11 @@ func UserEditPOST(md common.MethodData) common.CodeMessager {
 	// totally did not realise I had to update some fields in users_stats as well
 	// and just copy pasting the above code by prefixing "stats" to every
 	// variable
-	const statsInitQuery = "UPDATE users_stats SET\n"
+	const statsInitQuery = "UPDATE stats SET\n"
 	statsQ := statsInitQuery
 	var statsArgs []interface{}
 
-	if common.UserPrivileges(prevUser.Privileges)&common.AdminPrivilegeManageUsers != 0 &&
+	if common.Privileges(prevUser.Privileges) & common.ADMINISTRATOR != 0 &&
 		data.ID != md.User.UserID {
 		return common.SimpleResponse(403, "Can't edit that user")
 	}
@@ -117,11 +130,11 @@ func UserEditPOST(md common.MethodData) common.CodeMessager {
 			UserID      int    `json:"userID"`
 			NewUsername string `json:"newUsername"`
 		}{data.ID, *data.Username})
-		md.R.Publish("peppy:change_username", string(jsonData))
+		md.R.Publish("peppy:change_username", string(jsonData)) // TODO
 	}
 	if data.UsernameAKA != nil {
-		statsQ += "username_aka = ?,\n"
-		statsArgs = append(statsArgs, *data.UsernameAKA)
+		q += "username_aka = ?,\n"
+		args = append(args, *data.UsernameAKA)
 	}
 	/*if data.Privileges != nil {
 		q += "privileges = ?,\n"
@@ -136,17 +149,17 @@ func UserEditPOST(md common.MethodData) common.CodeMessager {
 		// should also check out the code for CM restring/banning
 	}*/
 	if data.Country != nil {
-		statsQ += "country = ?,\n"
-		statsArgs = append(statsArgs, *data.Country)
+		q += "country = ?,\n"
+		args = append(args, *data.Country)
 		rapLog(md, fmt.Sprintf("has changed %s country to %s", prevUser.Username, *data.Country))
 		appendToUserNotes(md, "country changed to "+*data.Country, data.ID)
 	}
-	if data.SilenceInfo != nil && md.User.UserPrivileges&common.AdminPrivilegeSilenceUsers != 0 {
-		q += "silence_end = ?, silence_reason = ?,\n"
-		args = append(args, time.Time(data.SilenceInfo.End).Unix(), data.SilenceInfo.Reason)
+	if data.SilenceInfo != nil && md.User.UserPrivileges & common.MODERATOR != 0 {
+		q += "silence_end = ?,\n"
+		args = append(args, time.Time(data.SilenceInfo.End).Unix())
 	}
 	if data.ResetUserpage {
-		statsQ += "userpage_content = '',\n"
+		q += "userpage_content = '',\n"
 	}
 
 	if q != initQuery {
@@ -195,7 +208,7 @@ func WipeUserPOST(md common.MethodData) common.CodeMessager {
 		Username   string
 		Privileges uint64
 	}
-	err := md.DB.Get(&userData, "SELECT username, privileges FROM users WHERE id = ?", data.ID)
+	err := md.DB.Get(&userData, "SELECT name, priv FROM users WHERE id = ?", data.ID)
 	switch err {
 	case sql.ErrNoRows:
 		return common.SimpleResponse(404, "That user could not be found!")
@@ -205,23 +218,22 @@ func WipeUserPOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	if common.UserPrivileges(userData.Privileges)&common.AdminPrivilegeManageUsers != 0 {
+	if common.Privileges(userData.Privileges) & common.ADMINISTRATOR != 0 {
 		return common.SimpleResponse(403, "Can't edit that user")
 	}
 
 	for _, mode := range data.Modes {
-		if mode < 0 || mode > 3 {
+		if mode < 0 || mode > 7 {
 			continue
 		}
-		_, err = md.DB.Exec("DELETE FROM scores WHERE userid = ? AND play_mode = ?", data.ID, mode)
+		_, err = md.DB.Exec("DELETE FROM scores_vn WHERE userid = ? AND mode = ?", data.ID, mode)
 		if err != nil {
 			md.Err(err)
 		}
-		_, err = md.DB.Exec(strings.Replace(
-			`UPDATE users_stats SET total_score_MODE = 0, ranked_score_MODE = 0, replays_watched_MODE = 0,
-			playcount_MODE = 0, avg_accuracy_MODE = 0, total_hits_MODE = 0, level_MODE = 0, pp_MODE = 0
-			WHERE id = ?`, "MODE", modesToReadable[mode], -1,
-		), data.ID)
+		_, err = md.DB.Exec(
+			`UPDATE users_stats SET tscore, rscore, replays_watched,
+			plays = 0, acc = 0, total_hits = 0, level = 0, pp = 0
+			WHERE id = ? AND mode = ?`, data.ID, mode)
 		if err != nil {
 			md.Err(err)
 		}
@@ -242,7 +254,7 @@ func appendToUserNotes(md common.MethodData, message string, user int) {
 }
 
 func usernameAvailable(md common.MethodData, u string, userID int) (r bool) {
-	err := md.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username_safe = ? AND id != ?)", common.SafeUsername(u), userID).Scan(&r)
+	err := md.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE safe_name = ? AND id != ?)", common.SafeUsername(u), userID).Scan(&r)
 	if err != nil && err != sql.ErrNoRows {
 		md.Err(err)
 	}

@@ -19,41 +19,21 @@ type userScoresResponse struct {
 	Scores []userScore `json:"scores"`
 }
 
-const relaxScoreSelectBase = `
-		SELECT
-			scores_relax.id, scores_relax.beatmap_md5, scores_relax.score,
-			scores_relax.max_combo, scores_relax.full_combo, scores_relax.mods,
-			scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
-			scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
-			scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-			scores_relax.completed,
-
-			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-			beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
-			beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
-			beatmaps.ranked_status_freezed, beatmaps.latest_update
-		FROM scores_relax
-		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_relax.beatmap_md5
-		INNER JOIN users ON users.id = scores_relax.userid
-		`
-
 const userScoreSelectBase = `
 		SELECT
-			scores.id, scores.beatmap_md5, scores.score,
-			scores.max_combo, scores.full_combo, scores.mods,
-			scores.300_count, scores.100_count, scores.50_count,
-			scores.gekis_count, scores.katus_count, scores.misses_count,
-			scores.time, scores.play_mode, scores.accuracy, scores.pp,
-			scores.completed,
+			scores.id, scores.map_md5, scores.score,
+			scores.max_combo, scores.perfect, scores.mods,
+			scores.n300, scores.n100, scores.n50,
+			scores.ngeki, scores.nkatu, scores.nmiss,
+			scores.play_time, scores.mode, scores.acc, scores.pp,
+			scores.status,
 
-			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-			beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
-			beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
-			beatmaps.ranked_status_freezed, beatmaps.latest_update
+			maps.id, maps.set_id, maps.map_md5,
+			maps.song_name, maps.ar, maps.od,
+			maps.max_combo, maps.total_length, maps.status,
+			maps.frozen, maps.last_update
 		FROM scores
-		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
+		INNER JOIN maps ON maps.md5 = scores.map_md5
 		INNER JOIN users ON users.id = scores.userid
 		`
 
@@ -65,32 +45,18 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 		return *cm
 	}
 
-	mc := genModeClause(md)
-
-	if common.Int(md.Query("rx")) != 0 {
-		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
-		return relaxPuts(md, fmt.Sprintf(
-			`WHERE
-				scores_relax.completed = 3
-				AND beatmaps.ranked IN (2, 3)
-				AND %s
-				%s
-				AND `+md.User.OnlyUserPublic(true)+`
-			ORDER BY scores_relax.pp DESC, scores_relax.score DESC %s`,
-			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
-		), param)
-	} else {
-		return scoresPuts(md, fmt.Sprintf(
-			`WHERE
-				scores.completed = 3
-				AND beatmaps.ranked IN (2, 3)
-				AND %s
-				%s
-				AND `+md.User.OnlyUserPublic(true)+`
-			ORDER BY scores.pp DESC, scores.score DESC %s`,
-			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
-		), param)
-	}
+	relax_mode := common.Int(md.Query("rx")) + common.Int(md.Query("mode"))
+	return scoresPuts(md, fmt.Sprintf(
+		`WHERE
+			scores.status = 2
+			AND maps.status IN (2, 3)
+			AND scores.mode = %s
+			AND
+			%s
+			AND `+md.User.OnlyUserPublic(true)+`
+		ORDER BY scores.pp DESC, scores.score DESC %s`,
+		relax_mode, wc, common.Paginate(md.Query("p"), md.Query("l"), 100),
+	), param)
 }
 
 // UserScoresRecentGET retrieves an user's latest scores.
@@ -99,27 +65,18 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 	if cm != nil {
 		return *cm
 	}
-	mc := genModeClause(md)
-	if common.Int(md.Query("rx")) != 0 {
-		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
-		return relaxPuts(md, fmt.Sprintf(
-			`WHERE
-				%s
-				%s
-				AND `+md.User.OnlyUserPublic(true)+`
-			ORDER BY scores_relax.id DESC %s`,
-			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
-		), param)
-	} else {
-		return scoresPuts(md, fmt.Sprintf(
-			`WHERE
-				%s
-				%s
-				AND `+md.User.OnlyUserPublic(true)+`
-			ORDER BY scores.id DESC %s`,
-			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
-		), param)
-	}
+
+	relax_mode := common.Int(md.Query("rx")) + common.Int(md.Query("mode"))
+
+	return scoresPuts(md, fmt.Sprintf(
+		`WHERE
+			scores.mode = %s,
+			%s
+			%s
+			AND `+md.User.OnlyUserPublic(true)+`
+		ORDER BY scores.id DESC %s`,
+		relax_mode, wc, common.Paginate(md.Query("p"), md.Query("l"), 100),
+	), param)
 }
 
 func scoresPuts(md common.MethodData, whereClause string, params ...interface{}) common.CodeMessager {
@@ -143,8 +100,7 @@ func scoresPuts(md common.MethodData, whereClause string, params ...interface{})
 			&us.Completed,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
-			&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+			&b.SongName, &b.AR, &b.OD,
 			&b.MaxCombo, &b.HitLength, &b.Ranked,
 			&b.RankedStatusFrozen, &b.LatestUpdate,
 		)
@@ -152,7 +108,7 @@ func scoresPuts(md common.MethodData, whereClause string, params ...interface{})
 			md.Err(err)
 			return Err500
 		}
-		b.Difficulty = b.Diff2.STD
+
 		us.Beatmap = b
 		us.Rank = strings.ToUpper(getrank.GetRank(
 			osuapi.Mode(us.PlayMode),
@@ -172,7 +128,7 @@ func scoresPuts(md common.MethodData, whereClause string, params ...interface{})
 }
 
 func relaxPuts(md common.MethodData, whereClause string, params ...interface{}) common.CodeMessager {
-	rows, err := md.DB.Query(relaxScoreSelectBase+whereClause, params...)
+	rows, err := md.DB.Query(userScoreSelectBase+whereClause, params...)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -192,8 +148,7 @@ func relaxPuts(md common.MethodData, whereClause string, params ...interface{}) 
 			&us.Completed,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
-			&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+			&b.SongName, &b.AR, &b.OD,
 			&b.MaxCombo, &b.HitLength, &b.Ranked,
 			&b.RankedStatusFrozen, &b.LatestUpdate,
 		)
@@ -201,7 +156,7 @@ func relaxPuts(md common.MethodData, whereClause string, params ...interface{}) 
 			md.Err(err)
 			return Err500
 		}
-		b.Difficulty = b.Diff2.STD
+
 		us.Beatmap = b
 		us.Rank = strings.ToUpper(getrank.GetRank(
 			osuapi.Mode(us.PlayMode),

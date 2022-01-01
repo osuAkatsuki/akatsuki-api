@@ -58,11 +58,7 @@ WHERE t.token = ?`, fmt.Sprintf("%x", md5.Sum([]byte(idMsg.Token))))
 		return
 	}
 
-	wsu.TokenPrivileges = uint64(
-		common.Privileges(wsu.TokenPrivileges).CanOnly(
-			common.UserPrivileges(wsu.UserPrivileges),
-		),
-	)
+	wsu.TokenPrivileges = uint64(common.Privileges(wsu.TokenPrivileges))
 
 	c.Mtx.Lock()
 	c.User = &wsu

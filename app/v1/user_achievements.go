@@ -13,8 +13,8 @@ import (
 type Achievement struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
+	Description string `json:"desc"`
+	File        string `json:"file"`
 }
 
 // LoadAchievementsEvery reloads the achievements in the database every given
@@ -23,7 +23,7 @@ func LoadAchievementsEvery(db *sqlx.DB, d time.Duration) {
 	for {
 		achievs = nil
 		err := db.Select(&achievs,
-			"SELECT id, name, description, icon FROM achievements ORDER BY id ASC")
+			"SELECT id, name, desc, file FROM achievements ORDER BY id ASC")
 		if err != nil {
 			fmt.Println("LoadAchievements error", err)
 			common.GenericError(err)
@@ -52,9 +52,9 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 		return *shouldRet
 	}
 	var ids []int
-	err := md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
+	err := md.DB.Select(&ids, `SELECT ua.achid FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
-WHERE `+whereClause+` ORDER BY ua.achievement_id ASC`, param)
+WHERE `+whereClause+` ORDER BY ua.achid ASC`, param)
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user!")

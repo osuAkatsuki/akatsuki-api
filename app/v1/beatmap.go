@@ -6,27 +6,18 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
-type difficulty struct {
-	STD   float64 `json:"std"`
-	Taiko float64 `json:"taiko"`
-	CTB   float64 `json:"ctb"`
-	Mania float64 `json:"mania"`
-}
-
 type beatmap struct {
-	BeatmapID          int                  `json:"beatmap_id"`
-	BeatmapsetID       int                  `json:"beatmapset_id"`
-	BeatmapMD5         string               `json:"beatmap_md5"`
-	SongName           string               `json:"song_name"`
+	BeatmapID          int                  `json:"id"`
+	BeatmapsetID       int                  `json:"set_id"`
+	BeatmapMD5         string               `json:"md5"`
+	SongName           string               `json:"title"`
 	AR                 float32              `json:"ar"`
 	OD                 float32              `json:"od"`
-	Difficulty         float64              `json:"difficulty"`
-	Diff2              difficulty           `json:"difficulty2"` // fuck nyo
 	MaxCombo           int                  `json:"max_combo"`
-	HitLength          int                  `json:"hit_length"`
-	Ranked             int                  `json:"ranked"`
-	RankedStatusFrozen int                  `json:"ranked_status_frozen"`
-	LatestUpdate       common.UnixTimestamp `json:"latest_update"`
+	HitLength          int                  `json:"total_length"`
+	Ranked             int                  `json:"status"`
+	RankedStatusFrozen int                  `json:"frozen"`
+	LatestUpdate       common.UnixTimestamp `json:"last_update"`
 }
 
 type beatmapResponse struct {
@@ -68,7 +59,7 @@ func BeatmapSetStatusPOST(md common.MethodData) common.CodeMessager {
 
 	param := req.BeatmapsetID
 	if req.BeatmapID != 0 {
-		err := md.DB.QueryRow("SELECT beatmapset_id FROM beatmaps WHERE beatmap_id = ? LIMIT 1", req.BeatmapID).Scan(&param)
+		err := md.DB.QueryRow("SELECT set_id FROM maps WHERE _id = ? LIMIT 1", req.BeatmapID).Scan(&param)
 		switch {
 		case err == sql.ErrNoRows:
 			return common.SimpleResponse(404, "That beatmap could not be found!")
@@ -78,9 +69,9 @@ func BeatmapSetStatusPOST(md common.MethodData) common.CodeMessager {
 		}
 	}
 
-	md.DB.Exec(`UPDATE beatmaps
-		SET ranked = ?, ranked_status_freezed = ?
-		WHERE beatmapset_id = ?`, req.RankedStatus, req.Frozen, param)
+	md.DB.Exec(`UPDATE maps
+		SET status = ?, frozen = ?
+		WHERE set_id = ?`, req.RankedStatus, req.Frozen, param)
 
 	if req.BeatmapID > 0 {
 		md.Ctx.Request.URI().QueryArgs().SetUint("bb", req.BeatmapID)
@@ -101,41 +92,35 @@ func BeatmapGET(md common.MethodData) common.CodeMessager {
 
 const baseBeatmapSelect = `
 SELECT
-	beatmap_id, beatmapset_id, beatmap_md5,
-	song_name, ar, od, difficulty_std, difficulty_taiko,
-	difficulty_ctb, difficulty_mania, max_combo,
-	hit_length, ranked, ranked_status_freezed,
-	latest_update
-FROM beatmaps
+	id, set_id, md5,
+	title, ar, od, max_combo,
+	total_length, status, frozen,
+	last_update
+FROM maps
 `
 
 func getMultipleBeatmaps(md common.MethodData) common.CodeMessager {
 	sort := common.Sort(md, common.SortConfiguration{
 		Allowed: []string{
-			"beatmapset_id",
-			"beatmap_id",
+			"set_id",
 			"id",
 			"ar",
 			"od",
-			"difficulty_std",
-			"difficulty_taiko",
-			"difficulty_ctb",
-			"difficulty_mania",
 			"max_combo",
-			"latest_update",
-			"playcount",
-			"passcount",
+			"last_update",
+			"plays",
+			"passes",
 		},
 		Default: "id DESC",
-		Table:   "beatmaps",
+		Table:   "maps",
 	})
 	pm := md.Ctx.Request.URI().QueryArgs().PeekMulti
 	where := common.
-		Where("song_name = ?", md.Query("song_name")).
-		Where("ranked_status_freezed = ?", md.Query("ranked_status_frozen"), "0", "1").
-		In("beatmap_id", pm("bb")...).
-		In("beatmapset_id", pm("s")...).
-		In("beatmap_md5", pm("md5")...)
+		Where("title = ?", md.Query("song_name")).
+		Where("frozen = ?", md.Query("ranked_status_frozen"), "0", "1").
+		In("id", pm("bb")...).
+		In("set_id", pm("s")...).
+		In("md5", pm("md5")...)
 
 	rows, err := md.DB.Query(baseBeatmapSelect+
 		where.Clause+" "+sort+" "+
@@ -149,12 +134,10 @@ func getMultipleBeatmaps(md common.MethodData) common.CodeMessager {
 		var b beatmap
 		err = rows.Scan(
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD, &b.Diff2.Taiko,
-			&b.Diff2.CTB, &b.Diff2.Mania, &b.MaxCombo,
+			&b.SongName, &b.AR, &b.OD, &b.MaxCombo,
 			&b.HitLength, &b.Ranked, &b.RankedStatusFrozen,
 			&b.LatestUpdate,
 		)
-		b.Difficulty = b.Diff2.STD
 		if err != nil {
 			md.Err(err)
 			continue
@@ -167,14 +150,12 @@ func getMultipleBeatmaps(md common.MethodData) common.CodeMessager {
 
 func getBeatmapSingle(md common.MethodData, beatmapID int) common.CodeMessager {
 	var b beatmap
-	err := md.DB.QueryRow(baseBeatmapSelect+"WHERE beatmap_id = ? LIMIT 1", beatmapID).Scan(
+	err := md.DB.QueryRow(baseBeatmapSelect+"WHERE id = ? LIMIT 1", beatmapID).Scan(
 		&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-		&b.SongName, &b.AR, &b.OD, &b.Diff2.STD, &b.Diff2.Taiko,
-		&b.Diff2.CTB, &b.Diff2.Mania, &b.MaxCombo,
+		&b.SongName, &b.AR, &b.OD, &b.MaxCombo,
 		&b.HitLength, &b.Ranked, &b.RankedStatusFrozen,
 		&b.LatestUpdate,
 	)
-	b.Difficulty = b.Diff2.STD
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "That beatmap could not be found!")
@@ -189,11 +170,11 @@ func getBeatmapSingle(md common.MethodData, beatmapID int) common.CodeMessager {
 }
 
 type beatmapReduced struct {
-	BeatmapID          int    `json:"beatmap_id"`
-	BeatmapsetID       int    `json:"beatmapset_id"`
-	BeatmapMD5         string `json:"beatmap_md5"`
-	Ranked             int    `json:"ranked"`
-	RankedStatusFrozen int    `json:"ranked_status_frozen"`
+	BeatmapID          int    `json:"id"`
+	BeatmapsetID       int    `json:"set_id"`
+	BeatmapMD5         string `json:"md5"`
+	Ranked             int    `json:"status"`
+	RankedStatusFrozen int    `json:"frozen"`
 }
 
 type beatmapRankedFrozenFullResponse struct {
@@ -205,9 +186,9 @@ type beatmapRankedFrozenFullResponse struct {
 // ranked_status_freezed
 func BeatmapRankedFrozenFullGET(md common.MethodData) common.CodeMessager {
 	rows, err := md.DB.Query(`
-	SELECT beatmap_id, beatmapset_id, beatmap_md5, ranked, ranked_status_freezed
-	FROM beatmaps
-	WHERE ranked_status_freezed = '1'
+	SELECT id, set_id, md5, status, frozen
+	FROM maps
+	WHERE frozen = 1
 	`)
 	if err != nil {
 		md.Err(err)

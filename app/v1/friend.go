@@ -20,7 +20,7 @@ type friendsGETResponse struct {
 // It retrieves an user's friends, and whether the friendship is mutual or not.
 func FriendsGET(md common.MethodData) common.CodeMessager {
 	var myFrienders []int
-	myFriendersRaw, err := md.DB.Query("SELECT user1 FROM users_relationships WHERE user2 = ?", md.ID())
+	myFriendersRaw, err := md.DB.Query("SELECT user1 FROM relationships WHERE user2 = ? and type = 'friend'", md.ID())
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -41,22 +41,20 @@ func FriendsGET(md common.MethodData) common.CodeMessager {
 
 	myFriendsQuery := `
 SELECT
-	users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+	id, name, creation_time, priv, latest_activity,
 
-	users_stats.username_aka,
-	users_stats.country
-FROM users_relationships
+	username_aka,
+	country
+FROM relationships
 LEFT JOIN users
-ON users_relationships.user2 = users.id
-LEFT JOIN users_stats
-ON users_relationships.user2=users_stats.id
-WHERE users_relationships.user1=?
+ON relationships.user2 = users.id
+WHERE relationships.user1=? and relationships.type = 'friend'
 `
 
 	myFriendsQuery += common.Sort(md, common.SortConfiguration{
 		Allowed: []string{
 			"id",
-			"username",
+			"name",
 			"latest_activity",
 		},
 		Default: "users.id asc",
@@ -118,7 +116,7 @@ func FriendsWithGET(md common.MethodData) common.CodeMessager {
 	if uid == 0 {
 		return r
 	}
-	err := md.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users_relationships WHERE user1 = ? AND user2 = ? LIMIT 1), EXISTS(SELECT 1 FROM users_relationships WHERE user2 = ? AND user1 = ? LIMIT 1)", md.ID(), uid, md.ID(), uid).Scan(&r.Friends, &r.Mutual)
+	err := md.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM relationships WHERE user1 = ? AND user2 = ? and type = 'friend' LIMIT 1), EXISTS(SELECT 1 FROM relationships WHERE user2 = ? AND user1 = ? and type = 'friend' LIMIT 1)", md.ID(), uid, md.ID(), uid).Scan(&r.Friends, &r.Mutual)
 	if err != sql.ErrNoRows && err != nil {
 		md.Err(err)
 		return Err500
@@ -149,13 +147,13 @@ func addFriend(md common.MethodData, u int) common.CodeMessager {
 		relExists bool
 		isMutual  bool
 	)
-	err := md.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users_relationships WHERE user1 = ? AND user2 = ?), EXISTS(SELECT 1 FROM users_relationships WHERE user2 = ? AND user1 = ?)", md.ID(), u, md.ID(), u).Scan(&relExists, &isMutual)
+	err := md.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM relationships WHERE user1 = ? AND user2 = ?), EXISTS(SELECT 1 FROM relationships WHERE user2 = ? AND user1 = ?)", md.ID(), u, md.ID(), u).Scan(&relExists, &isMutual)
 	if err != nil && err != sql.ErrNoRows {
 		md.Err(err)
 		return Err500
 	}
 	if !relExists {
-		_, err := md.DB.Exec("INSERT INTO users_relationships(user1, user2) VALUES (?, ?)", md.User.UserID, u)
+		_, err := md.DB.Exec("INSERT INTO relationships(user1, user2, type) VALUES (?, ?, 'friend')", md.User.UserID, u)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -188,7 +186,7 @@ func FriendsDelPOST(md common.MethodData) common.CodeMessager {
 }
 
 func delFriend(md common.MethodData, u int) common.CodeMessager {
-	_, err := md.DB.Exec("DELETE FROM users_relationships WHERE user1 = ? AND user2 = ?", md.ID(), u)
+	_, err := md.DB.Exec("DELETE FROM relationships WHERE user1 = ? AND user2 = ? and type = 'friend'", md.ID(), u)
 	if err != nil {
 		md.Err(err)
 		return Err500

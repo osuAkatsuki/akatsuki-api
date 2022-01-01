@@ -33,8 +33,8 @@ WHERE token = ? LIMIT 1`,
 		// all privileges, they'll get removed by canOnly anyway.
 		tokenPrivsRaw = (common.PrivilegeBeatmap << 1) - 1
 	}
-	t.UserPrivileges = common.UserPrivileges(userPrivsRaw)
-	t.TokenPrivileges = common.Privileges(tokenPrivsRaw).CanOnly(t.UserPrivileges)
+	t.UserPrivileges = common.Privileges(uint64(userPrivsRaw))
+	t.TokenPrivileges = common.Privileges(uint64(tokenPrivsRaw))
 	switch {
 	case err == sql.ErrNoRows:
 		return common.Token{}, false
@@ -105,8 +105,8 @@ func BearerToken(token string, db *sqlx.DB) (common.Token, bool) {
 	t.ID = -1
 	t.UserID = x.Extra
 	t.Value = token
-	t.UserPrivileges = common.UserPrivileges(privs)
-	t.TokenPrivileges = common.OAuthPrivileges(x.Scope).CanOnly(t.UserPrivileges)
+	t.UserPrivileges = common.Privileges(privs)
+	t.TokenPrivileges = common.Privileges(uint64(common.OAuthPrivileges(x.Scope)))
 
 	return t, true
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 
-	"zxq.co/ripple/schiavolib"
+	schiavo "zxq.co/ripple/schiavolib"
 )
 
 // TokenSelfDeletePOST deletes the token the user is connecting with.
@@ -195,25 +195,12 @@ LEFT JOIN users ON users.id = tokens.user
 		var (
 			id            int
 			privsRaw      uint64
-			privs         common.Privileges
-			newPrivs      common.Privileges
 			privilegesRaw uint64
 		)
 		err := rows.Scan(&id, &privsRaw, &privilegesRaw)
 		if err != nil {
 			fmt.Println(err)
 			continue
-		}
-		privileges := common.UserPrivileges(privilegesRaw)
-		privs = common.Privileges(privsRaw)
-		newPrivs = privs.CanOnly(privileges)
-		if newPrivs != privs {
-			_, err := db.Exec("UPDATE tokens SET privileges = ? WHERE id = ? LIMIT 1", uint64(newPrivs), id)
-			if err != nil {
-				fmt.Println(err)
-				schiavo.Bunker.Send(err.Error())
-				continue
-			}
 		}
 	}
 }

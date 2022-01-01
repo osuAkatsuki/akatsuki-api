@@ -23,13 +23,23 @@ type userData struct {
 	Country        string               `json:"country"`
 }
 
-const userFields = `SELECT users.id, users.username, register_datetime, users.privileges,
-	latest_activity, users_stats.username_aka,
+const userFields = `SELECT id, name, creation_time, priv,
+	latest_activity, name_aka,
 	users_stats.country
 FROM users
-INNER JOIN users_stats
-ON users.id=users_stats.id
 `
+
+func modeConvert(mode, rx int) int {
+	if mode == 3 { return 3 }
+
+	if rx == 1 {
+		return mode + 4
+	} else if rx == 2 {
+		return 7
+	}
+
+	return mode
+}
 
 // UsersGET is the API handler for GET /users
 func UsersGET(md common.MethodData) common.CodeMessager {
@@ -75,31 +85,27 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 	pm := md.Ctx.Request.URI().QueryArgs().PeekMulti
 	// query composition
 	wh := common.
-		Where("users.username_safe = ?", common.SafeUsername(md.Query("nname"))).
+		Where("users.safe_name = ?", common.SafeUsername(md.Query("nname"))).
 		Where("users.id = ?", md.Query("iid")).
-		Where("users.privileges = ?", md.Query("privileges")).
-		Where("users.privileges & ? > 0", md.Query("has_privileges")).
-		Where("users.privileges & ? = 0", md.Query("has_not_privileges")).
-		Where("users_stats.country = ?", md.Query("country")).
-		Where("users_stats.username_aka = ?", md.Query("name_aka")).
-		Where("privileges_groups.name = ?", md.Query("privilege_group")).
+		Where("users.priv = ?", md.Query("privileges")).
+		Where("users.priv & ? > 0", md.Query("has_privileges")).
+		Where("users.priv & ? = 0", md.Query("has_not_privileges")).
+		Where("users.country = ?", md.Query("country")).
+		Where("users.username_aka = ?", md.Query("name_aka")).
 		In("users.id", pm("ids")...).
-		In("users.username_safe", safeUsernameBulk(pm("names"))...).
-		In("users_stats.username_aka", pm("names_aka")...).
-		In("users_stats.country", pm("countries")...)
+		In("users.safe_name", safeUsernameBulk(pm("names"))...).
+		In("users.username_aka", pm("names_aka")...).
+		In("users.country", pm("countries")...)
 
 	var extraJoin string
-	if md.Query("privilege_group") != "" {
-		extraJoin = " LEFT JOIN privileges_groups ON users.privileges & privileges_groups.privileges = privileges_groups.privileges "
-	}
 
 	query := userFields + extraJoin + wh.ClauseSafe() + " AND " + md.User.OnlyUserPublic(true) +
 		" " + common.Sort(md, common.SortConfiguration{
 		Allowed: []string{
 			"id",
-			"username",
-			"privileges",
-			"donor_expire",
+			"name",
+			"priv",
+			"donor_end",
 			"latest_activity",
 			"silence_end",
 		},
@@ -158,9 +164,9 @@ func UserWhatsTheIDGET(md common.MethodData) common.CodeMessager {
 		r          whatIDResponse
 		privileges uint64
 	)
-	err := md.DB.QueryRow("SELECT id, privileges FROM users WHERE username_safe = ? LIMIT 1", common.SafeUsername(md.Query("name"))).Scan(&r.ID, &privileges)
-	if err != nil || ((privileges&uint64(common.UserPrivilegePublic)) == 0 &&
-		(md.User.UserPrivileges&common.AdminPrivilegeManageUsers == 0)) {
+	err := md.DB.QueryRow("SELECT id, priv FROM users WHERE safe_name = ? LIMIT 1", common.SafeUsername(md.Query("name"))).Scan(&r.ID, &privileges)
+	if err != nil || ((privileges & uint64(common.NORMAL)) == 0 &&
+		(md.User.UserPrivileges & common.ADMINISTRATOR == 0)) {
 		return common.SimpleResponse(404, "That user could not be found!")
 	}
 	r.Code = 200
@@ -199,7 +205,7 @@ type userStats struct {
 type userFullResponse struct {
 	common.ResponseBase
 	userData
-	Stats         [2]userStats          `json:"stats"`
+	Stats         [3]userStats          `json:"stats"`
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
 	Badges        []singleBadge         `json:"badges"`
@@ -224,111 +230,36 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		return *shouldRet
 	}
 
-	// Hellest query I've ever done.
-	query := `
-SELECT
-	users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-	users_stats.username_aka, users_stats.country, users_stats.play_style, users_stats.favourite_mode,
-
-	users_stats.custom_badge_icon, users_stats.custom_badge_name, users_stats.can_custom_badge,
-	users_stats.show_custom_badge,
-
-	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
-	users_stats.replays_watched_std, users_stats.total_hits_std,
-	users_stats.avg_accuracy_std, users_stats.pp_std,
-
-	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
-	users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
-	users_stats.avg_accuracy_taiko, users_stats.pp_taiko,
-
-	users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
-	users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
-	users_stats.avg_accuracy_ctb, users_stats.pp_ctb,
-
-	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
-	users_stats.replays_watched_mania, users_stats.total_hits_mania,
-	users_stats.avg_accuracy_mania, users_stats.pp_mania,
-	
-	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
-	rx_stats.replays_watched_std, rx_stats.total_hits_std,
-	rx_stats.avg_accuracy_std, rx_stats.pp_std,
-
-	rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
-	rx_stats.replays_watched_taiko, rx_stats.total_hits_taiko,
-	rx_stats.avg_accuracy_taiko, rx_stats.pp_taiko,
-
-	rx_stats.ranked_score_ctb, rx_stats.total_score_ctb, rx_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
-	rx_stats.replays_watched_ctb, rx_stats.total_hits_ctb,
-	rx_stats.avg_accuracy_ctb, rx_stats.pp_ctb,
-
-	rx_stats.ranked_score_mania, rx_stats.total_score_mania, rx_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
-	rx_stats.replays_watched_mania, rx_stats.total_hits_mania,
-	rx_stats.avg_accuracy_mania, rx_stats.pp_mania,
-
-	users.silence_reason, users.silence_end,
-	users.notes, users.ban_datetime, users.email,
-	users.clan_id
-
-FROM users
-LEFT JOIN users_stats
-ON users.id=users_stats.id
-LEFT JOIN rx_stats
-ON users.id=rx_stats.id
-WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
-LIMIT 1
-`
 	// Fuck.
 	r := userFullResponse{}
 	var (
 		b singleBadge
 
 		can  bool
-		show bool
 	)
+
+	query := `
+		SELECT id, name, creation_time, priv, latest_activity, username_aka, country, play_style, preferred_mode,
+		custom_badge_icon, custom_badge_name,
+		silence_end,
+		notes, email, clan_id
+
+		WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
+		LIMIT 1
+	`
+
 	err := md.DB.QueryRow(query, param).Scan(
 		&r.ID, &r.Username, &r.RegisteredOn, &r.Privileges, &r.LatestActivity,
 
 		&r.UsernameAKA, &r.Country,
 		&r.PlayStyle, &r.FavouriteMode,
 
-		&b.Icon, &b.Name, &can, &show,
+		&b.Icon, &b.Name,
 
-		&r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime, &r.Stats[0].STD.Total_PlayTime,
-		&r.Stats[0].STD.ReplaysWatched, &r.Stats[0].STD.TotalHits,
-		&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP,
-
-		&r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime, &r.Stats[0].Taiko.Total_PlayTime,
-		&r.Stats[0].Taiko.ReplaysWatched, &r.Stats[0].Taiko.TotalHits,
-		&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP,
-
-		&r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime, &r.Stats[0].CTB.Total_PlayTime,
-		&r.Stats[0].CTB.ReplaysWatched, &r.Stats[0].CTB.TotalHits,
-		&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP,
-
-		&r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime, &r.Stats[0].Mania.Total_PlayTime,
-		&r.Stats[0].Mania.ReplaysWatched, &r.Stats[0].Mania.TotalHits,
-		&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP,
-
-		&r.Stats[1].STD.RankedScore, &r.Stats[1].STD.TotalScore, &r.Stats[1].STD.PlayCount, &r.Stats[1].STD.PlayTime, &r.Stats[1].STD.Total_PlayTime,
-		&r.Stats[1].STD.ReplaysWatched, &r.Stats[1].STD.TotalHits,
-		&r.Stats[1].STD.Accuracy, &r.Stats[1].STD.PP,
-
-		&r.Stats[1].Taiko.RankedScore, &r.Stats[1].Taiko.TotalScore, &r.Stats[1].Taiko.PlayCount, &r.Stats[1].Taiko.PlayTime, &r.Stats[1].Taiko.Total_PlayTime,
-		&r.Stats[1].Taiko.ReplaysWatched, &r.Stats[1].Taiko.TotalHits,
-		&r.Stats[1].Taiko.Accuracy, &r.Stats[1].Taiko.PP,
-
-		&r.Stats[1].CTB.RankedScore, &r.Stats[1].CTB.TotalScore, &r.Stats[1].CTB.PlayCount, &r.Stats[1].CTB.PlayTime, &r.Stats[1].CTB.Total_PlayTime,
-		&r.Stats[1].CTB.ReplaysWatched, &r.Stats[1].CTB.TotalHits,
-		&r.Stats[1].CTB.Accuracy, &r.Stats[1].CTB.PP,
-
-		&r.Stats[1].Mania.RankedScore, &r.Stats[1].Mania.TotalScore, &r.Stats[1].Mania.PlayCount, &r.Stats[1].Mania.PlayTime, &r.Stats[1].Mania.Total_PlayTime,
-		&r.Stats[1].Mania.ReplaysWatched, &r.Stats[1].Mania.TotalHits,
-		&r.Stats[1].Mania.Accuracy, &r.Stats[1].Mania.PP,
-
-		&r.SilenceInfo.Reason, &r.SilenceInfo.End,
-		&r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID,
+		&r.SilenceInfo.End,
+		&r.CMNotes, &r.Email, &r.Clan.ID,
 	)
+
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "That user could not be found!")
@@ -337,7 +268,46 @@ LIMIT 1
 		return Err500
 	}
 
-	can = can && show && common.UserPrivileges(r.Privileges)&common.UserPrivilegeDonor > 0
+	mode_index := 0
+	for i := range []int{0, 1, 2, 3, 4, 5, 6, 7} {
+		var index int
+
+		if i <= 3 {
+			index = 0
+		} else if i <= 6 {
+			index = 1
+		} else {
+			index = 2
+		}
+
+		if mode_index == 4 { mode_index = 0 }
+
+		var stat modeData
+		switch mode_index {
+		case 0:
+			stat = r.Stats[index].STD
+		case 1:
+			stat = r.Stats[index].Taiko
+		case 2:
+			stat = r.Stats[index].CTB
+		case 3:
+			stat = r.Stats[index].Mania
+		}
+
+		stat_query := `
+			SELECT tscore, pp, plays, playtime, acc, total_hits, replay_views
+			FROM stats WHERE mode = ? AND id = ?
+		`
+
+		err = md.DB.QueryRow(stat_query, i, r.ID).Scan(
+			&stat.TotalScore, &stat.PP, &stat.PlayCount, &stat.PlayTime, &stat.Accuracy,
+			&stat.TotalHits, &stat.ReplaysWatched,
+		)
+
+		mode_index++
+	}
+
+	can = common.Privileges(r.Privileges) & common.DONATOR > 0
 	if can && (b.Name != "" || b.Icon != "") {
 		r.CustomBadge = &b
 	}
@@ -363,9 +333,20 @@ LIMIT 1
 			m.CountryLeaderboardRank = i
 		}
 	}
+		// I'm sorry for this horribleness but ripple and past mistakes have forced my hand v2
+		for modeID, m := range [...]*modeData{&r.Stats[2].STD, &r.Stats[2].Taiko, &r.Stats[2].CTB, &r.Stats[2].Mania} {
+			m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+
+			if i := autoboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
+				m.GlobalLeaderboardRank = i
+			}
+			if i := apcountryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
+				m.CountryLeaderboardRank = i
+			}
+		}
 
 	var follower int
-	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user2 = ?", r.ID)
+	rows, err := md.DB.Query("SELECT COUNT(id) FROM `relationships` WHERE user2 = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}
@@ -394,7 +375,7 @@ LIMIT 1
 		r.Badges = append(r.Badges, badge)
 	}
 
-	if md.User.TokenPrivileges&common.PrivilegeManageUser == 0 {
+	if md.User.TokenPrivileges & common.ADMINISTRATOR== 0 {
 		r.CMNotes = nil
 		r.BanDate = nil
 		r.Email = ""
@@ -432,12 +413,12 @@ type userpageResponse struct {
 
 // UserUserpageGET gets an user's userpage, as in the customisable thing.
 func UserUserpageGET(md common.MethodData) common.CodeMessager {
-	shouldRet, whereClause, param := whereClauseUser(md, "users_stats")
+	shouldRet, whereClause, param := whereClauseUser(md, "users")
 	if shouldRet != nil {
 		return *shouldRet
 	}
 	var r userpageResponse
-	err := md.DB.QueryRow("SELECT userpage_content FROM users_stats WHERE "+whereClause+" LIMIT 1", param).Scan(&r.Userpage)
+	err := md.DB.QueryRow("SELECT userpage_content FROM users WHERE "+whereClause+" LIMIT 1", param).Scan(&r.Userpage)
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user!")
@@ -462,7 +443,7 @@ func UserSelfUserpagePOST(md common.MethodData) common.CodeMessager {
 		return ErrMissingField("data")
 	}
 	cont := common.SanitiseString(*d.Data)
-	_, err := md.DB.Exec("UPDATE users_stats SET userpage_content = ? WHERE id = ? LIMIT 1", cont, md.ID())
+	_, err := md.DB.Exec("UPDATE users SET userpage_content = ? WHERE id = ? LIMIT 1", cont, md.ID())
 	if err != nil {
 		md.Err(err)
 	}
@@ -494,10 +475,9 @@ func UserUnweightedPerformanceGET(md common.MethodData) common.CodeMessager {
 		return ErrMissingField("id")
 	}
 	mode := common.Int(md.Query("mode"))
-	tab := ""
-	if md.Query("rx") == "1" {
-		tab = "_relax"
-	}
+	rx := common.Int(md.Query("rx"))
+
+	rx_mode := modeConvert(mode, rx)
 
 	if err := md.DB.QueryRow("SELECT 1 FROM users WHERE id = ?", id).Scan(&id); err == sql.ErrNoRows {
 		return common.SimpleResponse(404, "user not found")
@@ -510,10 +490,10 @@ func UserUnweightedPerformanceGET(md common.MethodData) common.CodeMessager {
 		common.ResponseBase
 		performance float32 `json:"performance"`
 	}{}
-	err := md.DB.QueryRow("SELECT SUM(pp) FROM scores"+tab+" WHERE userid = ? AND completed = 3 AND mode = ?", id, mode).Scan(&r.performance)
+	err := md.DB.QueryRow("SELECT SUM(pp) FROM scores WHERE userid = ? AND completed = 3 AND mode = ?", id, rx_mode).Scan(&r.performance)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Println("User", id, "has no scores in scores"+tab, "???")
+			fmt.Println("User", id, "has no scores???")
 			return r
 		}
 		return Err500
@@ -547,13 +527,13 @@ func UserLookupGET(md common.MethodData) common.CodeMessager {
 	name = "%" + name + "%"
 
 	var email string
-	if md.User.TokenPrivileges&common.PrivilegeManageUser != 0 &&
+	if md.User.TokenPrivileges & common.ADMINISTRATOR != 0 &&
 		strings.Contains(md.Query("name"), "@") {
 		email = md.Query("name")
 	}
 
-	rows, err := md.DB.Query("SELECT users.id, users.username FROM users WHERE "+
-		"(username_safe LIKE ? OR email = ?) AND "+
+	rows, err := md.DB.Query("SELECT users.id, users.name FROM users WHERE "+
+		"(safe_name LIKE ? OR email = ?) AND "+
 		md.User.OnlyUserPublic(true)+" LIMIT 25", name, email)
 	if err != nil {
 		md.Err(err)
@@ -579,9 +559,6 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 	if user == 0 {
 		return common.SimpleResponse(401, "Invalid user id!")
 	}
-	
-	relax := common.Int(md.Query("rx")) > 0
-	mode := common.Int(md.Query("m")) & 0b11
 
 	type BeatmapPlaycount struct {
 		Count   int     `json:"playcount"`
@@ -592,34 +569,36 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 		common.ResponseBase
 		BeatmapsPlaycount []BeatmapPlaycount `json:"most_played_beatmaps"`
 	}
-	
+
+	rx_mode := modeConvert(common.Int(md.Query("m")), common.Int(md.Query("rx")))
+
 	// i will query some additional info about the beatmap for later?
 	rows, err := md.DB.Query(
-		`SELECT beatmaps_playcounts.count,
-		beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-		beatmaps.song_name, beatmaps.ranked FROM beatmaps_playcounts
-		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = beatmaps_playcounts.beatmap
-		WHERE user = ? AND relax = ? AND beatmaps_playcounts.mode = ? ORDER BY count DESC`, user, relax, mode)
+		`SELECT COUNT(*) plays,
+		maps.id, maps.set_id, maps.md5,
+		maps.title, maps.status FROM scores
+		INNER JOIN maps ON maps.md5 = scores.map_md5
+		WHERE userid = ? AND scores.mode = ? GROUP BY scores.map_md5 ORDER BY count DESC`, user, rx_mode)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
 	defer rows.Close()
-	
+
 	r := MostPlayedBeatmaps{}
-	
+
 	for rows.Next() {
 		bmc := BeatmapPlaycount{}
-	
-		err = rows.Scan(&bmc.Count, &bmc.Beatmap.BeatmapID, &bmc.Beatmap.BeatmapsetID, 
+
+		err = rows.Scan(&bmc.Count, &bmc.Beatmap.BeatmapID, &bmc.Beatmap.BeatmapsetID,
 			&bmc.Beatmap.BeatmapMD5, &bmc.Beatmap.SongName, &bmc.Beatmap.Ranked)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
-		
+
 		r.BeatmapsPlaycount = append(r.BeatmapsPlaycount, bmc)
 	}
-	
+
 	return r
 }

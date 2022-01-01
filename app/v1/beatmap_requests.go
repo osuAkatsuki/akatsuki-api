@@ -29,12 +29,6 @@ func BeatmapRankRequestsStatusGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 	var r rankRequestsStatusResponse
-	// if it's not auth-free access and we have got ReadConfidential, we can
-	// know if this user can submit beatmaps or not.
-	hasConfid := md.ID() != 0 && md.User.TokenPrivileges&common.PrivilegeReadConfidential > 0
-	if hasConfid {
-		r.SubmittedByUser = new(int)
-	}
 	isFirst := true
 	for rows.Next() {
 		var (
@@ -62,17 +56,14 @@ func BeatmapRankRequestsStatusGET(md common.MethodData) common.CodeMessager {
 	}
 	r.QueueSize = c.RankQueueSize
 	r.MaxPerUser = c.BeatmapRequestsPerUser
-	if hasConfid {
-		x := r.Submitted < r.QueueSize && *r.SubmittedByUser < r.MaxPerUser
-		r.CanSubmit = &x
-	}
+	x := r.Submitted < r.QueueSize && *r.SubmittedByUser < r.MaxPerUser
+	r.CanSubmit = &x
 	r.Code = 200
 	return r
 }
 
 type submitRequestData struct {
 	ID    int `json:"id"`
-	SetID int `json:"set_id"`
 }
 
 // BeatmapRankRequestsSubmitPOST submits a new beatmap for ranking approval.
@@ -83,8 +74,8 @@ func BeatmapRankRequestsSubmitPOST(md common.MethodData) common.CodeMessager {
 		return ErrBadJSON
 	}
 	// check json data is present
-	if d.ID == 0 && d.SetID == 0 {
-		return ErrMissingField("id|set_id")
+	if d.ID == 0 {
+		return ErrMissingField("id")
 	}
 
 	// you've been rate limited
@@ -103,12 +94,8 @@ func BeatmapRankRequestsSubmitPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(403, "It's not possible to do a rank request at this time.")
 	}
 
-	w := common.
-		Where("beatmap_id = ?", strconv.Itoa(d.ID)).Or().
-		Where("beatmapset_id = ?", strconv.Itoa(d.SetID))
-
 	var ranked int
-	err = md.DB.QueryRow("SELECT ranked FROM beatmaps "+w.Clause+" LIMIT 1", w.Params...).Scan(&ranked)
+	err = md.DB.QueryRow("SELECT status FROM beatmaps WHERE id = ? LIMIT 1", d.ID).Scan(&ranked)
 	if ranked >= 2 {
 		return common.SimpleResponse(406, "That beatmap is already ranked.")
 	}
@@ -124,15 +111,8 @@ func BeatmapRankRequestsSubmitPOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	// type and value of beatmap rank request
-	t := "b"
-	v := d.ID
-	if d.SetID != 0 {
-		t = "s"
-		v = d.SetID
-	}
-	err = md.DB.QueryRow("SELECT 1 FROM rank_requests WHERE bid = ? AND type = ? AND time > ?",
-		v, t, time.Now().Add(-time.Hour*24).Unix()).Scan(new(int))
+	err = md.DB.QueryRow("SELECT 1 FROM map_requests WHERE map_id = ? AND time > ?",
+		d.ID, time.Now().Add(-time.Hour*24).Unix()).Scan(new(int))
 
 	// error handling
 	switch err {
@@ -148,8 +128,8 @@ func BeatmapRankRequestsSubmitPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	_, err = md.DB.Exec(
-		"INSERT INTO rank_requests (userid, bid, type, time, blacklisted) VALUES (?, ?, ?, ?, 0)",
-		md.ID(), v, t, time.Now().Unix())
+		"INSERT INTO map_requests (map_id, player_id, datetime, active) VALUES (?, ?, ?, 1)",
+		d.ID, md.ID(), time.Now())
 	if err != nil {
 		md.Err(err)
 		return Err500

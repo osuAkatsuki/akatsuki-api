@@ -3,6 +3,7 @@ package v1
 import (
 	"database/sql"
 	"fmt"
+
 	// "regexp"
 	"strconv"
 	"strings"
@@ -18,7 +19,7 @@ type Clan struct {
 	Description string `json:"description"`
 	Icon        string `json:"icon"`
 	Owner       int    `json:"owner"`
-	Status      int    `json:"status"`
+	Status		int    `json:"status"`
 }
 
 const (
@@ -61,7 +62,7 @@ func ClansGET(md common.MethodData) common.CodeMessager {
 	defer rows.Close()
 	for rows.Next() {
 		var c Clan
-		err = rows.Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner, &c.Status)
+		err = rows.Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -87,20 +88,17 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		Page  int          `json:"page"`
 		Clans []clanLbData `json:"clans"`
 	}
-	relax := md.Query("rx") == "1"
-	tableName := "users"
-	if relax {
-		tableName = "rx"
-	}
+	relax := common.Int(md.Query("rx"))
+	relax_mode := mode + relax
 	cl := clanLeaderboard{Page: page}
-	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp, 
-		SUM(ranked_score_%[1]s), SUM(total_score_%[1]s), SUM(playcount_%[1]s), AVG(avg_accuracy_%[1]s), 
-		clans.name, clans.id 
-		FROM %[2]s_stats 
-		LEFT JOIN users ON users.id = %[2]s_stats.id 
-		INNER JOIN clans ON clans.id = users.clan_id 
-		WHERE users.clan_id <> 0 AND users.privileges & 1
-		GROUP BY users.clan_id ORDER BY pp DESC LIMIT ?,50`, dbmode[mode], tableName)
+	q := fmt.Sprintf(`SELECT SUM(pp)/(COUNT(clan_id)+1) AS pp,
+		SUM(rscore), SUM(tscore), SUM(plays), AVG(acc),
+		clans.name, clans.id
+		FROM stats
+		LEFT JOIN users USING(id)
+		INNER JOIN clans ON clans.id = users.clan_id
+		WHERE users.clan_id <> 0 AND users.privileges & 1 AND stats.mode = %[1]s
+		GROUP BY users.clan_id ORDER BY pp DESC LIMIT ?,50`, relax_mode)
 	rows, err := md.DB.Query(q, (page-1)*50)
 	if err != nil {
 		md.Err(err)
@@ -146,11 +144,6 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 		ChosenMode modeData `json:"chosen_mode"`
 	}
 
-	relax := md.Query("rx") == "1"
-	tableName := "users"
-	if relax {
-		tableName = "rx"
-	}
 	type Res struct {
 		common.ResponseBase
 		Clan clanModeStats `json:"clan"`
@@ -160,12 +153,13 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		return Res{Clan: cms}
 	}
-	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_%[1]s), 
-		SUM(total_score_%[1]s), SUM(playcount_%[1]s), SUM(replays_watched_%[1]s), 
-		AVG(avg_accuracy_%[1]s), SUM(total_hits_%[1]s) 
-		FROM %[2]s_stats LEFT JOIN users ON users.id = %[2]s_stats.id 
-		WHERE users.clan_id = ? AND users.privileges & 1 
-		LIMIT 1`, dbmode[mode], tableName)
+	relax_mode := mode + common.Int(md.Query("rx"))
+	q := fmt.Sprintf(`SELECT SUM(pp)/(COUNT(clan_id)+1) AS pp, SUM(rscore),
+		SUM(tscore), SUM(plays), SUM(replays_watched),
+		AVG(acc), SUM(total_hits)
+		FROM stats LEFT JOIN users ON users.id = stats.id
+		WHERE users.clan_id = ? AND users.privileges & 1 where stats.mode = %[1]s
+		LIMIT 1`, relax_mode)
 	var pp float64
 	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
 	if err != nil {
@@ -175,7 +169,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 
 	cms.ChosenMode.PP = int(pp)
 	var rank int
-	err = md.DB.QueryRow("SELECT COUNT(pp) FROM (SELECT SUM(pp_"+dbmode[mode]+")/(COUNT(clan_id)+1) AS pp FROM "+tableName+"_stats LEFT JOIN users ON users.id = "+tableName+"_stats.id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id) x WHERE x.pp >= ?", cms.ChosenMode.PP).Scan(&rank)
+	err = md.DB.QueryRow("SELECT COUNT(pp) FROM (SELECT SUM(pp)/(COUNT(clan_id)+1) AS pp FROM stats LEFT JOIN users USING(id) WHERE clan_id <> 0 AND (users.privileges & 3) >= 3 GROUP BY clan_id) x WHERE x.pp >= ? AND stats.mode = ?", cms.ChosenMode.PP, relax_mode).Scan(&rank)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -288,7 +282,7 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 		if count >= clanMemberLimit {
 			return common.SimpleResponse(403, "clan is full")
 		}
-		
+
 		if c.Status == 3 {
 			_, err = md.DB.Exec("INSERT INTO clan_requests VALUES (?, ?, DEFAULT) ON DUPLICATE KEY UPDATE time = NOW()", c.ID, md.ID())
 			return common.SimpleResponse(200, "join request sent")
@@ -535,7 +529,7 @@ func getUserData(id int, md common.MethodData) (userData, error) {
 	if id == 0 {
 		return u, nil
 	}
-	err := md.DB.QueryRow("SELECT users.id, users.username, register_datetime, privileges, latest_activity, username_aka, country FROM users LEFT JOIN users_stats ON users.id = users_stats.id WHERE users.id = ? LIMIT 1", id).Scan(&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity, &u.UsernameAKA, &u.Country)
+	err := md.DB.QueryRow("SELECT id, name, creation_time, priv, latest_activity, username_aka, country FROM users WHERE users.id = ? LIMIT 1", id).Scan(&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity, &u.UsernameAKA, &u.Country)
 
 	return u, err
 }

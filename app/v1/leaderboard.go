@@ -25,54 +25,31 @@ type leaderboardResponse struct {
 	Users []leaderboardUser `json:"users"`
 }
 
-const rxUserQuery = `
-		SELECT
-			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-			rx_stats.username_aka, users_stats.country,
-			rx_stats.play_style, rx_stats.favourite_mode,
-
-			rx_stats.ranked_score_%[1]s, rx_stats.total_score_%[1]s, rx_stats.playcount_%[1]s,
-			rx_stats.replays_watched_%[1]s, rx_stats.total_hits_%[1]s,
-			rx_stats.avg_accuracy_%[1]s, rx_stats.pp_%[1]s
-		FROM users
-		INNER JOIN rx_stats ON rx_stats.id = users.id
-		INNER JOIN users_stats ON users_stats.id = users.id `
-
 const lbUserQuery = `
 		SELECT
-			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+			users.id, users.name, users.creation_time, users.priv, users.latest_activity,
 
-			users_stats.username_aka, users_stats.country,
-			users_stats.play_style, users_stats.favourite_mode,
+			username_aka, country,
+			play_style, favourite_mode,
 
-			users_stats.ranked_score_%[1]s, users_stats.total_score_%[1]s, users_stats.playcount_%[1]s,
-			users_stats.replays_watched_%[1]s, users_stats.total_hits_%[1]s,
-			users_stats.avg_accuracy_%[1]s, users_stats.pp_%[1]s
+			stats.rscore, stats.tscore, stats.plays,
+			stats.replays_watched, total_hits,
+			stats.acc, stats.pp
 		FROM users
-		INNER JOIN users_stats ON users_stats.id = users.id `
+		INNER JOIN stats USING(id) WHERE stats.mode = %[1]s`
 
 // previously done horrible hardcoding makes this the spaghetti it is
-func getLbUsersDb(p, l int, rx bool, m, sort string, md *common.MethodData) []leaderboardUser {
+func getLbUsersDb(p, l, rx, m int, sort string, md *common.MethodData) []leaderboardUser {
 	var query, order string
 	if sort == "score" {
-		if rx {
-			order = "ORDER BY rx_stats.ranked_score_%[1]s DESC, rx_stats.pp_%[1]s DESC"
-		} else {
-			order = "ORDER BY users_stats.ranked_score_%[1]s DESC, users_stats.pp_%[1]s DESC"
-		}
+		order = "ORDER BY stats.rscore DESC, stats.pp DESC"
 	} else {
-		if rx {
-			order = "ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC"
-		} else {
-			order = "ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC"
-		}
+		order = "ORDER BY stats.pp DESC, stats.rscore DESC"
 	}
-	if rx {
-		query = fmt.Sprintf(rxUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
-	} else {
-		query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
-	}
+
+	relax_mode := rx + m
+
+	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", relax_mode, p*l, l)
 	rows, err := md.DB.Query(query)
 	if err != nil {
 		md.Err(err)
@@ -118,7 +95,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 
 	if sort != "pp" {
-		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, m, sort, &md)}
+		resp := leaderboardResponse{Users: getLbUsersDb(p, l, common.Int(md.Query("rx")), common.Int(md.Query("mode")), sort, &md)}
 		resp.Code = 200
 		return resp
 	}
@@ -139,16 +116,14 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	var resp leaderboardResponse
 	resp.Code = 200
 	if len(results) == 0 {
-		resp.Users = getLbUsersDb(p, l, rx, m, sort, &md)
+		resp.Users = getLbUsersDb(p, l, common.Int(md.Query("rx")), common.Int(md.Query("mode")), sort, &md)
 		return resp
 	}
 
 	var query string
-	if rx {
-		query = fmt.Sprintf(rxUserQuery+`WHERE users.id IN (?) ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC`, m)
-	} else {
-		query = fmt.Sprintf(lbUserQuery+`WHERE users.id IN (?) ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC`, m)
-	}
+	relax_mode := common.Int(md.Query("rx")) + common.Int(md.Query("mode"))
+
+	query = fmt.Sprintf(lbUserQuery+`WHERE users.id IN (?) AND stats.mode = %[1]s ORDER BY stats.pp DESC, stats.rscore DESC`, relax_mode)
 	query, params, _ := sqlx.In(query, results)
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
@@ -206,6 +181,14 @@ func relaxboardPosition(r *redis.Client, mode string, user int) *int {
 
 func rxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
 	return _position(r, "ripple:relaxboard:"+mode+":"+strings.ToLower(country), user)
+}
+
+func autoboardPosition(r *redis.Client, mode string, user int) *int {
+	return _position(r, "ripple:autoboard:"+mode, user)
+}
+
+func apcountryPosition(r *redis.Client, mode string, user int, country string) *int {
+	return _position(r, "ripple:autoboard:"+mode+":"+strings.ToLower(country), user)
 }
 
 func _position(r *redis.Client, key string, user int) *int {

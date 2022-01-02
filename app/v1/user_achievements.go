@@ -13,8 +13,8 @@ import (
 type Achievement struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`
-	Description string `json:"desc"`
-	File        string `json:"file"`
+	Description string `json:"`desc`"`
+	File        string `json:"`file`"`
 }
 
 // LoadAchievementsEvery reloads the achievements in the database every given

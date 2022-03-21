@@ -19,7 +19,7 @@ require (
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/thehowl/conf v0.1.0
 	github.com/thehowl/go-osuapi v0.0.0-20181219091033-b29455689881
-	github.com/valyala/fasthttp v1.26.0
+	github.com/valyala/fasthttp v1.34.0
 	gopkg.in/redis.v5 v5.2.9
 	gopkg.in/thehowl/go-osuapi.v1 v1.0.0-20170312091738-23480db9e43c
 	zxq.co/ripple/agplwarning v0.0.0-20180204130109-bd4406595c7e

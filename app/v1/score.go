@@ -46,6 +46,184 @@ type scoresResponse struct {
 	Scores []beatmapScore `json:"scores"`
 }
 
+type scoreResponse struct {
+	common.ResponseBase
+	Score   beatmapScore `json:"score"`
+	Beatmap beatmap      `json:"beatmap"`
+}
+
+var vnQuery = `
+SELECT
+	scores.id, scores.beatmap_md5, scores.score,
+	scores.max_combo, scores.full_combo, scores.mods,
+	scores.300_count, scores.100_count, scores.50_count,
+	scores.gekis_count, scores.katus_count, scores.misses_count,
+	scores.time, scores.play_mode, scores.accuracy, scores.pp,
+	scores.completed,
+
+	users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users_stats.username_aka, users_stats.country
+FROM scores
+INNER JOIN users ON users.id = scores.userid
+INNER JOIN users_stats ON users_stats.id = scores.userid
+WHERE scores.beatmap_md5 = ? AND scores.play_mode = ? AND scores.completed = '3' AND `
+
+var rxQuery = `
+SELECT
+	scores_relax.id, scores_relax.beatmap_md5, scores_relax.score,
+	scores_relax.max_combo, scores_relax.full_combo, scores_relax.mods,
+	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
+	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
+	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
+	scores_relax.completed,
+
+	users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users_stats.username_aka, users_stats.country
+FROM scores_relax
+INNER JOIN users ON users.id = scores_relax.userid
+INNER JOIN users_stats ON users_stats.id = scores_relax.userid
+WHERE scores_relax.beatmap_md5 = ? AND scores_relax.play_mode = ? AND scores_relax.completed = '3' AND `
+
+var apQuery = `
+SELECT
+	scores_ap.id, scores_ap.beatmap_md5, scores_ap.score,
+	scores_ap.max_combo, scores_ap.full_combo, scores_ap.mods,
+	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
+	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
+	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
+	scores_ap.completed,
+
+	users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users_stats.username_aka, users_stats.country
+FROM scores_ap
+INNER JOIN users ON users.id = scores_ap.userid
+INNER JOIN users_stats ON users_stats.id = scores_ap.userid
+WHERE scores_ap.beatmap_md5 = ? AND scores_ap.play_mode = ? AND scores_ap.completed = '3' AND `
+
+var vnQuerySingle = `
+SELECT
+	scores.id, scores.beatmap_md5, scores.score,
+	scores.max_combo, scores.full_combo, scores.mods,
+	scores.300_count, scores.100_count, scores.50_count,
+	scores.gekis_count, scores.katus_count, scores.misses_count,
+	scores.time, scores.play_mode, scores.accuracy, scores.pp,
+	scores.completed,
+
+	users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users_stats.username_aka, users_stats.country,
+
+	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
+	beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
+	beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+	beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
+	beatmaps.ranked_status_freezed, beatmaps.latest_update
+FROM scores
+INNER JOIN users ON users.id = scores.userid
+INNER JOIN users_stats ON users_stats.id = scores.userid
+INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
+WHERE scores.id = ? `
+
+var rxQuerySingle = `
+SELECT
+	scores_relax.id, scores_relax.beatmap_md5, scores_relax.score,
+	scores_relax.max_combo, scores_relax.full_combo, scores_relax.mods,
+	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
+	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
+	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
+	scores_relax.completed,
+
+	users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users_stats.username_aka, users_stats.country,
+
+	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
+	beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
+	beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+	beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
+	beatmaps.ranked_status_freezed, beatmaps.latest_update
+FROM scores_relax
+INNER JOIN users ON users.id = scores_relax.userid
+INNER JOIN users_stats ON users_stats.id = scores_relax.userid
+INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_relax.beatmap_md5
+WHERE scores_relax.id = ? `
+
+var apQuerySingle = `
+SELECT
+	scores_ap.id, scores_ap.beatmap_md5, scores_ap.score,
+	scores_ap.max_combo, scores_ap.full_combo, scores_ap.mods,
+	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
+	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
+	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
+	scores_ap.completed,
+
+	users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users_stats.username_aka, users_stats.country,
+
+	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
+	beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
+	beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+	beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
+	beatmaps.ranked_status_freezed, beatmaps.latest_update
+FROM scores_ap
+INNER JOIN users ON users.id = scores_ap.userid
+INNER JOIN users_stats ON users_stats.id = scores_ap.userid
+INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_ap.beatmap_md5
+WHERE scores_ap.id = ? `
+
+func ScoreGET(md common.MethodData) common.CodeMessager {
+	relax := common.Int(md.Query("rx"))
+	scoreId := md.Query("id")
+
+	query := vnQuerySingle
+	if relax == 1 {
+		query = rxQuerySingle
+	} else if relax == 2 {
+		query = apQuerySingle
+	}
+
+	var (
+		s beatmapScore
+		u userData
+		b beatmap
+	)
+	row := md.DB.QueryRow(query, scoreId)
+	err := row.Scan(
+		&s.ID, &s.BeatmapMD5, &s.Score.Score,
+		&s.MaxCombo, &s.FullCombo, &s.Mods,
+		&s.Count300, &s.Count100, &s.Count50,
+		&s.CountGeki, &s.CountKatu, &s.CountMiss,
+		&s.Time, &s.PlayMode, &s.Accuracy, &s.PP,
+		&s.Completed,
+
+		&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges,
+		&u.LatestActivity, &u.UsernameAKA, &u.Country,
+
+		&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
+		&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
+		&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+		&b.MaxCombo, &b.HitLength, &b.Ranked,
+		&b.RankedStatusFrozen, &b.LatestUpdate,
+	)
+	if err != nil {
+		md.Err(err)
+	}
+	s.User = u
+	s.Rank = strings.ToUpper(getrank.GetRank(
+		osuapi.Mode(s.PlayMode),
+		osuapi.Mods(s.Mods),
+		s.Accuracy,
+		s.Count300,
+		s.Count100,
+		s.Count50,
+		s.CountMiss,
+	))
+
+	var r scoreResponse
+	r.Score = s
+	r.Beatmap = b
+	r.Code = 200
+	return r
+}
+
 // ScoresGET retrieves the top scores for a certain beatmap.
 func ScoresGET(md common.MethodData) common.CodeMessager {
 	var (
@@ -69,29 +247,35 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 		return ErrMissingField("md5|b")
 	}
 
+	queryDb := vnQuery
 	sort := common.Sort(md, common.SortConfiguration{
 		Default: "scores.pp DESC, scores.score DESC",
 		Table:   "scores",
 		Allowed: []string{"pp", "score", "accuracy", "id"},
 	})
 
-	rows, err := md.DB.Query(`
-SELECT
-	scores.id, scores.beatmap_md5, scores.score,
-	scores.max_combo, scores.full_combo, scores.mods,
-	scores.300_count, scores.100_count, scores.50_count,
-	scores.gekis_count, scores.katus_count, scores.misses_count,
-	scores.time, scores.play_mode, scores.accuracy, scores.pp,
-	scores.completed,
+	if md.Query("relax") == "1" {
+		queryDb = rxQuery
+		sort = common.Sort(md, common.SortConfiguration{
+			Default: "scores_relax.pp DESC, scores_relax.score DESC",
+			Table:   "scores_relax",
+			Allowed: []string{"pp", "score", "accuracy", "id"},
+		})
+	} else if md.Query("relax") == "2" {
+		queryDb = rxQuery
+		sort = common.Sort(md, common.SortConfiguration{
+			Default: "scores_ap.pp DESC, scores_ap.score DESC",
+			Table:   "scores_ap",
+			Allowed: []string{"pp", "score", "accuracy", "id"},
+		})
+	}
+	mode := "0"
+	if md.Query("m") != "" {
+		mode = md.Query("m")
+	}
 
-	users.id, users.username, users.register_datetime, users.privileges,
-	users.latest_activity, users_stats.username_aka, users_stats.country
-FROM scores
-INNER JOIN users ON users.id = scores.userid
-INNER JOIN users_stats ON users_stats.id = scores.userid
-WHERE scores.beatmap_md5 = ? AND scores.completed = '3' AND `+md.User.OnlyUserPublic(false)+
-		` `+genModeClause(md)+`
-`+sort+common.Paginate(md.Query("p"), md.Query("l"), 100), beatmapMD5)
+	rows, err := md.DB.Query(queryDb+``+md.User.OnlyUserPublic(false)+
+		` `+genModeClause(md)+` `+sort+common.Paginate(md.Query("p"), md.Query("l"), 100), beatmapMD5, mode)
 	if err != nil {
 		md.Err(err)
 		return Err500

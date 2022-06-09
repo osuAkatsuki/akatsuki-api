@@ -38,6 +38,25 @@ const relaxScoreSelectBase = `
 		INNER JOIN users ON users.id = scores_relax.userid
 		`
 
+const autoScoreSelectBase = `
+		SELECT
+			scores_ap.id, scores_ap.beatmap_md5, scores_ap.score,
+			scores_ap.max_combo, scores_ap.full_combo, scores_ap.mods,
+			scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
+			scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
+			scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
+			scores_ap.completed,
+
+			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
+			beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+			beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
+			beatmaps.ranked_status_freezed, beatmaps.latest_update
+		FROM scores_ap
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_ap.beatmap_md5
+		INNER JOIN users ON users.id = scores_ap.userid
+		`
+
 const userScoreSelectBase = `
 		SELECT
 			scores.id, scores.beatmap_md5, scores.score,
@@ -66,8 +85,9 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 	}
 
 	mc := genModeClause(md)
+	rx := common.Int(md.Query("rx"))
 
-	if common.Int(md.Query("rx")) != 0 {
+	if rx == 1 {
 		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
 		return relaxPuts(md, fmt.Sprintf(
 			`WHERE
@@ -77,6 +97,18 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 				%s
 				AND `+md.User.OnlyUserPublic(true)+`
 			ORDER BY scores_relax.pp DESC, scores_relax.score DESC %s`,
+			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
+		), param)
+	} else if rx == 2 {
+		mc = strings.Replace(mc, "scores.", "scores_ap.", 1)
+		return autoPuts(md, fmt.Sprintf(
+			`WHERE
+				scores_ap.completed = 3
+				AND beatmaps.ranked IN (2, 3)
+				AND %s
+				%s
+				AND `+md.User.OnlyUserPublic(true)+`
+			ORDER BY scores_ap.pp DESC, scores_ap.score DESC %s`,
 			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
 		), param)
 	} else {
@@ -100,14 +132,28 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 		return *cm
 	}
 	mc := genModeClause(md)
-	if common.Int(md.Query("rx")) != 0 {
+	rx := common.Int(md.Query("rx"))
+
+	if rx == 1 {
 		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
 		return relaxPuts(md, fmt.Sprintf(
 			`WHERE
 				%s
 				%s
+				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)
 				AND `+md.User.OnlyUserPublic(true)+`
 			ORDER BY scores_relax.id DESC %s`,
+			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
+		), param)
+	} else if rx == 2 {
+		mc = strings.Replace(mc, "scores.", "scores_ap.", 1)
+		return autoPuts(md, fmt.Sprintf(
+			`WHERE
+				%s
+				%s
+				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)
+				AND `+md.User.OnlyUserPublic(true)+`
+			ORDER BY scores_ap.id DESC %s`,
 			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
 		), param)
 	} else {
@@ -115,11 +161,121 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 			`WHERE
 				%s
 				%s
+				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)
 				AND `+md.User.OnlyUserPublic(true)+`
 			ORDER BY scores.id DESC %s`,
 			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
 		), param)
 	}
+}
+
+// UserScoresPinnedGET retrieves an user's pinned scores.
+func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
+	cm, wc, param := whereClauseUser(md, "users")
+	if cm != nil {
+		return *cm
+	}
+	mc := genModeClause(md)
+	rx := common.Int(md.Query("rx"))
+	if rx == 1 {
+		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
+		return relaxPuts(md, fmt.Sprintf(
+			`WHERE
+				%s
+				%s
+				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR) AND pinned = 1
+				AND `+md.User.OnlyUserPublic(true)+`
+			ORDER BY scores_relax.pp DESC %s`,
+			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
+		), param)
+	} else if rx == 2 {
+		mc = strings.Replace(mc, "scores.", "scores_ap.", 1)
+		return autoPuts(md, fmt.Sprintf(
+			`WHERE
+				%s
+				%s
+				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR) AND pinned = 1
+				AND `+md.User.OnlyUserPublic(true)+`
+			ORDER BY scores_ap.pp DESC %s`,
+			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
+		), param)
+	} else {
+		return scoresPuts(md, fmt.Sprintf(
+			`WHERE
+				%s
+				%s
+				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR) AND pinned = 1
+				AND `+md.User.OnlyUserPublic(true)+`
+			ORDER BY scores.pp DESC %s`,
+			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
+		), param)
+	}
+}
+
+func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {
+	var u struct {
+		ID int `json:"id"`
+		Relax int `json:"rx"`
+	}
+	md.Unmarshal(&u)
+	
+	return pinScore(md, u.ID, u.Relax)
+}
+
+func ScoresPinDelPOST(md common.MethodData) common.CodeMessager {
+	var u struct {
+		ID int `json:"id"`
+		Relax int `json:"rx"`
+	}
+	md.Unmarshal(&u)
+	
+	return unpinScore(md, u.ID, u.Relax)
+}
+
+func pinScore(md common.MethodData, id int, relax int) common.CodeMessager {
+	var table string
+	if relax == 1 {
+		table = "scores_relax"
+	} else if relax == 2 {
+		table = "scores_ap"
+	} else {
+		table = "scores"
+	}
+
+	var v int
+	err := md.DB.QueryRow(fmt.Sprintf("SELECT id FROM %s WHERE id = ?", table), id).Scan(&v)
+	if err != nil {
+		md.Err(err)
+		return common.SimpleResponse(404, "I'd also like to pin a score I don't have... but I can't.")
+	}
+
+	_, err = md.DB.Exec(fmt.Sprintf("UPDATE %s SET pinned = 1 WHERE id = ?", table), id)
+	if err != nil {
+		md.Err(err)
+		return common.SimpleResponse(404, "I'd also like to pin a score I don't have... but I can't.")
+	}
+
+	return common.SimpleResponse(200, "Score pinned.")
+}
+
+func unpinScore(md common.MethodData, id int, relax int) common.CodeMessager {
+	var table string
+	if relax == 1 {
+		table = "scores_relax"
+	} else if relax == 2 {
+		table = "scores_ap"
+	} else {
+		table = "scores"
+	}
+
+	var v int
+	err := md.DB.QueryRow(fmt.Sprintf("SELECT id FROM %s WHERE id = ?", table), id).Scan(&v)
+	if err != nil {
+		return common.SimpleResponse(404, "I'd also like to unpin a score I don't have... but I can't.")
+	}
+
+	md.DB.Exec(fmt.Sprintf("UPDATE %s SET pinned = 0 WHERE id = ?", table), id)
+	return common.SimpleResponse(200, "Score unpinned.")
 }
 
 func scoresPuts(md common.MethodData, whereClause string, params ...interface{}) common.CodeMessager {
@@ -173,6 +329,55 @@ func scoresPuts(md common.MethodData, whereClause string, params ...interface{})
 
 func relaxPuts(md common.MethodData, whereClause string, params ...interface{}) common.CodeMessager {
 	rows, err := md.DB.Query(relaxScoreSelectBase+whereClause, params...)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	var scores []userScore
+	for rows.Next() {
+		var (
+			us userScore
+			b  beatmap
+		)
+		err = rows.Scan(
+			&us.ID, &us.BeatmapMD5, &us.Score.Score,
+			&us.MaxCombo, &us.FullCombo, &us.Mods,
+			&us.Count300, &us.Count100, &us.Count50,
+			&us.CountGeki, &us.CountKatu, &us.CountMiss,
+			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
+			&us.Completed,
+
+			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
+			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
+			&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+			&b.MaxCombo, &b.HitLength, &b.Ranked,
+			&b.RankedStatusFrozen, &b.LatestUpdate,
+		)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+		b.Difficulty = b.Diff2.STD
+		us.Beatmap = b
+		us.Rank = strings.ToUpper(getrank.GetRank(
+			osuapi.Mode(us.PlayMode),
+			osuapi.Mods(us.Mods),
+			us.Accuracy,
+			us.Count300,
+			us.Count100,
+			us.Count50,
+			us.CountMiss,
+		))
+		scores = append(scores, us)
+	}
+	r := userScoresResponse{}
+	r.Code = 200
+	r.Scores = scores
+	return r
+}
+
+func autoPuts(md common.MethodData, whereClause string, params ...interface{}) common.CodeMessager {
+	rows, err := md.DB.Query(autoScoreSelectBase+whereClause, params...)
 	if err != nil {
 		md.Err(err)
 		return Err500

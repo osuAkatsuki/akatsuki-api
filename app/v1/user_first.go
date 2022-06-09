@@ -18,10 +18,12 @@ func UserFirstGET(md common.MethodData) common.CodeMessager {
 
 	mode := common.Int(md.Query("mode"))
 
-	rx := common.Int(md.Query("rx")) == 1
+	rx := common.Int(md.Query("rx"))
 	table := "scores"
-	if rx {
+	if rx == 1 {
 		table = "scores_relax"
+	} else if rx == 2 {
+		table = "scores_ap"
 	}
 
 	r := struct {

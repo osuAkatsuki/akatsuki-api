@@ -10,7 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/app/internals"
 	"github.com/osuAkatsuki/akatsuki-api/app/peppy"
-	"github.com/osuAkatsuki/akatsuki-api/app/v1"
+	v1 "github.com/osuAkatsuki/akatsuki-api/app/v1"
 	"github.com/osuAkatsuki/akatsuki-api/app/websockets"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/redis.v5"
@@ -97,6 +97,7 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.Method("/api/v1/users/scores/best", v1.UserScoresBestGET)
 		r.Method("/api/v1/users/scores/recent", v1.UserScoresRecentGET)
 		r.Method("/api/v1/users/scores/first", v1.UserFirstGET)
+		r.Method("/api/v1/users/scores/pinned", v1.UserScoresPinnedGET)
 		r.Method("/api/v1/users/most_played", v1.UserMostPlayedBeatmapsGET)
 		r.Method("/api/v1/badges", v1.BadgesGET)
 		r.Method("/api/v1/badges/members", v1.BadgeMembersGET)
@@ -115,6 +116,7 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		r.Method("/api/v1/users/self", v1.UserSelfGET)
 		r.Method("/api/v1/tokens/self", v1.TokenSelfGET)
 		r.Method("/api/v1/blog/posts", v1.BlogPostsGET)
+		r.Method("/api/v1/score", v1.ScoreGET)
 		r.Method("/api/v1/scores", v1.ScoresGET)
 		r.Method("/api/v1/beatmaps/rank_requests/status", v1.BeatmapRankRequestsStatusGET)
 		r.Method("/api/v1/countries", v1.CountriesGET)
@@ -129,6 +131,8 @@ func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
 		// Write privilege required
 		r.POSTMethod("/api/v1/friends/add", v1.FriendsAddPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/friends/del", v1.FriendsDelPOST, common.PrivilegeWrite)
+		//r.POSTMethod("/api/v1/users/scores/pin", v1.ScoresPinAddPOST, common.PrivilegeWrite)
+		//r.POSTMethod("/api/v1/users/scores/unpin", v1.ScoresPinDelPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/settings", v1.UsersSelfSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/userpage", v1.UserSelfUserpagePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/beatmaps/rank_requests", v1.BeatmapRankRequestsSubmitPOST, common.PrivilegeWrite)

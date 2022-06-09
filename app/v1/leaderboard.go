@@ -39,6 +39,20 @@ const rxUserQuery = `
 		INNER JOIN rx_stats ON rx_stats.id = users.id
 		INNER JOIN users_stats ON users_stats.id = users.id `
 
+const apUserQuery = `
+		SELECT
+			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+
+			ap_stats.username_aka, users_stats.country,
+			ap_stats.play_style, ap_stats.favourite_mode,
+
+			ap_stats.ranked_score_%[1]s, ap_stats.total_score_%[1]s, ap_stats.playcount_%[1]s,
+			ap_stats.replays_watched_%[1]s, ap_stats.total_hits_%[1]s,
+			ap_stats.avg_accuracy_%[1]s, ap_stats.pp_%[1]s
+		FROM users
+		INNER JOIN ap_stats ON ap_stats.id = users.id
+		INNER JOIN users_stats ON users_stats.id = users.id `
+
 const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
@@ -53,23 +67,29 @@ const lbUserQuery = `
 		INNER JOIN users_stats ON users_stats.id = users.id `
 
 // previously done horrible hardcoding makes this the spaghetti it is
-func getLbUsersDb(p, l int, rx bool, m, sort string, md *common.MethodData) []leaderboardUser {
+func getLbUsersDb(p, l int, rx int, m, sort string, md *common.MethodData) []leaderboardUser {
 	var query, order string
 	if sort == "score" {
-		if rx {
+		if rx == 1 {
 			order = "ORDER BY rx_stats.ranked_score_%[1]s DESC, rx_stats.pp_%[1]s DESC"
+		} else if rx == 2 {
+			order = "ORDER BY ap_stats.ranked_score_%[1]s DESC, ap_stats.pp_%[1]s DESC"
 		} else {
 			order = "ORDER BY users_stats.ranked_score_%[1]s DESC, users_stats.pp_%[1]s DESC"
 		}
 	} else {
-		if rx {
+		if rx == 1 {
 			order = "ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC"
+		} else if rx == 2 {
+			order = "ORDER BY ap_stats.pp_%[1]s DESC, ap_stats.ranked_score_%[1]s DESC"
 		} else {
 			order = "ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC"
 		}
 	}
-	if rx {
+	if rx == 1 {
 		query = fmt.Sprintf(rxUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
+	} else if rx == 2 {
+		query = fmt.Sprintf(apUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
 	} else {
 		query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
 	}
@@ -111,7 +131,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		p = 0
 	}
 	l := common.InString(1, md.Query("l"), 500, 50)
-	rx := md.Query("rx") == "1"
+	rx := common.Int(md.Query("rx"))
 	sort := md.Query("sort")
 	if sort == "" {
 		sort = "pp"
@@ -123,8 +143,10 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		return resp
 	}
 	key := "ripple:leaderboard:" + m
-	if common.Int(md.Query("rx")) != 0 {
+	if rx == 1 {
 		key = "ripple:relaxboard:" + m
+	} else if rx == 2 {
+		key = "ripple:autoboard:" + m
 	}
 	if md.Query("country") != "" {
 		key += ":" + md.Query("country")
@@ -144,8 +166,10 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 
 	var query string
-	if rx {
+	if rx == 1 {
 		query = fmt.Sprintf(rxUserQuery+`WHERE users.id IN (?) ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC`, m)
+	} else if rx == 2 {
+		query = fmt.Sprintf(apUserQuery+`WHERE users.id IN (?) ORDER BY ap_stats.pp_%[1]s DESC, ap_stats.ranked_score_%[1]s DESC`, m)
 	} else {
 		query = fmt.Sprintf(lbUserQuery+`WHERE users.id IN (?) ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC`, m)
 	}
@@ -172,11 +196,18 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 			continue
 		}
 		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
-		if rx {
+		if rx == 1 {
 			if i := relaxboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i
 			}
 			if i := rxcountryPosition(md.R, m, u.ID, u.Country); i != nil {
+				u.ChosenMode.CountryLeaderboardRank = i
+			}
+		} else if rx == 2 {
+			if i := autoboardPosition(md.R, m, u.ID); i != nil {
+				u.ChosenMode.GlobalLeaderboardRank = i
+			}
+			if i := apcountryPosition(md.R, m, u.ID, u.Country); i != nil {
 				u.ChosenMode.CountryLeaderboardRank = i
 			}
 		} else {
@@ -206,6 +237,14 @@ func relaxboardPosition(r *redis.Client, mode string, user int) *int {
 
 func rxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
 	return _position(r, "ripple:relaxboard:"+mode+":"+strings.ToLower(country), user)
+}
+
+func autoboardPosition(r *redis.Client, mode string, user int) *int {
+	return _position(r, "ripple:autoboard:"+mode, user)
+}
+
+func apcountryPosition(r *redis.Client, mode string, user int, country string) *int {
+	return _position(r, "ripple:autoboard:"+mode+":"+strings.ToLower(country), user)
 }
 
 func _position(r *redis.Client, key string, user int) *int {

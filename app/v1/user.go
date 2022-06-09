@@ -187,6 +187,7 @@ type modeData struct {
 	PP                     int     `json:"pp"`
 	GlobalLeaderboardRank  *int    `json:"global_leaderboard_rank"`
 	CountryLeaderboardRank *int    `json:"country_leaderboard_rank"`
+	MaxCombo               int     `json:"max_combo"`
 }
 
 type userStats struct {
@@ -199,7 +200,7 @@ type userStats struct {
 type userFullResponse struct {
 	common.ResponseBase
 	userData
-	Stats         [2]userStats          `json:"stats"`
+	Stats         [3]userStats          `json:"stats"`
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
 	Badges        []singleBadge         `json:"badges"`
@@ -236,35 +237,39 @@ SELECT
 
 	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
 	users_stats.replays_watched_std, users_stats.total_hits_std,
-	users_stats.avg_accuracy_std, users_stats.pp_std,
+	users_stats.avg_accuracy_std, users_stats.pp_std, users_stats.max_combo_std,
 
 	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
 	users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
-	users_stats.avg_accuracy_taiko, users_stats.pp_taiko,
+	users_stats.avg_accuracy_taiko, users_stats.pp_taiko, users_stats.max_combo_taiko,
 
 	users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
 	users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
-	users_stats.avg_accuracy_ctb, users_stats.pp_ctb,
+	users_stats.avg_accuracy_ctb, users_stats.pp_ctb, users_stats.max_combo_ctb,
 
 	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
 	users_stats.replays_watched_mania, users_stats.total_hits_mania,
-	users_stats.avg_accuracy_mania, users_stats.pp_mania,
+	users_stats.avg_accuracy_mania, users_stats.pp_mania, users_stats.max_combo_mania,
 	
 	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
 	rx_stats.replays_watched_std, rx_stats.total_hits_std,
-	rx_stats.avg_accuracy_std, rx_stats.pp_std,
+	rx_stats.avg_accuracy_std, rx_stats.pp_std, rx_stats.max_combo_std,
 
 	rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
 	rx_stats.replays_watched_taiko, rx_stats.total_hits_taiko,
-	rx_stats.avg_accuracy_taiko, rx_stats.pp_taiko,
+	rx_stats.avg_accuracy_taiko, rx_stats.pp_taiko, rx_stats.max_combo_taiko,
 
 	rx_stats.ranked_score_ctb, rx_stats.total_score_ctb, rx_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
 	rx_stats.replays_watched_ctb, rx_stats.total_hits_ctb,
-	rx_stats.avg_accuracy_ctb, rx_stats.pp_ctb,
+	rx_stats.avg_accuracy_ctb, rx_stats.pp_ctb, rx_stats.max_combo_ctb,
 
 	rx_stats.ranked_score_mania, rx_stats.total_score_mania, rx_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
 	rx_stats.replays_watched_mania, rx_stats.total_hits_mania,
-	rx_stats.avg_accuracy_mania, rx_stats.pp_mania,
+	rx_stats.avg_accuracy_mania, rx_stats.pp_mania, rx_stats.max_combo_mania,
+
+	ap_stats.ranked_score_std, ap_stats.total_score_std, ap_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
+	ap_stats.replays_watched_std, ap_stats.total_hits_std,
+	ap_stats.avg_accuracy_std, ap_stats.pp_std, ap_stats.max_combo_std,
 
 	users.silence_reason, users.silence_end,
 	users.notes, users.ban_datetime, users.email,
@@ -275,6 +280,8 @@ LEFT JOIN users_stats
 ON users.id=users_stats.id
 LEFT JOIN rx_stats
 ON users.id=rx_stats.id
+LEFT JOIN ap_stats
+ON users.id=ap_stats.id
 WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
 LIMIT 1
 `
@@ -296,35 +303,39 @@ LIMIT 1
 
 		&r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime, &r.Stats[0].STD.Total_PlayTime,
 		&r.Stats[0].STD.ReplaysWatched, &r.Stats[0].STD.TotalHits,
-		&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP,
+		&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP, &r.Stats[0].STD.MaxCombo,
 
 		&r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime, &r.Stats[0].Taiko.Total_PlayTime,
 		&r.Stats[0].Taiko.ReplaysWatched, &r.Stats[0].Taiko.TotalHits,
-		&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP,
+		&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP, &r.Stats[0].Taiko.MaxCombo,
 
 		&r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime, &r.Stats[0].CTB.Total_PlayTime,
 		&r.Stats[0].CTB.ReplaysWatched, &r.Stats[0].CTB.TotalHits,
-		&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP,
+		&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP, &r.Stats[0].CTB.MaxCombo,
 
 		&r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime, &r.Stats[0].Mania.Total_PlayTime,
 		&r.Stats[0].Mania.ReplaysWatched, &r.Stats[0].Mania.TotalHits,
-		&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP,
+		&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP, &r.Stats[0].Mania.MaxCombo,
 
 		&r.Stats[1].STD.RankedScore, &r.Stats[1].STD.TotalScore, &r.Stats[1].STD.PlayCount, &r.Stats[1].STD.PlayTime, &r.Stats[1].STD.Total_PlayTime,
 		&r.Stats[1].STD.ReplaysWatched, &r.Stats[1].STD.TotalHits,
-		&r.Stats[1].STD.Accuracy, &r.Stats[1].STD.PP,
+		&r.Stats[1].STD.Accuracy, &r.Stats[1].STD.PP, &r.Stats[1].STD.MaxCombo,
 
 		&r.Stats[1].Taiko.RankedScore, &r.Stats[1].Taiko.TotalScore, &r.Stats[1].Taiko.PlayCount, &r.Stats[1].Taiko.PlayTime, &r.Stats[1].Taiko.Total_PlayTime,
 		&r.Stats[1].Taiko.ReplaysWatched, &r.Stats[1].Taiko.TotalHits,
-		&r.Stats[1].Taiko.Accuracy, &r.Stats[1].Taiko.PP,
+		&r.Stats[1].Taiko.Accuracy, &r.Stats[1].Taiko.PP, &r.Stats[1].Taiko.MaxCombo,
 
 		&r.Stats[1].CTB.RankedScore, &r.Stats[1].CTB.TotalScore, &r.Stats[1].CTB.PlayCount, &r.Stats[1].CTB.PlayTime, &r.Stats[1].CTB.Total_PlayTime,
 		&r.Stats[1].CTB.ReplaysWatched, &r.Stats[1].CTB.TotalHits,
-		&r.Stats[1].CTB.Accuracy, &r.Stats[1].CTB.PP,
+		&r.Stats[1].CTB.Accuracy, &r.Stats[1].CTB.PP, &r.Stats[1].CTB.MaxCombo,
 
 		&r.Stats[1].Mania.RankedScore, &r.Stats[1].Mania.TotalScore, &r.Stats[1].Mania.PlayCount, &r.Stats[1].Mania.PlayTime, &r.Stats[1].Mania.Total_PlayTime,
 		&r.Stats[1].Mania.ReplaysWatched, &r.Stats[1].Mania.TotalHits,
-		&r.Stats[1].Mania.Accuracy, &r.Stats[1].Mania.PP,
+		&r.Stats[1].Mania.Accuracy, &r.Stats[1].Mania.PP, &r.Stats[1].Mania.MaxCombo,
+
+		&r.Stats[2].STD.RankedScore, &r.Stats[2].STD.TotalScore, &r.Stats[2].STD.PlayCount, &r.Stats[2].STD.PlayTime, &r.Stats[2].STD.Total_PlayTime,
+		&r.Stats[2].STD.ReplaysWatched, &r.Stats[2].STD.TotalHits,
+		&r.Stats[2].STD.Accuracy, &r.Stats[2].STD.PP, &r.Stats[2].STD.MaxCombo,
 
 		&r.SilenceInfo.Reason, &r.SilenceInfo.End,
 		&r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID,
@@ -363,6 +374,18 @@ LIMIT 1
 			m.CountryLeaderboardRank = i
 		}
 	}
+
+	for modeID, m := range [...]*modeData{&r.Stats[2].STD} {
+		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+
+		if i := autoboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
+			m.GlobalLeaderboardRank = i
+		}
+		if i := apcountryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
+			m.CountryLeaderboardRank = i
+		}
+	}
+
 
 	var follower int
 	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user2 = ?", r.ID)
@@ -497,6 +520,8 @@ func UserUnweightedPerformanceGET(md common.MethodData) common.CodeMessager {
 	tab := ""
 	if md.Query("rx") == "1" {
 		tab = "_relax"
+	} else if md.Query("rx") == "2" {
+		tab = "_ap"
 	}
 
 	if err := md.DB.QueryRow("SELECT 1 FROM users WHERE id = ?", id).Scan(&id); err == sql.ErrNoRows {
@@ -575,13 +600,13 @@ func UserLookupGET(md common.MethodData) common.CodeMessager {
 }
 
 func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
-	user := common.Int(md.Query("u"))
+	user := common.Int(md.Query("id"))
 	if user == 0 {
 		return common.SimpleResponse(401, "Invalid user id!")
 	}
 	
-	relax := common.Int(md.Query("rx")) > 0
-	mode := common.Int(md.Query("m")) & 0b11
+	relax := common.Int(md.Query("rx"))
+	mode := common.Int(md.Query("mode"))
 
 	type BeatmapPlaycount struct {
 		Count   int     `json:"playcount"`
@@ -595,11 +620,14 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 	
 	// i will query some additional info about the beatmap for later?
 	rows, err := md.DB.Query(
-		`SELECT beatmaps_playcounts.count,
+		fmt.Sprintf(
+		`SELECT user_beatmaps.count,
 		beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-		beatmaps.song_name, beatmaps.ranked FROM beatmaps_playcounts
-		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = beatmaps_playcounts.beatmap
-		WHERE user = ? AND relax = ? AND beatmaps_playcounts.mode = ? ORDER BY count DESC`, user, relax, mode)
+		beatmaps.song_name, beatmaps.ranked FROM user_beatmaps
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = user_beatmaps.map
+		WHERE userid = ? AND rx = ? AND user_beatmaps.mode = ? ORDER BY count DESC %s`, common.Paginate(md.Query("p"), md.Query("l"), 100)),
+		user, relax, mode)
+
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -621,5 +649,6 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 		r.BeatmapsPlaycount = append(r.BeatmapsPlaycount, bmc)
 	}
 	
+	r.Code = 200
 	return r
 }

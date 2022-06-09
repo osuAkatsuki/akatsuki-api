@@ -41,6 +41,23 @@ const SrxUserQuery = `
 		WHERE users.id IN (?)
 		`
 
+
+const SapUserQuery = `
+		SELECT
+			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+
+			ap_stats.username_aka, users_stats.country,
+			ap_stats.play_style, ap_stats.favourite_mode,
+
+			ap_stats.ranked_score_%[1]s, ap_stats.total_score_%[1]s, ap_stats.playcount_%[1]s,
+			ap_stats.replays_watched_%[1]s, ap_stats.total_hits_%[1]s,
+			ap_stats.avg_accuracy_%[1]s
+		FROM users
+		INNER JOIN ap_stats ON ap_stats.id = users.id
+		INNER JOIN users_stats ON users_stats.id = users.id
+		WHERE users.id IN (?)
+		`
+
 const SlbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
@@ -59,6 +76,7 @@ const SlbUserQuery = `
 // LeaderboardGET gets the leaderboard.
 func SLeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))
+	rx := common.Int(md.Query("rx"))
 
 	// md.Query.Country
 	p := common.Int(md.Query("p")) - 1
@@ -68,8 +86,10 @@ func SLeaderboardGET(md common.MethodData) common.CodeMessager {
 	l := common.InString(1, md.Query("l"), 500, 50)
 
 	key := "ripple:leaderboard:" + m
-	if common.Int(md.Query("rx")) != 0 {
+	if rx == 1 {
 		key = "ripple:relaxboard:" + m
+	} else if rx == 2 {
+		key = "ripple:autoboard:" + m
 	}
 	if md.Query("country") != "" {
 		key += ":" + md.Query("country")
@@ -89,8 +109,10 @@ func SLeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 
 	query := fmt.Sprintf(lbUserQuery+` ORDER BY users_stats.ranked_score_%[1]s DESC`, m)
-	if common.Int(md.Query("rx")) != 0 {
+	if rx == 1 {
 		query = fmt.Sprintf(rxUserQuery+` ORDER BY rx_stats.ranked_score_%[1]s DESC`, m)
+	} else if rx == 2 {
+		query = fmt.Sprintf(rxUserQuery+` ORDER BY ap_stats.ranked_score_%[1]s DESC`, m)
 	}
 	query, params, _ := sqlx.In(query, results)
 	rows, err := md.DB.Query(query, params...)
@@ -114,11 +136,18 @@ func SLeaderboardGET(md common.MethodData) common.CodeMessager {
 			continue
 		}
 		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
-		if common.Int(md.Query("rx")) != 0 {
+		if rx == 1 {
 			if i := SrelaxboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i
 			}
 			if i := SrxcountryPosition(md.R, m, u.ID, u.Country); i != nil {
+				u.ChosenMode.CountryLeaderboardRank = i
+			}
+		} else if rx == 2 {
+			if i := SautoboardPosition(md.R, m, u.ID); i != nil {
+				u.ChosenMode.GlobalLeaderboardRank = i
+			}
+			if i := SapcountryPosition(md.R, m, u.ID, u.Country); i != nil {
 				u.ChosenMode.CountryLeaderboardRank = i
 			}
 		} else {
@@ -148,6 +177,14 @@ func SrelaxboardPosition(r *redis.Client, mode string, user int) *int {
 
 func SrxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
 	return _position(r, "ripple:relaxboard:"+mode+":"+strings.ToLower(country), user)
+}
+
+func SautoboardPosition(r *redis.Client, mode string, user int) *int {
+	return _position(r, "ripple:autoboard:"+mode, user)
+}
+
+func SapcountryPosition(r *redis.Client, mode string, user int, country string) *int {
+	return _position(r, "ripple:autoboard:"+mode+":"+strings.ToLower(country), user)
 }
 
 func S_position(r *redis.Client, key string, user int) *int {

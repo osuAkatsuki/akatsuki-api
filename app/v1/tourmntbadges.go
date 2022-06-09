@@ -66,7 +66,7 @@ func TBadgeMembersGET(md common.MethodData) common.CodeMessager {
 	err := md.DB.Select(&members.Members, `SELECT users.id, users.username, register_datetime, users.privileges,
 	latest_activity, users_stats.username_aka,
 	users_stats.country
-FROM tourmnt_user_badges ub
+FROM user_tourmnt_badges ub
 INNER JOIN users ON users.id = ub.user
 INNER JOIN users_stats ON users_stats.id = ub.user
 WHERE badge = ?

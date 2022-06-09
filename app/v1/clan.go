@@ -3,6 +3,7 @@ package v1
 import (
 	"database/sql"
 	"fmt"
+
 	// "regexp"
 	"strconv"
 	"strings"
@@ -87,18 +88,20 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		Page  int          `json:"page"`
 		Clans []clanLbData `json:"clans"`
 	}
-	relax := md.Query("rx") == "1"
+	relax := common.Int(md.Query("rx"))
 	tableName := "users"
-	if relax {
+	if relax == 1 {
 		tableName = "rx"
+	} else if relax == 2 {
+		tableName = "ap"
 	}
 	cl := clanLeaderboard{Page: page}
-	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp, 
-		SUM(ranked_score_%[1]s), SUM(total_score_%[1]s), SUM(playcount_%[1]s), AVG(avg_accuracy_%[1]s), 
-		clans.name, clans.id 
-		FROM %[2]s_stats 
-		LEFT JOIN users ON users.id = %[2]s_stats.id 
-		INNER JOIN clans ON clans.id = users.clan_id 
+	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp,
+		SUM(ranked_score_%[1]s), SUM(total_score_%[1]s), SUM(playcount_%[1]s), AVG(avg_accuracy_%[1]s),
+		clans.name, clans.id
+		FROM %[2]s_stats
+		LEFT JOIN users ON users.id = %[2]s_stats.id
+		INNER JOIN clans ON clans.id = users.clan_id
 		WHERE users.clan_id <> 0 AND users.privileges & 1
 		GROUP BY users.clan_id ORDER BY pp DESC LIMIT ?,50`, dbmode[mode], tableName)
 	rows, err := md.DB.Query(q, (page-1)*50)
@@ -146,10 +149,12 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 		ChosenMode modeData `json:"chosen_mode"`
 	}
 
-	relax := md.Query("rx") == "1"
+	relax := common.Int(md.Query("rx"))
 	tableName := "users"
-	if relax {
+	if relax == 1 {
 		tableName = "rx"
+	} else if relax == 2 {
+		tableName = "ap"
 	}
 	type Res struct {
 		common.ResponseBase
@@ -160,11 +165,11 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		return Res{Clan: cms}
 	}
-	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_%[1]s), 
-		SUM(total_score_%[1]s), SUM(playcount_%[1]s), SUM(replays_watched_%[1]s), 
-		AVG(avg_accuracy_%[1]s), SUM(total_hits_%[1]s) 
-		FROM %[2]s_stats LEFT JOIN users ON users.id = %[2]s_stats.id 
-		WHERE users.clan_id = ? AND users.privileges & 1 
+	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_%[1]s),
+		SUM(total_score_%[1]s), SUM(playcount_%[1]s), SUM(replays_watched_%[1]s),
+		AVG(avg_accuracy_%[1]s), SUM(total_hits_%[1]s)
+		FROM %[2]s_stats LEFT JOIN users ON users.id = %[2]s_stats.id
+		WHERE users.clan_id = ? AND users.privileges & 1
 		LIMIT 1`, dbmode[mode], tableName)
 	var pp float64
 	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
@@ -288,7 +293,7 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 		if count >= clanMemberLimit {
 			return common.SimpleResponse(403, "clan is full")
 		}
-		
+
 		if c.Status == 3 {
 			_, err = md.DB.Exec("INSERT INTO clan_requests VALUES (?, ?, DEFAULT) ON DUPLICATE KEY UPDATE time = NOW()", c.ID, md.ID())
 			return common.SimpleResponse(200, "join request sent")
@@ -296,6 +301,8 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 		_, err = md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ?", c.ID, md.ID())
 		r.Clan = c
 		r.Code = 200
+
+		md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
 
 		return r
 	} else {
@@ -348,6 +355,8 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		}
 	}
 
+	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
+
 	return common.SimpleResponse(200, msg)
 }
 
@@ -370,8 +379,8 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		Tag         string `json:"tag,omitempty"`
 		Description string `json:"desc,omitempty"`
 		// Icon        string `json:"icon,omitempty"`
-		Background  string `json"bg,omitempty"`
-		Status      int    `json:"status"`
+		Background string `json:"bg,omitempty"`
+		Status     int    `json:"status"`
 	}{}
 
 	md.Unmarshal(&u)
@@ -397,6 +406,8 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
+	md.R.Publish("api:update_clan", strconv.Itoa(c.ID))
 
 	return SingleClanResponse{
 		common.ResponseBase{
@@ -465,6 +476,8 @@ func ClanKickPOST(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
+	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
 
 	return common.SimpleResponse(200, "success")
 }

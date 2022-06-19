@@ -179,7 +179,6 @@ type modeData struct {
 	TotalScore             uint64  `json:"total_score"`
 	PlayCount              int     `json:"playcount"`
 	PlayTime               int     `json:"playtime"`
-	Total_PlayTime         int     `json:"total_playtime"`
 	ReplaysWatched         int     `json:"replays_watched"`
 	TotalHits              int     `json:"total_hits"`
 	Level                  float64 `json:"level"`
@@ -235,39 +234,39 @@ SELECT
 	users_stats.custom_badge_icon, users_stats.custom_badge_name, users_stats.can_custom_badge,
 	users_stats.show_custom_badge,
 
-	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
+	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.playcount_std, users_stats.playtime_std,
 	users_stats.replays_watched_std, users_stats.total_hits_std,
 	users_stats.avg_accuracy_std, users_stats.pp_std, users_stats.max_combo_std,
 
-	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
+	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.playcount_taiko, users_stats.playtime_taiko,
 	users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
 	users_stats.avg_accuracy_taiko, users_stats.pp_taiko, users_stats.max_combo_taiko,
 
-	users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
+	users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.playcount_ctb, users_stats.playtime_ctb,
 	users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
 	users_stats.avg_accuracy_ctb, users_stats.pp_ctb, users_stats.max_combo_ctb,
 
-	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
+	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania,
 	users_stats.replays_watched_mania, users_stats.total_hits_mania,
 	users_stats.avg_accuracy_mania, users_stats.pp_mania, users_stats.max_combo_mania,
 	
-	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
+	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.playcount_std, users_stats.playtime_std,
 	rx_stats.replays_watched_std, rx_stats.total_hits_std,
 	rx_stats.avg_accuracy_std, rx_stats.pp_std, rx_stats.max_combo_std,
 
-	rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.playcount_taiko, users_stats.playtime_taiko, users_stats.total_playtime_taiko,
+	rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.playcount_taiko, users_stats.playtime_taiko,
 	rx_stats.replays_watched_taiko, rx_stats.total_hits_taiko,
 	rx_stats.avg_accuracy_taiko, rx_stats.pp_taiko, rx_stats.max_combo_taiko,
 
-	rx_stats.ranked_score_ctb, rx_stats.total_score_ctb, rx_stats.playcount_ctb, users_stats.playtime_ctb, users_stats.total_playtime_ctb,
+	rx_stats.ranked_score_ctb, rx_stats.total_score_ctb, rx_stats.playcount_ctb, users_stats.playtime_ctb,
 	rx_stats.replays_watched_ctb, rx_stats.total_hits_ctb,
 	rx_stats.avg_accuracy_ctb, rx_stats.pp_ctb, rx_stats.max_combo_ctb,
 
-	rx_stats.ranked_score_mania, rx_stats.total_score_mania, rx_stats.playcount_mania, users_stats.playtime_mania, users_stats.total_playtime_mania,
+	rx_stats.ranked_score_mania, rx_stats.total_score_mania, rx_stats.playcount_mania, users_stats.playtime_mania,
 	rx_stats.replays_watched_mania, rx_stats.total_hits_mania,
 	rx_stats.avg_accuracy_mania, rx_stats.pp_mania, rx_stats.max_combo_mania,
 
-	ap_stats.ranked_score_std, ap_stats.total_score_std, ap_stats.playcount_std, users_stats.playtime_std, users_stats.total_playtime_std,
+	ap_stats.ranked_score_std, ap_stats.total_score_std, ap_stats.playcount_std, users_stats.playtime_std,
 	ap_stats.replays_watched_std, ap_stats.total_hits_std,
 	ap_stats.avg_accuracy_std, ap_stats.pp_std, ap_stats.max_combo_std,
 
@@ -301,39 +300,39 @@ LIMIT 1
 
 		&b.Icon, &b.Name, &can, &show,
 
-		&r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime, &r.Stats[0].STD.Total_PlayTime,
+		&r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime
 		&r.Stats[0].STD.ReplaysWatched, &r.Stats[0].STD.TotalHits,
 		&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP, &r.Stats[0].STD.MaxCombo,
 
-		&r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime, &r.Stats[0].Taiko.Total_PlayTime,
+		&r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime
 		&r.Stats[0].Taiko.ReplaysWatched, &r.Stats[0].Taiko.TotalHits,
 		&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP, &r.Stats[0].Taiko.MaxCombo,
 
-		&r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime, &r.Stats[0].CTB.Total_PlayTime,
+		&r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime
 		&r.Stats[0].CTB.ReplaysWatched, &r.Stats[0].CTB.TotalHits,
 		&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP, &r.Stats[0].CTB.MaxCombo,
 
-		&r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime, &r.Stats[0].Mania.Total_PlayTime,
+		&r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime
 		&r.Stats[0].Mania.ReplaysWatched, &r.Stats[0].Mania.TotalHits,
 		&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP, &r.Stats[0].Mania.MaxCombo,
 
-		&r.Stats[1].STD.RankedScore, &r.Stats[1].STD.TotalScore, &r.Stats[1].STD.PlayCount, &r.Stats[1].STD.PlayTime, &r.Stats[1].STD.Total_PlayTime,
+		&r.Stats[1].STD.RankedScore, &r.Stats[1].STD.TotalScore, &r.Stats[1].STD.PlayCount, &r.Stats[1].STD.PlayTime
 		&r.Stats[1].STD.ReplaysWatched, &r.Stats[1].STD.TotalHits,
 		&r.Stats[1].STD.Accuracy, &r.Stats[1].STD.PP, &r.Stats[1].STD.MaxCombo,
 
-		&r.Stats[1].Taiko.RankedScore, &r.Stats[1].Taiko.TotalScore, &r.Stats[1].Taiko.PlayCount, &r.Stats[1].Taiko.PlayTime, &r.Stats[1].Taiko.Total_PlayTime,
+		&r.Stats[1].Taiko.RankedScore, &r.Stats[1].Taiko.TotalScore, &r.Stats[1].Taiko.PlayCount, &r.Stats[1].Taiko.PlayTime
 		&r.Stats[1].Taiko.ReplaysWatched, &r.Stats[1].Taiko.TotalHits,
 		&r.Stats[1].Taiko.Accuracy, &r.Stats[1].Taiko.PP, &r.Stats[1].Taiko.MaxCombo,
 
-		&r.Stats[1].CTB.RankedScore, &r.Stats[1].CTB.TotalScore, &r.Stats[1].CTB.PlayCount, &r.Stats[1].CTB.PlayTime, &r.Stats[1].CTB.Total_PlayTime,
+		&r.Stats[1].CTB.RankedScore, &r.Stats[1].CTB.TotalScore, &r.Stats[1].CTB.PlayCount, &r.Stats[1].CTB.PlayTime
 		&r.Stats[1].CTB.ReplaysWatched, &r.Stats[1].CTB.TotalHits,
 		&r.Stats[1].CTB.Accuracy, &r.Stats[1].CTB.PP, &r.Stats[1].CTB.MaxCombo,
 
-		&r.Stats[1].Mania.RankedScore, &r.Stats[1].Mania.TotalScore, &r.Stats[1].Mania.PlayCount, &r.Stats[1].Mania.PlayTime, &r.Stats[1].Mania.Total_PlayTime,
+		&r.Stats[1].Mania.RankedScore, &r.Stats[1].Mania.TotalScore, &r.Stats[1].Mania.PlayCount, &r.Stats[1].Mania.PlayTime
 		&r.Stats[1].Mania.ReplaysWatched, &r.Stats[1].Mania.TotalHits,
 		&r.Stats[1].Mania.Accuracy, &r.Stats[1].Mania.PP, &r.Stats[1].Mania.MaxCombo,
 
-		&r.Stats[2].STD.RankedScore, &r.Stats[2].STD.TotalScore, &r.Stats[2].STD.PlayCount, &r.Stats[2].STD.PlayTime, &r.Stats[2].STD.Total_PlayTime,
+		&r.Stats[2].STD.RankedScore, &r.Stats[2].STD.TotalScore, &r.Stats[2].STD.PlayCount, &r.Stats[2].STD.PlayTime
 		&r.Stats[2].STD.ReplaysWatched, &r.Stats[2].STD.TotalHits,
 		&r.Stats[2].STD.Accuracy, &r.Stats[2].STD.PP, &r.Stats[2].STD.MaxCombo,
 

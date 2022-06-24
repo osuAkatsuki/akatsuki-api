@@ -58,7 +58,7 @@ func GetBeatmap(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	passcount, max_combo, difficulty_std, difficulty_taiko, difficulty_ctb, difficulty_mania,
 	latest_update
 
-FROM beatmaps `+where+" ORDER BY id DESC LIMIT "+limit,
+FROM beatmaps `+where+" ORDER BY beatmap_id DESC LIMIT "+limit,
 		params...)
 	if err != nil {
 		common.Err(c, err)

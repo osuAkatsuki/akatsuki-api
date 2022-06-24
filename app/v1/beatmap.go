@@ -114,7 +114,6 @@ func getMultipleBeatmaps(md common.MethodData) common.CodeMessager {
 		Allowed: []string{
 			"beatmapset_id",
 			"beatmap_id",
-			"id",
 			"ar",
 			"od",
 			"difficulty_std",

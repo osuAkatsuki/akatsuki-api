@@ -125,7 +125,7 @@ func getMultipleBeatmaps(md common.MethodData) common.CodeMessager {
 			"playcount",
 			"passcount",
 		},
-		Default: "id DESC",
+		Default: "beatmap_id DESC",
 		Table:   "beatmaps",
 	})
 	pm := md.Ctx.Request.URI().QueryArgs().PeekMulti

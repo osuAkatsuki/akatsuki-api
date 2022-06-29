@@ -14,7 +14,7 @@ import (
 
 // Score is a score done on Ripple.
 type Score struct {
-	ID         int                  `json:"id"`
+	ID         string                `json:"id,int64"`
 	BeatmapMD5 string               `json:"beatmap_md5"`
 	Score      int64                `json:"score"`
 	MaxCombo   int                  `json:"max_combo"`
@@ -317,14 +317,14 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 }
 
 type scoreReportData struct {
-	ScoreID   int             `json:"score_id"`
+	ScoreID   int64             `json:"score_id"`
 	Data      json.RawMessage `json:"data"`
 	Anticheat string          `json:"anticheat"`
 	Severity  float32         `json:"severity"`
 }
 
 type scoreReport struct {
-	ID int `json:"id"`
+	ID int64 `json:"id"`
 	scoreReportData
 }
 
@@ -413,7 +413,7 @@ func ScoreReportPOST(md common.MethodData) common.CodeMessager {
 
 	repData := scoreReportResponse{
 		scoreReport: scoreReport{
-			ID:              int(lid),
+			ID:              int64(lid),
 			scoreReportData: data,
 		},
 	}

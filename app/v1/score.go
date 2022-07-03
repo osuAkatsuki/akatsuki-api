@@ -248,6 +248,7 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 	}
 
 	queryDb := vnQuery
+	mc := genModeClause(md)
 	sort := common.Sort(md, common.SortConfiguration{
 		Default: "scores.pp DESC, scores.score DESC",
 		Table:   "scores",
@@ -256,13 +257,15 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 
 	if md.Query("relax") == "1" {
 		queryDb = rxQuery
+		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
 		sort = common.Sort(md, common.SortConfiguration{
 			Default: "scores_relax.pp DESC, scores_relax.score DESC",
 			Table:   "scores_relax",
 			Allowed: []string{"pp", "score", "accuracy", "id"},
 		})
 	} else if md.Query("relax") == "2" {
-		queryDb = rxQuery
+		queryDb = apQuery
+		mc = strings.Replace(mc, "scores.", "scores_ap.", 1)
 		sort = common.Sort(md, common.SortConfiguration{
 			Default: "scores_ap.pp DESC, scores_ap.score DESC",
 			Table:   "scores_ap",
@@ -275,7 +278,7 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 	}
 
 	rows, err := md.DB.Query(queryDb+``+md.User.OnlyUserPublic(false)+
-		` `+genModeClause(md)+` `+sort+common.Paginate(md.Query("p"), md.Query("l"), 100), beatmapMD5, mode)
+		` `+mc+` `+sort+common.Paginate(md.Query("p"), md.Query("l"), 100), beatmapMD5, mode)
 	if err != nil {
 		md.Err(err)
 		return Err500

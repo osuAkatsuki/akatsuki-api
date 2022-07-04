@@ -26,7 +26,7 @@ const relaxScoreSelectBase = `
 			scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
 			scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
 			scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-			scores_relax.completed,
+			scores_relax.completed, scores_relax.pinned,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
@@ -45,7 +45,7 @@ const autoScoreSelectBase = `
 			scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
 			scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
 			scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
-			scores_ap.completed,
+			scores_ap.completed, scores_ap.pinned,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
@@ -64,7 +64,7 @@ const userScoreSelectBase = `
 			scores.300_count, scores.100_count, scores.50_count,
 			scores.gekis_count, scores.katus_count, scores.misses_count,
 			scores.time, scores.play_mode, scores.accuracy, scores.pp,
-			scores.completed,
+			scores.completed, scores.pinned,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
@@ -214,21 +214,21 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 
 func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {
 	var u struct {
-		ID int `json:"id"`
+		ID    int `json:"id"`
 		Relax int `json:"rx"`
 	}
 	md.Unmarshal(&u)
-	
+
 	return pinScore(md, u.ID, u.Relax)
 }
 
 func ScoresPinDelPOST(md common.MethodData) common.CodeMessager {
 	var u struct {
-		ID int `json:"id"`
+		ID    int `json:"id"`
 		Relax int `json:"rx"`
 	}
 	md.Unmarshal(&u)
-	
+
 	return unpinScore(md, u.ID, u.Relax)
 }
 
@@ -296,7 +296,7 @@ func scoresPuts(md common.MethodData, whereClause string, params ...interface{})
 			&us.Count300, &us.Count100, &us.Count50,
 			&us.CountGeki, &us.CountKatu, &us.CountMiss,
 			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
-			&us.Completed,
+			&us.Completed, &us.Pinned,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
 			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
@@ -345,7 +345,7 @@ func relaxPuts(md common.MethodData, whereClause string, params ...interface{}) 
 			&us.Count300, &us.Count100, &us.Count50,
 			&us.CountGeki, &us.CountKatu, &us.CountMiss,
 			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
-			&us.Completed,
+			&us.Completed, &us.Pinned,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
 			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
@@ -394,7 +394,7 @@ func autoPuts(md common.MethodData, whereClause string, params ...interface{}) c
 			&us.Count300, &us.Count100, &us.Count50,
 			&us.CountGeki, &us.CountKatu, &us.CountMiss,
 			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
-			&us.Completed,
+			&us.Completed, &us.Pinned,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
 			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,

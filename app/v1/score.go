@@ -14,7 +14,7 @@ import (
 
 // Score is a score done on Ripple.
 type Score struct {
-	ID         string                `json:"id,int64"`
+	ID         string               `json:"id,int64"`
 	BeatmapMD5 string               `json:"beatmap_md5"`
 	Score      int64                `json:"score"`
 	MaxCombo   int                  `json:"max_combo"`
@@ -32,6 +32,7 @@ type Score struct {
 	PP         float32              `json:"pp"`
 	Rank       string               `json:"rank"`
 	Completed  int                  `json:"completed"`
+	Pinned     bool                 `json:"pinned"`
 }
 
 // beatmapScore is to differentiate from userScore, as beatmapScore contains
@@ -59,7 +60,7 @@ SELECT
 	scores.300_count, scores.100_count, scores.50_count,
 	scores.gekis_count, scores.katus_count, scores.misses_count,
 	scores.time, scores.play_mode, scores.accuracy, scores.pp,
-	scores.completed,
+	scores.completed, scores.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users_stats.username_aka, users_stats.country
@@ -75,7 +76,7 @@ SELECT
 	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
 	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
 	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-	scores_relax.completed,
+	scores_relax.completed, scores_relax.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users_stats.username_aka, users_stats.country
@@ -91,7 +92,7 @@ SELECT
 	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
 	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
 	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
-	scores_ap.completed,
+	scores_ap.completed, scores_ap.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users_stats.username_aka, users_stats.country
@@ -107,7 +108,7 @@ SELECT
 	scores.300_count, scores.100_count, scores.50_count,
 	scores.gekis_count, scores.katus_count, scores.misses_count,
 	scores.time, scores.play_mode, scores.accuracy, scores.pp,
-	scores.completed,
+	scores.completed, scores.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users_stats.username_aka, users_stats.country,
@@ -130,7 +131,7 @@ SELECT
 	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
 	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
 	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-	scores_relax.completed,
+	scores_relax.completed, scores_relax.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users_stats.username_aka, users_stats.country,
@@ -153,7 +154,7 @@ SELECT
 	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
 	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
 	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
-	scores_ap.completed,
+	scores_ap.completed, scores_ap.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users_stats.username_aka, users_stats.country,
@@ -192,7 +193,7 @@ func ScoreGET(md common.MethodData) common.CodeMessager {
 		&s.Count300, &s.Count100, &s.Count50,
 		&s.CountGeki, &s.CountKatu, &s.CountMiss,
 		&s.Time, &s.PlayMode, &s.Accuracy, &s.PP,
-		&s.Completed,
+		&s.Completed, &s.Pinned,
 
 		&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges,
 		&u.LatestActivity, &u.UsernameAKA, &u.Country,
@@ -294,7 +295,7 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 			&s.Count300, &s.Count100, &s.Count50,
 			&s.CountGeki, &s.CountKatu, &s.CountMiss,
 			&s.Time, &s.PlayMode, &s.Accuracy, &s.PP,
-			&s.Completed,
+			&s.Completed, &s.Pinned,
 
 			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges,
 			&u.LatestActivity, &u.UsernameAKA, &u.Country,
@@ -320,7 +321,7 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 }
 
 type scoreReportData struct {
-	ScoreID   int64             `json:"score_id"`
+	ScoreID   int64           `json:"score_id"`
 	Data      json.RawMessage `json:"data"`
 	Anticheat string          `json:"anticheat"`
 	Severity  float32         `json:"severity"`

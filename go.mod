@@ -7,11 +7,13 @@ require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/buaazp/fasthttprouter v0.1.1
 	github.com/certifi/gocertifi v0.0.0-20210507211836-431795d63e8d // indirect
+	github.com/frustra/bbcode v0.0.0-20201127003707-6ef347fbe1c8 // indirect
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/leavengood/websocket v0.0.0-20170104145153-470559ebf58e
+	github.com/microcosm-cc/bluemonday v1.0.19 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.13.0 // indirect
 	github.com/rcrowley/goagain v0.0.0-20140424170347-f2f192b5d1a9

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
+	"github.com/osuAkatsuki/akatsuki-api/externals"
 	"zxq.co/ripple/ocl"
 )
 
@@ -385,7 +386,6 @@ LIMIT 1
 		}
 	}
 
-
 	var follower int
 	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user2 = ?", r.ID)
 	if err != nil {
@@ -449,7 +449,8 @@ LIMIT 1
 
 type userpageResponse struct {
 	common.ResponseBase
-	Userpage *string `json:"userpage"`
+	Userpage         *string `json:"userpage"`
+	UserpageCompiled string  `json:"userpage_compiled"`
 }
 
 // UserUserpageGET gets an user's userpage, as in the customisable thing.
@@ -469,7 +470,9 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 	}
 	if r.Userpage == nil {
 		r.Userpage = new(string)
+		r.UserpageCompiled = ""
 	}
+	r.UserpageCompiled = externals.CompileBBCode(*r.Userpage)
 	r.Code = 200
 	return r
 }
@@ -603,7 +606,7 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 	if user == 0 {
 		return common.SimpleResponse(401, "Invalid user id!")
 	}
-	
+
 	relax := common.Int(md.Query("rx"))
 	mode := common.Int(md.Query("mode"))
 
@@ -616,11 +619,11 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 		common.ResponseBase
 		BeatmapsPlaycount []BeatmapPlaycount `json:"most_played_beatmaps"`
 	}
-	
+
 	// i will query some additional info about the beatmap for later?
 	rows, err := md.DB.Query(
 		fmt.Sprintf(
-		`SELECT user_beatmaps.count,
+			`SELECT user_beatmaps.count,
 		beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 		beatmaps.song_name, beatmaps.ranked FROM user_beatmaps
 		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = user_beatmaps.map
@@ -632,22 +635,22 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 	defer rows.Close()
-	
+
 	r := MostPlayedBeatmaps{}
-	
+
 	for rows.Next() {
 		bmc := BeatmapPlaycount{}
-	
-		err = rows.Scan(&bmc.Count, &bmc.Beatmap.BeatmapID, &bmc.Beatmap.BeatmapsetID, 
+
+		err = rows.Scan(&bmc.Count, &bmc.Beatmap.BeatmapID, &bmc.Beatmap.BeatmapsetID,
 			&bmc.Beatmap.BeatmapMD5, &bmc.Beatmap.SongName, &bmc.Beatmap.Ranked)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
-		
+
 		r.BeatmapsPlaycount = append(r.BeatmapsPlaycount, bmc)
 	}
-	
+
 	r.Code = 200
 	return r
 }

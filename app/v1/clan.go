@@ -315,40 +315,35 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(401, "not authorised")
 	}
 
-	u := struct {
-		ID int `json:"id"`
-	}{}
-
-	md.Unmarshal(&u)
-
-	if u.ID <= 0 {
-		return common.SimpleResponse(400, "invalid id")
-	}
-
-	c, err := getClan(u.ID, md)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return common.SimpleResponse(404, "clan not found")
-		}
+	clanId := 0
+	row := md.DB.QueryRowx("SELECT clan_id FROM users WHERE id = ?", md.ID())
+	if err := row.Scan(&clanId); err != nil {
 		md.Err(err)
 		return Err500
 	}
-
-	_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
+	if clanId == 0 {
+		return common.SimpleResponse(403, "You haven't joined any clan...")
+	}
+	clan, err := getClan(clanId, md)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
 
-	var msg string
-	if c.Owner == md.ID() {
-		msg = "disbanded"
-		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", c.ID)
+	if clan.Owner == md.ID() {
+		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", clan.ID)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
-		_, err = md.DB.Exec("DELETE FROM clans WHERE id = ?", c.ID)
+
+		err := disbandClan(clan.ID, md)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+	} else {
+		_, err := md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -357,7 +352,12 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 
 	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
 
-	return common.SimpleResponse(200, msg)
+	return common.SimpleResponse(200, "success")
+}
+
+func disbandClan(clanId int, md common.MethodData) error {
+	_, err := md.DB.Exec("DELETE FROM clans WHERE id = ?", clanId)
+	return err
 }
 
 func ClanSettingsPOST(md common.MethodData) common.CodeMessager {

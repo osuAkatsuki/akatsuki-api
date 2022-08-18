@@ -20,7 +20,7 @@ type friendsGETResponse struct {
 // It retrieves an user's friends, and whether the friendship is mutual or not.
 func FriendsGET(md common.MethodData) common.CodeMessager {
 	var myFrienders []int
-	myFriendersRaw, err := md.DB.Query("SELECT user1 FROM users_relationships WHERE user2 = ?", md.ID())
+	myFriendersRaw, err := md.DB.Query("SELECT user1 FROM users_relationships LEFT JOIN users ON users_relationships.user1 = users.id WHERE user2 = ? AND privileges & 1", md.ID())
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -51,6 +51,7 @@ ON users_relationships.user2 = users.id
 LEFT JOIN users_stats
 ON users_relationships.user2=users_stats.id
 WHERE users_relationships.user1=?
+AND privileges & 1
 `
 
 	myFriendsQuery += common.Sort(md, common.SortConfiguration{

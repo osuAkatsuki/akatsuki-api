@@ -514,6 +514,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+	cmd.Members = make([]userData, 0)
 	defer rows.Close()
 	for rows.Next() {
 		a := userData{}

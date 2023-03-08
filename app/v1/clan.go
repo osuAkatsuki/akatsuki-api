@@ -503,6 +503,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
+	cmd.Members = make([]userData, 0)
 	rows, err := md.DB.Query(userFields+" WHERE users.privileges & 3 AND clan_id = ?", i)
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -1,6 +1,6 @@
 module github.com/osuAkatsuki/akatsuki-api
 
-go 1.19
+go 1.20
 
 require (
 	github.com/buaazp/fasthttprouter v0.1.1

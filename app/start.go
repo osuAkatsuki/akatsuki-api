@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -32,7 +33,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 	// redis
 	redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
 	red = redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_ADDR"),
+		Addr:     fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       redisDB,
 	})

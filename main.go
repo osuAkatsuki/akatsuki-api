@@ -9,7 +9,6 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/app"
 	"github.com/osuAkatsuki/akatsuki-api/beatmapget"
 	"github.com/valyala/fasthttp"
-	"zxq.co/ripple/agplwarning"
 
 	// Golint pls dont break balls
 	_ "github.com/go-sql-driver/mysql"
@@ -27,15 +26,11 @@ func init() {
 var db *sqlx.DB
 
 func main() {
-	err := agplwarning.Warn("ripple", "Ripple API")
-	if err != nil {
-		fmt.Println(err)
-	}
 
 	fmt.Print("Akatsuki API")
 	fmt.Println()
 
-	err = godotenv.Load()
+	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env configuration file: ", err)
 	}

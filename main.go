@@ -11,7 +11,6 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
 	"zxq.co/ripple/agplwarning"
-	schiavo "zxq.co/ripple/schiavolib"
 
 	// Golint pls dont break balls
 	_ "github.com/go-sql-driver/mysql"
@@ -49,8 +48,6 @@ func main() {
 		return
 	}
 
-	schiavo.Prefix = "Akatsuki API"
-
 	if !strings.Contains(conf.DSN, "parseTime=true") {
 		c := "?"
 		if strings.Contains(conf.DSN, "?") {
@@ -61,7 +58,6 @@ func main() {
 
 	db, err = sqlx.Open(conf.DatabaseType, conf.DSN)
 	if err != nil {
-		schiavo.Bunker.Send(err.Error())
 		log.Fatalln(err)
 	}
 

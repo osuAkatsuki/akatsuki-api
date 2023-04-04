@@ -72,8 +72,6 @@ github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/rcrowley/goagain v0.0.0-20140424170347-f2f192b5d1a9 h1:6AeJ2VG7ijbPJPTW2Mq+hCKQsVJBZGzwGJiIm45eHN8=
-github.com/rcrowley/goagain v0.0.0-20140424170347-f2f192b5d1a9/go.mod h1:qqlCbG/0ChzjCGcnvB0Q8x3MyrWPqMCVpej81a2QH5k=
 github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e h1:zWKUYT07mGmVBH+9UgnHXd/ekCK99C8EbDSAt5qsjXE=
 github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e/go.mod h1:Yow6lPLSAXx2ifx470yD/nUe22Dv5vBvxK/UK9UUTVs=
 github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
@@ -172,8 +170,6 @@ zxq.co/ripple/agplwarning v0.0.0-20180204130109-bd4406595c7e h1:jL9hVyEmpKHoOseb
 zxq.co/ripple/agplwarning v0.0.0-20180204130109-bd4406595c7e/go.mod h1:sshTr/Z/WGWO+mj1Q/cCwFXwqa1FlWVGpYe1db98+G0=
 zxq.co/ripple/ocl v0.0.0-20190423081600-ba6c1b2f7885 h1:2jnyjhTWJETF7v6Zz+gzjFkgKg6Fr0LeE4gIEissy0o=
 zxq.co/ripple/ocl v0.0.0-20190423081600-ba6c1b2f7885/go.mod h1:YagunUAfVRcfr3+9WSusjzwj7qno8fDwan+my3WrGM0=
-zxq.co/ripple/schiavolib v0.0.0-20161109210250-9cdc674dad07 h1:fQIulgq6BDqgUiRGn1UU29Upms+eAmZxIPuF4KZFNAU=
-zxq.co/ripple/schiavolib v0.0.0-20161109210250-9cdc674dad07/go.mod h1:W6Gj7lSJNvs8oFN4bvrzoi+vcjDAEVyMfzguWzUYaok=
 zxq.co/ripple/semantic-icons-ugc v0.0.0-20190527150307-87f54f9a60d6 h1:5kWem7BxD7nkiGuZyENVfJZZCD+psj2Jo3NGGdZA6lE=
 zxq.co/ripple/semantic-icons-ugc v0.0.0-20190527150307-87f54f9a60d6/go.mod h1:S0iTdeNHcAoRTLk1CC56FzpKNJ3mPhf3BIlz8OJz6SI=
 zxq.co/x/getrank v0.0.0-20170418183109-97d2823cf77d h1:VaNJqleeYJFEVgIoPN01HmTDCcjHCypxmGioqmcV7+s=

@@ -9,8 +9,10 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/app"
 	"github.com/osuAkatsuki/akatsuki-api/beatmapget"
 	"github.com/osuAkatsuki/akatsuki-api/common"
+	"github.com/valyala/fasthttp"
 	"zxq.co/ripple/agplwarning"
-	"zxq.co/ripple/schiavolib"
+	schiavo "zxq.co/ripple/schiavolib"
+
 	// Golint pls dont break balls
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -75,7 +77,10 @@ func main() {
 
 	engine := app.Start(conf, db)
 
-	startuato(engine.Handler)
+	err = fasthttp.ListenAndServe(conf.ListenTo, engine.Handler)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 var commonClusterfucks = map[string]string{

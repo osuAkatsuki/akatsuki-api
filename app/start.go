@@ -2,8 +2,6 @@ package app
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
 	fhr "github.com/buaazp/fasthttprouter"
@@ -31,11 +29,11 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 	// TODO: Implement datadog APM.
 
 	// redis
-	redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
+	settings := common.GetSettings()
 	red = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", os.Getenv("REDIS_HOST"), os.Getenv("REDIS_PORT")),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       redisDB,
+		Addr:     fmt.Sprintf("%s:%d", settings.DB_HOST, settings.REDIS_PORT),
+		Password: settings.REDIS_PASS,
+		DB:       settings.REDIS_DB,
 	})
 	peppy.R = red
 

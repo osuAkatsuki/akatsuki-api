@@ -16,7 +16,6 @@ require (
 	github.com/valyala/fasthttp v1.34.0
 	gopkg.in/redis.v5 v5.2.9
 	gopkg.in/thehowl/go-osuapi.v1 v1.0.0-20170312091738-23480db9e43c
-	zxq.co/ripple/agplwarning v0.0.0-20180204130109-bd4406595c7e
 	zxq.co/ripple/ocl v0.0.0-20190423081600-ba6c1b2f7885
 	zxq.co/ripple/semantic-icons-ugc v0.0.0-20190527150307-87f54f9a60d6
 	zxq.co/x/getrank v0.0.0-20170418183109-97d2823cf77d

@@ -3,7 +3,6 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -62,7 +61,8 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 	}
 
 	// log into datadog that this is an hanayo request
-	if b2s(c.Request.Header.Peek("H-Key")) == os.Getenv("HANAYO_KEY") && b2s(c.UserAgent()) == "hanayo" {
+	settings := common.GetSettings()
+	if b2s(c.Request.Header.Peek("H-Key")) == settings.HANAYO_KEY && b2s(c.UserAgent()) == "hanayo" {
 		doggoTags = append(doggoTags, "hanayo")
 	}
 

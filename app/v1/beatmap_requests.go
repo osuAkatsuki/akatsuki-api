@@ -3,6 +3,7 @@ package v1
 import (
 	"database/sql"
 	"encoding/json"
+	"os"
 	"strconv"
 	"time"
 
@@ -22,8 +23,10 @@ type rankRequestsStatusResponse struct {
 
 // BeatmapRankRequestsStatusGET gets the current status for beatmap ranking requests.
 func BeatmapRankRequestsStatusGET(md common.MethodData) common.CodeMessager {
-	c := common.GetConf()
-	rows, err := md.DB.Query("SELECT userid, time FROM rank_requests WHERE time > ? ORDER BY id ASC LIMIT "+strconv.Itoa(c.RankQueueSize), time.Now().Add(-time.Hour*24).Unix())
+	rankQueueSize, _ := strconv.Atoi(os.Getenv("RANK_QUEUE_SIZE"))
+	maxPerPerson, _ := strconv.Atoi(os.Getenv("BEATMAP_REQUESTS_PER_USER"))
+
+	rows, err := md.DB.Query("SELECT userid, time FROM rank_requests WHERE time > ? ORDER BY id ASC LIMIT "+strconv.Itoa(rankQueueSize), time.Now().Add(-time.Hour*24).Unix())
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -60,8 +63,8 @@ func BeatmapRankRequestsStatusGET(md common.MethodData) common.CodeMessager {
 		}
 		r.Submitted++
 	}
-	r.QueueSize = c.RankQueueSize
-	r.MaxPerUser = c.BeatmapRequestsPerUser
+	r.QueueSize = rankQueueSize
+	r.MaxPerUser = maxPerPerson
 	if hasConfid {
 		x := r.Submitted < r.QueueSize && *r.SubmittedByUser < r.MaxPerUser
 		r.CanSubmit = &x

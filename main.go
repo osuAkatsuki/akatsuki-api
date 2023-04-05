@@ -37,7 +37,7 @@ func main() {
 		settings.DB_NAME,
 	)
 
-	db, err := sqlx.Open(settings.DB_TYPE, dns)
+	db, err := sqlx.Open(settings.DB_SCHEME, dns)
 	if err != nil {
 		log.Fatalln(err)
 	}

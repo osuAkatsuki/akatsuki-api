@@ -29,7 +29,7 @@ type Settings struct {
 
 	OSU_API_KEY string
 
-	DB_TYPE string
+	DB_SCHEME string
 	DB_HOST string
 	DB_PORT int
 	DB_USER string
@@ -55,7 +55,7 @@ func LoadSettings() Settings {
 
 	settings.OSU_API_KEY = getEnv("OSU_API_KEY")
 
-	settings.DB_TYPE = getEnv("DB_TYPE")
+	settings.DB_SCHEME = getEnv("DB_SCHEME")
 	settings.DB_HOST = getEnv("DB_HOST")
 	settings.DB_PORT = strToInt(getEnv("DB_PORT"))
 	settings.DB_USER = getEnv("DB_USER")

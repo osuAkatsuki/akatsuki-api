@@ -56,4 +56,4 @@ jobs:
       run: helm diff upgrade --allow-unreleased --values chart/values.yaml akatsuki-api-staging common-helm-charts/microservice-base/
 
     - name: Deploy service
-      run: helm upgrade --atomic --values chart/values.yaml akatsuki-api-staging common-helm-charts/microservice-base/
+      run: helm upgrade --install --atomic --values chart/values.yaml akatsuki-api-staging common-helm-charts/microservice-base/

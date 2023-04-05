@@ -64,7 +64,7 @@ func LoadSettings() Settings {
 
 	settings.REDIS_HOST = getEnv("REDIS_HOST")
 	settings.REDIS_PORT = strToInt(getEnv("REDIS_PORT"))
-	settings.REDIS_PASS = getEnv("REDIS_PASSWORD")
+	settings.REDIS_PASS = getEnv("REDIS_PASS")
 	settings.REDIS_DB = strToInt(getEnv("REDIS_DB"))
 
 	return settings

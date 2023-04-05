@@ -11,4 +11,4 @@ RUN go build
 
 EXPOSE 80
 
-CMD ["./akatsuki-api"]
+CMD ["./scripts/start.sh"]

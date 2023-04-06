@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - k8s-comatibility
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -7,24 +7,18 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/raven-go"
 	"github.com/jmoiron/sqlx"
 	"github.com/valyala/fasthttp"
 	"gopkg.in/redis.v5"
 )
 
-// RavenClient is the raven client to which report errors happening.
-// If nil, errors will just be fmt.Println'd
-var RavenClient *raven.Client
-
 // MethodData is a struct containing the data passed over to an API method.
 type MethodData struct {
-	User  Token
-	DB    *sqlx.DB
-	Doggo *statsd.Client
-	R     *redis.Client
-	Ctx   *fasthttp.RequestCtx
+	User Token
+	DB   *sqlx.DB
+	R    *redis.Client
+	Ctx  *fasthttp.RequestCtx
 }
 
 // ClientIP implements a best effort algorithm to return the real client IP, it parses
@@ -85,28 +79,11 @@ func GenericError(err error) {
 }
 
 func _err(err error, tags map[string]string, user *raven.User, c *fasthttp.RequestCtx) {
-	if RavenClient == nil {
-		_, file, no, ok := runtime.Caller(2)
-		if ok {
-			fmt.Println("ERROR in", file, "at line", no)
-		}
-		fmt.Println(err)
-		return
+	_, file, no, ok := runtime.Caller(2)
+	if ok {
+		fmt.Println("ERROR in", file, "at line", no)
 	}
-
-	// Create stacktrace
-	st := raven.NewStacktrace(0, 3, []string{"zxq.co/ripple", "git.zxq.co/ripple"})
-
-	ifaces := []raven.Interface{st, generateRavenHTTP(c)}
-	if user != nil {
-		ifaces = append(ifaces, user)
-	}
-
-	RavenClient.CaptureError(
-		err,
-		tags,
-		ifaces...,
-	)
+	fmt.Println(err)
 }
 
 func generateRavenHTTP(ctx *fasthttp.RequestCtx) *raven.Http {

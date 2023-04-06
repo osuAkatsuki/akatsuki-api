@@ -1,0 +1,11 @@
+app:
+  name: akatsuki-api
+  environment: staging
+  group: backend
+  container:
+    image:
+      repository: registry.digitalocean.com/akatsuki/akatsuki-api
+      tag: latest
+    imagePullSecrets:
+      - name: akatsuki
+    port: 80

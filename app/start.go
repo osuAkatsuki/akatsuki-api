@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	fhr "github.com/buaazp/fasthttprouter"
-	"github.com/getsentry/raven-go"
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/app/internals"
 	"github.com/osuAkatsuki/akatsuki-api/app/peppy"
@@ -17,48 +15,25 @@ import (
 )
 
 var (
-	db    *sqlx.DB
-	cf    common.Conf
-	doggo *statsd.Client
-	red   *redis.Client
+	db  *sqlx.DB
+	red *redis.Client
 )
 
 // Start begins taking HTTP connections.
-func Start(conf common.Conf, dbO *sqlx.DB) *fhr.Router {
+func Start(dbO *sqlx.DB) *fhr.Router {
 	db = dbO
-	cf = conf
 
 	rawRouter := fhr.New()
 	r := router{rawRouter}
-	// TODO: add back gzip
-	// TODO: add logging
-	// TODO: add sentry panic recovering
 
-	// sentry
-	if conf.SentryDSN != "" {
-		ravenClient, err := raven.New(conf.SentryDSN)
-		ravenClient.SetRelease(common.Version)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			// r.Use(Recovery(ravenClient, false))
-			common.RavenClient = ravenClient
-		}
-	}
-
-	// datadog
-	var err error
-	doggo, err = statsd.New("127.0.0.1:8125")
-	if err != nil {
-		fmt.Println(err)
-	}
-	doggo.Namespace = "api."
+	// TODO: Implement datadog APM.
 
 	// redis
+	settings := common.GetSettings()
 	red = redis.NewClient(&redis.Options{
-		Addr:     conf.RedisAddr,
-		Password: conf.RedisPassword,
-		DB:       conf.RedisDB,
+		Addr:     fmt.Sprintf("%s:%d", settings.DB_HOST, settings.REDIS_PORT),
+		Password: settings.REDIS_PASS,
+		DB:       settings.REDIS_DB,
 	})
 	peppy.R = red
 

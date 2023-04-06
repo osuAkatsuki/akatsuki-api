@@ -3,14 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
-	"strings"
 	"syscall"
 
 	"github.com/osuAkatsuki/akatsuki-api/app"
 	"github.com/osuAkatsuki/akatsuki-api/beatmapget"
 	"github.com/osuAkatsuki/akatsuki-api/common"
-	"zxq.co/ripple/agplwarning"
-	"zxq.co/ripple/schiavolib"
+	"github.com/valyala/fasthttp"
+
 	// Golint pls dont break balls
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -18,48 +17,28 @@ import (
 	"gopkg.in/thehowl/go-osuapi.v1"
 )
 
-// Version is the git hash of the application. Do not edit. This is
-// automatically set using -ldflags during build time.
-var Version string
-
 func init() {
 	log.SetFlags(log.Ltime)
 	log.SetPrefix(fmt.Sprintf("%d|", syscall.Getpid()))
-	common.Version = Version
 }
 
-var db *sqlx.DB
-
 func main() {
-	err := agplwarning.Warn("ripple", "Ripple API")
-	if err != nil {
-		fmt.Println(err)
-	}
 
 	fmt.Print("Akatsuki API")
-	if Version != "" {
-		fmt.Print("; git commit hash: ", Version)
-	}
 	fmt.Println()
 
-	conf, halt := common.Load()
-	if halt {
-		return
-	}
+	settings := common.LoadSettings()
 
-	schiavo.Prefix = "Akatsuki API"
+	dns := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&charset=utf8mb4,utf8&collation=utf8mb4_general_ci",
+		settings.DB_USER,
+		settings.DB_PASS,
+		settings.DB_HOST,
+		settings.DB_PORT,
+		settings.DB_NAME,
+	)
 
-	if !strings.Contains(conf.DSN, "parseTime=true") {
-		c := "?"
-		if strings.Contains(conf.DSN, "?") {
-			c = "&"
-		}
-		conf.DSN += c + "parseTime=true&charset=utf8mb4,utf8&collation=utf8mb4_general_ci"
-	}
-
-	db, err = sqlx.Open(conf.DatabaseType, conf.DSN)
+	db, err := sqlx.Open(settings.DB_SCHEME, dns)
 	if err != nil {
-		schiavo.Bunker.Send(err.Error())
 		log.Fatalln(err)
 	}
 
@@ -70,12 +49,15 @@ func main() {
 		return snaker.CamelToSnake(s)
 	})
 
-	beatmapget.Client = osuapi.NewClient(conf.OsuAPIKey)
+	beatmapget.Client = osuapi.NewClient(settings.OSU_API_KEY)
 	beatmapget.DB = db
 
-	engine := app.Start(conf, db)
+	engine := app.Start(db)
 
-	startuato(engine.Handler)
+	err = fasthttp.ListenAndServe(fmt.Sprintf(":%d", settings.APP_PORT), engine.Handler)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 var commonClusterfucks = map[string]string{

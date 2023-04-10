@@ -31,7 +31,7 @@ jobs:
     - name: Push image to digitalocean container registry
       run: docker push registry.digitalocean.com/akatsuki/akatsuki-api:latest
 
-    - name: Save digitalocean kubeconfig
+    - name: Save kubeconfig from digitalocean
       run: doctl k8s cluster kubeconfig save --expiry-seconds 600 akatsuki-staging
 
     - name: Install helm
@@ -51,8 +51,8 @@ jobs:
         token: ${{ secrets.COMMON_HELM_CHARTS_PAT }}
         path: common-helm-charts
 
-    - name: Show diff
+    - name: Show manifest diff since previous release
       run: helm diff upgrade --allow-unreleased --values chart/values.yaml akatsuki-api-staging common-helm-charts/microservice-base/
 
-    - name: Deploy service
+    - name: Deploy service to staging cluster
       run: helm upgrade --install --atomic --values chart/values.yaml akatsuki-api-staging common-helm-charts/microservice-base/

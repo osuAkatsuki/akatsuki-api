@@ -472,7 +472,7 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		r.Userpage = new(string)
 		r.UserpageCompiled = ""
 	}
-	r.UserpageCompiled = externals.CompileBBCode(*r.Userpage)
+	r.UserpageCompiled = externals.ConvertBBCodeToHTML(*r.Userpage)
 	r.Code = 200
 	return r
 }

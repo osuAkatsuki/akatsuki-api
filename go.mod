@@ -10,7 +10,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/joho/godotenv v1.5.1
 	github.com/leavengood/websocket v0.0.0-20170104145153-470559ebf58e
-	github.com/microcosm-cc/bluemonday v1.0.19
+	github.com/microcosm-cc/bluemonday v1.0.24
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/thehowl/go-osuapi v0.0.0-20181219091033-b29455689881
 	github.com/valyala/fasthttp v1.34.0
@@ -33,6 +33,6 @@ require (
 	github.com/onsi/gomega v1.13.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 )

@@ -21,7 +21,8 @@ func strToInt(s string) int {
 }
 
 type Settings struct {
-	APP_PORT int
+	APP_PORT   int
+	APP_DOMAIN string
 
 	HANAYO_KEY                string
 	BEATMAP_REQUESTS_PER_USER int
@@ -30,11 +31,11 @@ type Settings struct {
 	OSU_API_KEY string
 
 	DB_SCHEME string
-	DB_HOST string
-	DB_PORT int
-	DB_USER string
-	DB_PASS string
-	DB_NAME string
+	DB_HOST   string
+	DB_PORT   int
+	DB_USER   string
+	DB_PASS   string
+	DB_NAME   string
 
 	REDIS_HOST string
 	REDIS_PORT int
@@ -48,6 +49,7 @@ func LoadSettings() Settings {
 	godotenv.Load()
 
 	settings.APP_PORT = strToInt(getEnv("APP_PORT"))
+	settings.APP_DOMAIN = getEnv("APP_DOMAIN")
 
 	settings.HANAYO_KEY = getEnv("HANAYO_KEY")
 	settings.BEATMAP_REQUESTS_PER_USER = strToInt(getEnv("BEATMAP_REQUESTS_PER_USER"))

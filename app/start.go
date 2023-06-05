@@ -31,7 +31,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 	// redis
 	settings := common.GetSettings()
 	red = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", settings.DB_HOST, settings.REDIS_PORT),
+		Addr:     fmt.Sprintf("%s:%d", settings.REDIS_HOST, settings.REDIS_PORT),
 		Password: settings.REDIS_PASS,
 		DB:       settings.REDIS_DB,
 	})

@@ -39,18 +39,16 @@ func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		relax = "0"
 	}
 
-	rx := common.Int(relax)
-
 	table := "scores"
-	switch rx {
-	case 1:
+	switch relax {
+	case "1", "true", "True":
 		table = "scores_relax"
-	case 2:
+	case "2":
 		table = "scores_ap"
 	}
 
 	var sb = table + ".score"
-	if rx != 0 {
+	if relax != "0" {
 		sb = table + ".pp"
 	}
 	var (

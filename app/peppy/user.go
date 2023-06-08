@@ -4,7 +4,7 @@ package peppy
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
+	"time"
 
 	"strings"
 
@@ -21,7 +21,9 @@ var R *redis.Client
 
 // GetUser retrieves general user information.
 func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
-	if query(c, "u") == "" {
+	args := c.QueryArgs()
+
+	if !args.Has("u") {
 		json(c, 200, defaultResponse)
 		return
 	}
@@ -30,20 +32,37 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	whereClause = "WHERE " + whereClause
 
 	mode := genmode(query(c, "m"))
+	rx := query(c, "rx")
 
+	table := "users_stats"
+	addJoinClause := ""
+	redisTable := "leaderboard"
+	switch rx {
+	case "1":
+		table = "rx_stats"
+		addJoinClause = "LEFT JOIN users_stats ON users_stats.id = users.id"
+		redisTable = "relaxboard"
+	case "2":
+		table = "ap_stats"
+		addJoinClause = "LEFT JOIN users_stats ON users_stats.id = users.id"
+		redisTable = "autoboard"
+	}
+
+	var joinDate int64
 	err := db.QueryRow(fmt.Sprintf(
 		`SELECT
-			users.id, users.username,
-			users_stats.playcount_%s, users_stats.ranked_score_%s, users_stats.total_score_%s,
-			users_stats.pp_%s, users_stats.avg_accuracy_%s,
+			users.id, users.username, users.register_datetime,
+			%[1]s.playcount_%[2]s, %[1]s.ranked_score_%[2]s, %[1]s.total_score_%[2]s,
+			%[1]s.pp_%[2]s, %[1]s.avg_accuracy_%[2]s,
 			users_stats.country
 		FROM users
-		LEFT JOIN users_stats ON users_stats.id = users.id
-		%s
+		LEFT JOIN %[1]s ON %[1]s.id = users.id
+		%[3]s
+		%[4]s
 		LIMIT 1`,
-		mode, mode, mode, mode, mode, whereClause,
+		table, mode, addJoinClause, whereClause,
 	), p).Scan(
-		&user.UserID, &user.Username,
+		&user.UserID, &user.Username, &joinDate,
 		&user.Playcount, &user.RankedScore, &user.TotalScore,
 		&user.PP, &user.Accuracy,
 		&user.Country,
@@ -56,8 +75,20 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		return
 	}
 
-	user.Rank = int(R.ZRevRank("ripple:leaderboard:"+mode, strconv.Itoa(user.UserID)).Val()) + 1
-	user.CountryRank = int(R.ZRevRank("ripple:leaderboard:"+mode+":"+strings.ToLower(user.Country), strconv.Itoa(user.UserID)).Val()) + 1
+	user.Date = osuapi.MySQLDate(time.Unix(joinDate, 0))
+
+	if gRank := leaderboardPosition(
+		R, "ripple:"+redisTable+":"+mode, user.UserID,
+	); gRank != nil {
+		user.Rank = *gRank
+	}
+
+	if cRank := leaderboardPosition(
+		R, "ripple:"+redisTable+":"+mode+":"+strings.ToLower(user.Country), user.UserID,
+	); cRank != nil {
+		user.CountryRank = *cRank
+	}
+
 	user.Level = ocl.GetLevelPrecise(user.TotalScore)
 
 	json(c, 200, []osuapi.User{user})

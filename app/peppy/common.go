@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
+	"gopkg.in/redis.v5"
 )
 
 var modes = []string{"std", "taiko", "ctb", "mania"}
@@ -24,10 +25,6 @@ func genmodei(m string) int {
 		v = 0
 	}
 	return v
-}
-func rankable(m string) bool {
-	x := genmodei(m)
-	return x != 2
 }
 
 func genUser(c *fasthttp.RequestCtx, db *sqlx.DB) (string, string) {
@@ -72,4 +69,13 @@ func json(c *fasthttp.RequestCtx, code int, data interface{}) {
 		panic(err)
 	}
 	c.Write(d)
+}
+
+func leaderboardPosition(r *redis.Client, key string, user int) *int {
+	res := r.ZRevRank(key, strconv.Itoa(user))
+	if res.Err() == redis.Nil {
+		return nil
+	}
+	x := int(res.Val()) + 1
+	return &x
 }

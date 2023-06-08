@@ -1,6 +1,7 @@
 package peppy
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -15,21 +16,25 @@ func GetBeatmap(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	var whereClauses []string
 	var params []interface{}
 	limit := strconv.Itoa(common.InString(1, query(c, "limit"), 500, 500))
+	args := c.QueryArgs()
 
 	// since value is not stored, silently ignore
-	if query(c, "s") != "" {
+	if args.Has("s") {
 		whereClauses = append(whereClauses, "beatmaps.beatmapset_id = ?")
 		params = append(params, query(c, "s"))
 	}
-	if query(c, "b") != "" {
+
+	if args.Has("b") {
 		whereClauses = append(whereClauses, "beatmaps.beatmap_id = ?")
 		params = append(params, query(c, "b"))
 		// b is unique, so change limit to 1
 		limit = "1"
 	}
+
 	// creator is not stored, silently ignore u and type
-	if query(c, "m") != "" {
+	if args.Has("m") {
 		m := genmode(query(c, "m"))
+
 		if m == "std" {
 			// Since STD beatmaps are converted, all of the diffs must be != 0
 			for _, i := range modes {
@@ -42,7 +47,8 @@ func GetBeatmap(c *fasthttp.RequestCtx, db *sqlx.DB) {
 			}
 		}
 	}
-	if query(c, "h") != "" {
+
+	if args.Has("h") {
 		whereClauses = append(whereClauses, "beatmaps.beatmap_md5 = ?")
 		params = append(params, query(c, "h"))
 	}
@@ -115,19 +121,17 @@ var rippleToOsuRankedStatus = map[int]osuapi.ApprovedStatus{
 	5: osuapi.StatusLoved,
 }
 
-// buggy diffname parser
 func parseDiffName(name string) (author string, title string, diffName string) {
-	parts := strings.SplitN(name, " - ", 2)
-	author = parts[0]
-	if len(parts) > 1 {
-		title = parts[1]
-		if s := strings.Index(title, " ["); s != -1 {
-			diffName = title[s+2:]
-			if len(diffName) != 0 && diffName[len(diffName)-1] == ']' {
-				diffName = diffName[:len(diffName)-1]
-			}
-			title = title[:s]
-		}
+	regex := regexp.MustCompile(`^(.*) - (.*) \[(.*)\]$`)
+	matches := regex.FindStringSubmatch(name)
+
+	if len(matches) != 4 {
+		return
 	}
+
+	author = matches[1]
+	title = matches[2]
+	diffName = matches[3]
+
 	return
 }

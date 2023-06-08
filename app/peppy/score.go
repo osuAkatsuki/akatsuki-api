@@ -34,7 +34,12 @@ func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		return
 	}
 
-	rx := common.Int(query(c, "rx"))
+	relax := query(c, "rx")
+	if relax == "" {
+		relax = "0"
+	}
+
+	rx := common.Int(relax)
 
 	table := "scores"
 	switch rx {

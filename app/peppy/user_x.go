@@ -13,35 +13,83 @@ import (
 
 // GetUserRecent retrieves an user's recent scores.
 func GetUserRecent(c *fasthttp.RequestCtx, db *sqlx.DB) {
-	getUserX(c, db, "ORDER BY scores.time DESC", common.InString(1, query(c, "limit"), 50, 10))
+
+	relax := query(c, "rx")
+	if relax == "" {
+		relax = "0"
+	}
+
+	rx := common.Int(relax)
+
+	table := "scores"
+	switch rx {
+	case 1:
+		table = "scores_relax"
+	case 2:
+		table = "scores_ap"
+	}
+
+	getUserX(c, db, "ORDER BY "+table+".time DESC", common.InString(1, query(c, "limit"), 50, 10))
 }
 
 // GetUserBest retrieves an user's best scores.
 func GetUserBest(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	var sb string
-	if rankable(query(c, "m")) {
-		sb = "scores.pp"
+
+	relax := query(c, "rx")
+	if relax == "" {
+		relax = "0"
+	}
+
+	rx := common.Int(relax)
+
+	table := "scores"
+	switch rx {
+	case 1:
+		table = "scores_relax"
+	case 2:
+		table = "scores_ap"
+	}
+
+	if rx != 0 {
+		sb = table + ".pp"
 	} else {
-		sb = "scores.score"
+		sb = table + ".score"
 	}
 	getUserX(c, db, "AND completed = '3' ORDER BY "+sb+" DESC", common.InString(1, query(c, "limit"), 100, 10))
 }
 
 func getUserX(c *fasthttp.RequestCtx, db *sqlx.DB, orderBy string, limit int) {
 	whereClause, p := genUser(c, db)
+
+	relax := query(c, "rx")
+	if relax == "" {
+		relax = "0"
+	}
+
+	rx := common.Int(relax)
+
+	table := "scores"
+	switch rx {
+	case 1:
+		table = "scores_relax"
+	case 2:
+		table = "scores_ap"
+	}
+
 	sqlQuery := fmt.Sprintf(
 		`SELECT
-			beatmaps.beatmap_id, scores.score, scores.max_combo,
-			scores.300_count, scores.100_count, scores.50_count,
-			scores.gekis_count, scores.katus_count, scores.misses_count,
-			scores.full_combo, scores.mods, users.id, scores.time,
-			scores.pp, scores.accuracy
-		FROM scores
-		LEFT JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
-		LEFT JOIN users ON scores.userid = users.id
-		WHERE %s AND scores.play_mode = ? AND users.privileges & 1 > 0
-		%s
-		LIMIT %d`, whereClause, orderBy, limit,
+			beatmaps.beatmap_id, %[1]s.score, %[1]s.max_combo,
+			%[1]s.300_count, %[1]s.100_count, %[1]s.50_count,
+			%[1]s.gekis_count, %[1]s.katus_count, %[1]s.misses_count,
+			%[1]s.full_combo, %[1]s.mods, users.id, %[1]s.time,
+			%[1]s.pp, %[1]s.accuracy
+		FROM %[1]s
+		LEFT JOIN beatmaps ON beatmaps.beatmap_md5 = %[1]s.beatmap_md5
+		LEFT JOIN users ON %[1]s.userid = users.id
+		WHERE %[2]s AND %[1]s.play_mode = ? AND users.privileges & 1 > 0
+		%[3]s
+		LIMIT %[4]d`, table, whereClause, orderBy, limit,
 	)
 	scores := make([]osuapi.GUSScore, 0, limit)
 	m := genmodei(query(c, "m"))

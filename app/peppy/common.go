@@ -26,10 +26,6 @@ func genmodei(m string) int {
 	}
 	return v
 }
-func rankable(m string) bool {
-	x := genmodei(m)
-	return x != 2
-}
 
 func genUser(c *fasthttp.RequestCtx, db *sqlx.DB) (string, string) {
 	var whereClause string

@@ -16,10 +16,12 @@ import (
 
 // GetScores retrieve information about the top 100 scores of a specified beatmap.
 func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
-	if query(c, "b") == "" {
+	args := c.QueryArgs()
+	if !args.Has("b") {
 		json(c, 200, defaultResponse)
 		return
 	}
+
 	var beatmapMD5 string
 	err := db.Get(&beatmapMD5, "SELECT beatmap_md5 FROM beatmaps WHERE beatmap_id = ? LIMIT 1", query(c, "b"))
 	switch {
@@ -32,23 +34,25 @@ func GetScores(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		return
 	}
 
-	rx := query(c, "rx")
+	rx := common.Int(query(c, "rx"))
 
 	table := "scores"
 	switch rx {
-	case "1", "true", "True":
+	case 1:
 		table = "scores_relax"
+	case 2:
+		table = "scores_ap"
 	}
-	fmt.Println(table)
+
 	var sb = table + ".score"
-	if rankable(query(c, "m")) {
+	if rx != 0 {
 		sb = table + ".pp"
 	}
 	var (
 		extraWhere  string
 		extraParams []interface{}
 	)
-	if query(c, "u") != "" {
+	if args.Has("u") {
 		w, p := genUser(c, db)
 		extraWhere = "AND " + w
 		extraParams = append(extraParams, p)

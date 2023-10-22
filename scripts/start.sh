@@ -14,7 +14,7 @@ fi
 if [[ $PULL_SECRETS_FROM_VAULT -eq 1 ]]; then
   # TODO: is there a better way to deal with this?
   pip install --break-system-packages -i $PYPI_INDEX_URL akatsuki-cli
-  akatsuki vault get hanayo $APP_ENV -o .env
+  akatsuki vault get akatsuki-api $APP_ENV -o .env
   source .env
 fi
 

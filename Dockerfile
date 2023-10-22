@@ -7,6 +7,8 @@ RUN go mod download && go mod verify
 
 COPY . /srv/root
 
+RUN apt install -y python3-pip
+
 RUN go build
 
 EXPOSE 80

@@ -183,7 +183,7 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 			`WHERE
 				%s
 				%s
-				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR) AND pinned = 1
+				AND pinned = 1
 				AND `+md.User.OnlyUserPublic(true)+`
 			ORDER BY scores_relax.pp DESC %s`,
 			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
@@ -194,7 +194,7 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 			`WHERE
 				%s
 				%s
-				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR) AND pinned = 1
+				AND pinned = 1
 				AND `+md.User.OnlyUserPublic(true)+`
 			ORDER BY scores_ap.pp DESC %s`,
 			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
@@ -204,7 +204,7 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 			`WHERE
 				%s
 				%s
-				AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR) AND pinned = 1
+				AND pinned = 1
 				AND `+md.User.OnlyUserPublic(true)+`
 			ORDER BY scores.pp DESC %s`,
 			wc, mc, common.Paginate(md.Query("p"), md.Query("l"), 100),
@@ -213,26 +213,34 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 }
 
 func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+
 	var u struct {
 		ID    int `json:"id"`
 		Relax int `json:"rx"`
 	}
 	md.Unmarshal(&u)
 
-	return pinScore(md, u.ID, u.Relax)
+	return pinScore(md, u.ID, u.Relax, md.ID())
 }
 
 func ScoresPinDelPOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+
 	var u struct {
 		ID    int `json:"id"`
 		Relax int `json:"rx"`
 	}
 	md.Unmarshal(&u)
 
-	return unpinScore(md, u.ID, u.Relax)
+	return unpinScore(md, u.ID, u.Relax, md.ID())
 }
 
-func pinScore(md common.MethodData, id int, relax int) common.CodeMessager {
+func pinScore(md common.MethodData, id int, relax int, userId int) common.CodeMessager {
 	var table string
 	if relax == 1 {
 		table = "scores_relax"
@@ -243,10 +251,13 @@ func pinScore(md common.MethodData, id int, relax int) common.CodeMessager {
 	}
 
 	var v int
-	err := md.DB.QueryRow(fmt.Sprintf("SELECT id FROM %s WHERE id = ?", table), id).Scan(&v)
+	err := md.DB.QueryRow(fmt.Sprintf("SELECT userid FROM %s WHERE id = ?", table), id).Scan(&v)
 	if err != nil {
 		md.Err(err)
 		return common.SimpleResponse(404, "I'd also like to pin a score I don't have... but I can't.")
+	}
+	if v != userId {
+		return common.SimpleResponse(401, "no")
 	}
 
 	_, err = md.DB.Exec(fmt.Sprintf("UPDATE %s SET pinned = 1 WHERE id = ?", table), id)
@@ -258,7 +269,7 @@ func pinScore(md common.MethodData, id int, relax int) common.CodeMessager {
 	return common.SimpleResponse(200, "Score pinned.")
 }
 
-func unpinScore(md common.MethodData, id int, relax int) common.CodeMessager {
+func unpinScore(md common.MethodData, id int, relax int, userId int) common.CodeMessager {
 	var table string
 	if relax == 1 {
 		table = "scores_relax"
@@ -269,9 +280,13 @@ func unpinScore(md common.MethodData, id int, relax int) common.CodeMessager {
 	}
 
 	var v int
-	err := md.DB.QueryRow(fmt.Sprintf("SELECT id FROM %s WHERE id = ?", table), id).Scan(&v)
+	err := md.DB.QueryRow(fmt.Sprintf("SELECT userid FROM %s WHERE id = ?", table), id).Scan(&v)
 	if err != nil {
+		md.Err(err)
 		return common.SimpleResponse(404, "I'd also like to unpin a score I don't have... but I can't.")
+	}
+	if v != userId {
+		return common.SimpleResponse(401, "no")
 	}
 
 	md.DB.Exec(fmt.Sprintf("UPDATE %s SET pinned = 0 WHERE id = ?", table), id)

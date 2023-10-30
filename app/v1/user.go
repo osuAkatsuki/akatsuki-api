@@ -273,6 +273,18 @@ SELECT
 	ap_stats.replays_watched_std, ap_stats.total_hits_std,
 	ap_stats.avg_accuracy_std, ap_stats.pp_std, ap_stats.max_combo_std,
 
+	ap_stats.ranked_score_taiko, ap_stats.total_score_taiko, ap_stats.playcount_taiko, users_stats.playtime_taiko,
+	ap_stats.replays_watched_taiko, ap_stats.total_hits_taiko,
+	ap_stats.avg_accuracy_taiko, ap_stats.pp_taiko, ap_stats.max_combo_taiko,
+
+	ap_stats.ranked_score_ctb, ap_stats.total_score_ctb, ap_stats.playcount_ctb, users_stats.playtime_ctb,
+	ap_stats.replays_watched_ctb, ap_stats.total_hits_ctb,
+	ap_stats.avg_accuracy_ctb, ap_stats.pp_ctb, ap_stats.max_combo_ctb,
+
+	ap_stats.ranked_score_mania, ap_stats.total_score_mania, ap_stats.playcount_mania, users_stats.playtime_mania,
+	ap_stats.replays_watched_mania, ap_stats.total_hits_mania,
+	ap_stats.avg_accuracy_mania, ap_stats.pp_mania, ap_stats.max_combo_mania,
+
 	users.silence_reason, users.silence_end,
 	users.notes, users.ban_datetime, users.email,
 	users.clan_id
@@ -338,6 +350,18 @@ LIMIT 1
 		&r.Stats[2].STD.RankedScore, &r.Stats[2].STD.TotalScore, &r.Stats[2].STD.PlayCount, &r.Stats[2].STD.PlayTime,
 		&r.Stats[2].STD.ReplaysWatched, &r.Stats[2].STD.TotalHits,
 		&r.Stats[2].STD.Accuracy, &r.Stats[2].STD.PP, &r.Stats[2].STD.MaxCombo,
+
+		&r.Stats[2].Taiko.RankedScore, &r.Stats[2].Taiko.TotalScore, &r.Stats[2].Taiko.PlayCount, &r.Stats[2].Taiko.PlayTime,
+		&r.Stats[2].Taiko.ReplaysWatched, &r.Stats[2].Taiko.TotalHits,
+		&r.Stats[2].Taiko.Accuracy, &r.Stats[2].Taiko.PP, &r.Stats[2].Taiko.MaxCombo,
+
+		&r.Stats[2].CTB.RankedScore, &r.Stats[2].CTB.TotalScore, &r.Stats[2].CTB.PlayCount, &r.Stats[2].CTB.PlayTime,
+		&r.Stats[2].CTB.ReplaysWatched, &r.Stats[2].CTB.TotalHits,
+		&r.Stats[2].CTB.Accuracy, &r.Stats[2].CTB.PP, &r.Stats[2].CTB.MaxCombo,
+
+		&r.Stats[2].Mania.RankedScore, &r.Stats[2].Mania.TotalScore, &r.Stats[2].Mania.PlayCount, &r.Stats[2].Mania.PlayTime,
+		&r.Stats[2].Mania.ReplaysWatched, &r.Stats[2].Mania.TotalHits,
+		&r.Stats[2].Mania.Accuracy, &r.Stats[2].Mania.PP, &r.Stats[2].Mania.MaxCombo,
 
 		&r.SilenceInfo.Reason, &r.SilenceInfo.End,
 		&r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID,

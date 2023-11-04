@@ -1,11 +1,19 @@
-app:
-  name: akatsuki-api
-  environment: staging
-  group: backend
-  container:
-    image:
-      repository: registry.digitalocean.com/akatsuki/akatsuki-api
-      tag: latest
-    imagePullSecrets:
-      - name: akatsuki
-    port: 80
+apps:
+  - name: akatsuki-api
+    environment: production
+    codebase: akatsuki-api
+    replicaCount: 1
+    container:
+      image:
+        repository: osuakatsuki/akatsuki-api
+        tag: latest
+      port: 80
+      env:
+        - name: APP_COMPONENT
+          value: api
+      imagePullSecrets:
+        - name: osuakatsuki-registry-secret
+        # - name: registry-akatsuki
+    service:
+      type: ClusterIP
+      port: 80

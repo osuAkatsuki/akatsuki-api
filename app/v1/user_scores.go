@@ -3,6 +3,7 @@ package v1
 import (
 	"fmt"
 	"strings"
+	"strconv"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/thehowl/go-osuapi.v1"
@@ -218,12 +219,17 @@ func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	var u struct {
-		ID    int `json:"id"`
+		ID    string `json:"id"`
 		Relax int `json:"rx"`
 	}
 	md.Unmarshal(&u)
 
-	return pinScore(md, u.ID, u.Relax, md.ID())
+	id, err := strconv.ParseInt(u.ID, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	return pinScore(md, id, u.Relax, md.ID())
 }
 
 func ScoresPinDelPOST(md common.MethodData) common.CodeMessager {
@@ -232,15 +238,20 @@ func ScoresPinDelPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	var u struct {
-		ID    int `json:"id"`
+		ID    string `json:"id"`
 		Relax int `json:"rx"`
 	}
 	md.Unmarshal(&u)
 
-	return unpinScore(md, u.ID, u.Relax, md.ID())
+	id, err := strconv.ParseInt(u.ID, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	return unpinScore(md, id, u.Relax, md.ID())
 }
 
-func pinScore(md common.MethodData, id int, relax int, userId int) common.CodeMessager {
+func pinScore(md common.MethodData, id int64, relax int, userId int) common.CodeMessager {
 	var table string
 	if relax == 1 {
 		table = "scores_relax"
@@ -269,7 +280,7 @@ func pinScore(md common.MethodData, id int, relax int, userId int) common.CodeMe
 	return common.SimpleResponse(200, "Score pinned.")
 }
 
-func unpinScore(md common.MethodData, id int, relax int, userId int) common.CodeMessager {
+func unpinScore(md common.MethodData, id int64, relax int, userId int) common.CodeMessager {
 	var table string
 	if relax == 1 {
 		table = "scores_relax"

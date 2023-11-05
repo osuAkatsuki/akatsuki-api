@@ -20,6 +20,11 @@ type userScoresResponse struct {
 	Scores []userScore `json:"scores"`
 }
 
+type pinResponse struct {
+	common.ResponseBase
+	ScoreId string `json:"score_id"`
+}
+
 const relaxScoreSelectBase = `
 		SELECT
 			scores_relax.id, scores_relax.beatmap_md5, scores_relax.score,
@@ -277,7 +282,10 @@ func pinScore(md common.MethodData, id int64, relax int, userId int) common.Code
 		return common.SimpleResponse(404, "I'd also like to pin a score I don't have... but I can't.")
 	}
 
-	return common.SimpleResponse(200, "Score pinned.")
+	r := pinResponse{}
+	r.Code = 200
+	r.ScoreId = strconv.FormatInt(id, 10)
+	return r
 }
 
 func unpinScore(md common.MethodData, id int64, relax int, userId int) common.CodeMessager {
@@ -301,7 +309,10 @@ func unpinScore(md common.MethodData, id int64, relax int, userId int) common.Co
 	}
 
 	md.DB.Exec(fmt.Sprintf("UPDATE %s SET pinned = 0 WHERE id = ?", table), id)
-	return common.SimpleResponse(200, "Score unpinned.")
+	r := pinResponse{}
+	r.Code = 200
+	r.ScoreId = strconv.FormatInt(id, 10)
+	return r
 }
 
 func scoresPuts(md common.MethodData, whereClause string, params ...interface{}) common.CodeMessager {

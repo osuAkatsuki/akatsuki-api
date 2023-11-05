@@ -1,6 +1,7 @@
 package app
 
 import (
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -26,14 +27,20 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 	rawRouter := fhr.New()
 	r := router{rawRouter}
 
-	// TODO: Implement datadog APM.
-
-	// redis
 	settings := common.GetSettings()
+
+	// initialise redis
+	var tlsConfig *tls.Config
+	if settings.REDIS_USE_SSL {
+		tlsConfig = &tls.Config{
+			ServerName: settings.REDIS_SSL_SERVER_NAME,
+		}
+	}
 	red = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", settings.REDIS_HOST, settings.REDIS_PORT),
-		Password: settings.REDIS_PASS,
-		DB:       settings.REDIS_DB,
+		Addr:      fmt.Sprintf("%s:%d", settings.REDIS_HOST, settings.REDIS_PORT),
+		Password:  settings.REDIS_PASS,
+		DB:        settings.REDIS_DB,
+		TLSConfig: tlsConfig,
 	})
 	peppy.R = red
 

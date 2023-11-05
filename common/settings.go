@@ -20,6 +20,11 @@ func strToInt(s string) int {
 	return val
 }
 
+func strToBool(s string) bool {
+	val, _ := strconv.ParseBool(s)
+	return val
+}
+
 type Settings struct {
 	APP_PORT   int
 	APP_DOMAIN string
@@ -37,10 +42,12 @@ type Settings struct {
 	DB_PASS   string
 	DB_NAME   string
 
-	REDIS_HOST string
-	REDIS_PORT int
-	REDIS_PASS string
-	REDIS_DB   int
+	REDIS_HOST            string
+	REDIS_PORT            int
+	REDIS_PASS            string
+	REDIS_DB              int
+	REDIS_USE_SSL         bool
+	REDIS_SSL_SERVER_NAME string
 }
 
 var settings = Settings{}
@@ -68,6 +75,8 @@ func LoadSettings() Settings {
 	settings.REDIS_PORT = strToInt(getEnv("REDIS_PORT"))
 	settings.REDIS_PASS = getEnv("REDIS_PASS")
 	settings.REDIS_DB = strToInt(getEnv("REDIS_DB"))
+	settings.REDIS_USE_SSL = strToBool(getEnv("REDIS_USE_SSL"))
+	settings.REDIS_SSL_SERVER_NAME = getEnv("REDIS_SSL_SERVER_NAME")
 
 	return settings
 }

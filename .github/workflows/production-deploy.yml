@@ -22,5 +22,5 @@ jobs:
             git pull origin master
             docker build -t akatsuki-api:latest .
             cd /home/akatsuki/workbench
-            docker-compose restart \
-              akatsuki-api
+            docker-compose stop akatsuki-api
+            docker-compose up -d akatsuki-api

@@ -2,7 +2,7 @@ package v1
 
 import (
 	"database/sql"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -25,7 +25,7 @@ func LoadAchievementsEvery(db *sqlx.DB, d time.Duration) {
 		err := db.Select(&achievs,
 			"SELECT id, name, description, icon FROM achievements ORDER BY id ASC")
 		if err != nil {
-			fmt.Println("LoadAchievements error", err)
+			slog.Error("LoadAchievements error", "error", err.Error())
 			common.GenericError(err)
 		}
 		time.Sleep(d)

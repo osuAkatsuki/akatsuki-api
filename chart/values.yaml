@@ -11,6 +11,15 @@ apps:
       env:
         - name: APP_COMPONENT
           value: api
+      readinessProbe:
+        httpGet:
+          path: /_health
+          port: 80
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        timeoutSeconds: 1
+        successThreshold: 1
+        failureThreshold: 3
       resources:
         limits:
           cpu: 500m

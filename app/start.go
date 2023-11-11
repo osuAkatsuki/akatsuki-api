@@ -65,6 +65,8 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 
 	// v1 API
 	{
+		r.Method("_health", v1.HealthGET)
+
 		r.POSTMethod("/api/v1/tokens/self/delete", v1.TokenSelfDeletePOST)
 
 		// Auth-free API endpoints (public data)

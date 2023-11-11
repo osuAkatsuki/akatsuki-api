@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
+	"golang.org/x/exp/slog"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -81,7 +82,7 @@ func tokenUpdater(db *sqlx.DB) {
 		q = db.Rebind(q)
 		_, err := db.Exec(q, a...)
 		if err != nil {
-			fmt.Println(err)
+			slog.Error("Error updating tokens", "error", err.Error())
 		}
 	}
 }

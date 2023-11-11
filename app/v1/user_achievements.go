@@ -2,8 +2,9 @@ package v1
 
 import (
 	"database/sql"
-	"log/slog"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"

@@ -46,6 +46,8 @@ jobs:
             mkdir -p $HOME/.kube
             echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
             sudo chown $(id -u):$(id -g) $HOME/.kube/config
+            chmod 600 $HOME/.kube/config
+
       - name: Install helm
         uses: azure/setup-helm@v3
         with:
@@ -63,19 +65,26 @@ jobs:
           token: ${{ secrets.COMMON_HELM_CHARTS_PAT }}
           path: common-helm-charts
 
+      - name: Clear pending deployments
+        run: |
+          kubectl delete secret -l 'status in (pending-install, pending-upgrade, pending-rollback),name=akatsuki-api-production'
+
       - name: Show manifest diff since previous release
         run: |
           helm diff upgrade \
           --allow-unreleased \
+          --color=true \
           --values chart/values.yaml \
           akatsuki-api-production \
           common-helm-charts/microservice-base/
+
       - name: Deploy service to production cluster
         run: |
           helm upgrade \
             --install \
             --atomic \
-            --wait --timeout 480s \
+            --wait --timeout 10m \
+            --cleanup-on-fail \
             --values chart/values.yaml \
             akatsuki-api-production \
             common-helm-charts/microservice-base/

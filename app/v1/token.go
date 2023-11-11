@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
+	"golang.org/x/exp/slog"
 )
 
 // TokenSelfDeletePOST deletes the token the user is connecting with.
@@ -185,7 +186,7 @@ FROM tokens
 LEFT JOIN users ON users.id = tokens.user
 `+wc, params...)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("Error fetching data", "error", err.Error())
 		return
 	}
 	for rows.Next() {
@@ -198,7 +199,7 @@ LEFT JOIN users ON users.id = tokens.user
 		)
 		err := rows.Scan(&id, &privsRaw, &privilegesRaw)
 		if err != nil {
-			fmt.Println(err)
+			slog.Error("Error copying data", "error", err.Error())
 			continue
 		}
 		privileges := common.UserPrivileges(privilegesRaw)
@@ -207,7 +208,7 @@ LEFT JOIN users ON users.id = tokens.user
 		if newPrivs != privs {
 			_, err := db.Exec("UPDATE tokens SET privileges = ? WHERE id = ? LIMIT 1", uint64(newPrivs), id)
 			if err != nil {
-				fmt.Println(err)
+				slog.Error("Error updating tokens table", "error", err.Error())
 				continue
 			}
 		}

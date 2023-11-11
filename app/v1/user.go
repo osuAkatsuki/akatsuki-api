@@ -4,6 +4,7 @@ package v1
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"unicode"
@@ -250,7 +251,7 @@ SELECT
 	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania,
 	users_stats.replays_watched_mania, users_stats.total_hits_mania,
 	users_stats.avg_accuracy_mania, users_stats.pp_mania, users_stats.max_combo_mania,
-	
+
 	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.playcount_std, users_stats.playtime_std,
 	rx_stats.replays_watched_std, rx_stats.total_hits_std,
 	rx_stats.avg_accuracy_std, rx_stats.pp_std, rx_stats.max_combo_std,
@@ -540,7 +541,7 @@ func UserUnweightedPerformanceGET(md common.MethodData) common.CodeMessager {
 	err := md.DB.QueryRow("SELECT SUM(pp) FROM scores"+tab+" WHERE userid = ? AND completed = 3 AND mode = ?", id, mode).Scan(&r.performance)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Println("User", id, "has no scores in scores"+tab, "???")
+			slog.Error("User has no scores in scores", "error", id, "tab", tab)
 			return r
 		}
 		return Err500

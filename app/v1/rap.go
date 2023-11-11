@@ -1,8 +1,9 @@
 package v1
 
 import (
-	"fmt"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
@@ -31,7 +32,7 @@ func RAPLogPOST(md common.MethodData) common.CodeMessager {
 
 	var d rapLogData
 	if err := md.Unmarshal(&d); err != nil {
-		fmt.Println(err)
+		slog.Error("Error unmarshalling rap log data", "error", err.Error())
 		return ErrBadJSON
 	}
 

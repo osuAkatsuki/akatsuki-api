@@ -542,7 +542,7 @@ func UserUnweightedPerformanceGET(md common.MethodData) common.CodeMessager {
 	err := md.DB.QueryRow("SELECT SUM(pp) FROM scores"+tab+" WHERE userid = ? AND completed = 3 AND mode = ?", id, mode).Scan(&r.performance)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			slog.Error("User has no scores in scores", "user_id", id, "table", "scores"+tab)
+			slog.Error("User has no scores", "user_id", id, "table", "scores"+tab)
 			return r
 		}
 		return Err500

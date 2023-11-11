@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 // TODO: Make all these methods POST
@@ -7,11 +8,12 @@ package v1
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"syscall"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
@@ -67,7 +69,7 @@ func MetaUpdateGET(md common.MethodData) common.CodeMessager {
 
 		proc, err := os.FindProcess(syscall.Getpid())
 		if err != nil {
-			log.Println(err)
+			slog.Error("Couldn't find process", "error", err.Error())
 			return
 		}
 		proc.Signal(syscall.SIGUSR2)
@@ -80,26 +82,26 @@ func execCommand(command string, args ...string) bool {
 	cmd.Env = os.Environ()
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Println(err)
+		slog.Error("Error getting stdout pipe", "error", err.Error())
 		return false
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		log.Println(err)
+		slog.Error("Error getting stderr pipe", "error", err.Error())
 		return false
 	}
 	if err := cmd.Start(); err != nil {
-		log.Println(err)
+		slog.Error("Error starting command", "error", err.Error())
 		return false
 	}
 	data, err := ioutil.ReadAll(stderr)
 	if err != nil {
-		log.Println(err)
+		slog.Error("Error reading stderr", "error", err.Error())
 		return false
 	}
 	// Bob. We got a problem.
 	if len(data) != 0 {
-		log.Println(string(data))
+		slog.Error("Error running command", "error", string(data))
 	}
 	io.Copy(os.Stdout, stdout)
 	cmd.Wait()

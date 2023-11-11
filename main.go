@@ -5,6 +5,8 @@ import (
 	"log"
 	"syscall"
 
+	"golang.org/x/exp/slog"
+
 	"github.com/osuAkatsuki/akatsuki-api/app"
 	"github.com/osuAkatsuki/akatsuki-api/beatmapget"
 	"github.com/osuAkatsuki/akatsuki-api/common"
@@ -23,9 +25,7 @@ func init() {
 }
 
 func main() {
-
-	fmt.Print("Akatsuki API")
-	fmt.Println()
+	slog.Info("Akatsuki API")
 
 	settings := common.LoadSettings()
 
@@ -39,7 +39,7 @@ func main() {
 
 	db, err := sqlx.Open(settings.DB_SCHEME, dns)
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("Error opening DB connection", "error", err.Error())
 	}
 
 	db.MapperFunc(func(s string) string {
@@ -56,7 +56,7 @@ func main() {
 
 	err = fasthttp.ListenAndServe(fmt.Sprintf(":%d", settings.APP_PORT), engine.Handler)
 	if err != nil {
-		log.Fatalln(err)
+		slog.Error("Unable to start server", "error", err.Error())
 	}
 }
 

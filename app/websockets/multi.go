@@ -2,8 +2,9 @@ package websockets
 
 import (
 	"encoding/json"
-	"fmt"
 	"sync"
+
+	"golang.org/x/exp/slog"
 )
 
 // SubscribeMultiMatches subscribes to receiving information from completed
@@ -32,12 +33,12 @@ var multiSubscriptionsMtx = new(sync.RWMutex)
 func matchRetriever() {
 	ps, err := red.Subscribe("api:mp_complete_match")
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("Error subscribing to api:mp_complete_match", "error", err.Error())
 	}
 	for {
 		msg, err := ps.ReceiveMessage()
 		if err != nil {
-			fmt.Println(err.Error())
+			slog.Error("Error receiving message from api:mp_complete_match", "error", err.Error())
 			return
 		}
 		go handleNewMultiGame(msg.Payload)

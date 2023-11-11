@@ -2,7 +2,6 @@ package common
 
 import (
 	"encoding/json"
-	"fmt"
 	"runtime"
 	"strconv"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"github.com/getsentry/raven-go"
 	"github.com/jmoiron/sqlx"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/exp/slog"
 	"gopkg.in/redis.v5"
 )
 
@@ -81,9 +81,10 @@ func GenericError(err error) {
 func _err(err error, tags map[string]string, user *raven.User, c *fasthttp.RequestCtx) {
 	_, file, no, ok := runtime.Caller(2)
 	if ok {
-		fmt.Println("ERROR in", file, "at line", no)
+		slog.Error("An error occurred", "filename", file, "line", no, "error", err.Error())
+	} else {
+		slog.Error("An error occurred", "error", err.Error())
 	}
-	fmt.Println(err)
 }
 
 func generateRavenHTTP(ctx *fasthttp.RequestCtx) *raven.Http {

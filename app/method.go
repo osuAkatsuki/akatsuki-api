@@ -2,11 +2,12 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 	"unsafe"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
@@ -102,7 +103,7 @@ var callbackJSONP = regexp.MustCompile(`^[a-zA-Z_\$][a-zA-Z0-9_\$]*$`)
 func mkjson(c *fasthttp.RequestCtx, data interface{}) {
 	exported, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("Error marshalling JSON", "error", err.Error())
 		exported = []byte(`{ "code": 500, "message": "something has gone really really really really really really wrong." }`)
 	}
 	cb := string(c.URI().QueryArgs().Peek("callback"))

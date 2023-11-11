@@ -1,9 +1,10 @@
 package limit
 
 import (
-	"fmt"
 	"sync"
 	"time"
+
+	"golang.org/x/exp/slog"
 )
 
 // Request is a Request with DefaultLimiter.
@@ -82,7 +83,7 @@ func (s *RateLimiter) filler(el string, perMinute int) {
 	defer func() {
 		r := recover()
 		if r != nil {
-			fmt.Println(r)
+			slog.Error("PANIC", "error", r)
 		}
 	}()
 

@@ -2,12 +2,12 @@ package websockets
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 
-	"github.com/osuAkatsuki/akatsuki-api/app/v1"
+	v1 "github.com/osuAkatsuki/akatsuki-api/app/v1"
 	"github.com/osuAkatsuki/akatsuki-api/common"
+	"golang.org/x/exp/slog"
 	"gopkg.in/thehowl/go-osuapi.v1"
 	"zxq.co/x/getrank"
 )
@@ -22,6 +22,7 @@ func SubscribeScores(c *conn, message incomingMessage) {
 	var ssu []subscribeScoresUser
 	err := json.Unmarshal(message.Data, &ssu)
 	if err != nil {
+		slog.Error("Error unmarshalling subscribe scores user", "error", err.Error())
 		c.WriteJSON(TypeInvalidMessage, err.Error())
 		return
 	}
@@ -58,12 +59,12 @@ var scoreSubscriptionsMtx = new(sync.RWMutex)
 func scoreRetriever() {
 	ps, err := red.Subscribe("api:score_submission")
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("Error subscribing to api:score_submission", "error", err.Error())
 	}
 	for {
 		msg, err := ps.ReceiveMessage()
 		if err != nil {
-			fmt.Println(err.Error())
+			slog.Error("Error receiving message from api:score_submission", "error", err.Error())
 			return
 		}
 		go handleNewScore(msg.Payload)
@@ -100,7 +101,7 @@ FROM scores s
 INNER JOIN users u ON s.userid = u.id
 WHERE s.id = ?`, id)
 	if err != nil {
-		fmt.Println(err)
+		slog.Error("Error fetching score", "error", err.Error())
 		return
 	}
 	s.Rank = strings.ToUpper(getrank.GetRank(
@@ -167,7 +168,7 @@ func catchPanic() {
 		case error:
 			common.WSErr(r)
 		default:
-			fmt.Println("PANIC", r)
+			slog.Error("PANIC", "error", r)
 		}
 	}
 }

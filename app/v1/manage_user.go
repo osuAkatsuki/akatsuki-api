@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/exp/slog"
 	"strings"
 	"time"
 
@@ -67,7 +68,7 @@ type userEditData struct {
 func UserEditPOST(md common.MethodData) common.CodeMessager {
 	var data userEditData
 	if err := md.Unmarshal(&data); err != nil {
-		fmt.Println(err)
+		slog.Error("Error unmarshalling", "error", err.Error())
 		return ErrBadJSON
 	}
 

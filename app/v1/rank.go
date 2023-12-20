@@ -69,7 +69,7 @@ func _rankAtPerformancePoints(r *redis.Client, key string, performancePoints int
 	res := r.ZCount(key, fmt.Sprintf("(%s", strconv.Itoa(performancePoints)), "inf")
 	err := res.Err()
 	if err != nil {
-		return -1, nil
+		return -1, err
 	}
 
 	x := int(res.Val()) + 1

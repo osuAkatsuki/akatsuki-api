@@ -31,43 +31,47 @@ func HypotheticalRankGET(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(400, "invalid performance points")
 	}
 
-	var rank *int
+	var rank int
+	var rankErr error
 	if rx == 0 {
-		rank = rankAtPerformancePoints(md.R, mode, performancePoints)
+		rank, rankErr = rankAtPerformancePoints(md.R, mode, performancePoints)
 	} else if rx == 1 {
-		rank = relaxRankAtPerformancePoints(md.R, mode, performancePoints)
+		rank, rankErr = relaxRankAtPerformancePoints(md.R, mode, performancePoints)
 	} else if rx == 2 {
-		rank = autopilotRankAtPerformancePoints(md.R, mode, performancePoints)
+		rank, rankErr = autopilotRankAtPerformancePoints(md.R, mode, performancePoints)
 	}
 
-	if rank == nil {
+	if rankErr != nil {
+		md.Err(err)
 		return common.SimpleResponse(500, "failed to calculate hypothetical rank")
 	}
 
 	resp := hypotheticalRankResponse{
-		Rank: *rank,
+		Rank: rank,
 	}
 	resp.Code = 200
 	return resp
 }
 
-func rankAtPerformancePoints(r *redis.Client, mode string, performancePoints int) *int {
+func rankAtPerformancePoints(r *redis.Client, mode string, performancePoints int) (int, error) {
 	return _rankAtPerformancePoints(r, "ripple:leaderboard:"+mode, performancePoints)
 }
 
-func relaxRankAtPerformancePoints(r *redis.Client, mode string, performancePoints int) *int {
+func relaxRankAtPerformancePoints(r *redis.Client, mode string, performancePoints int) (int, error) {
 	return _rankAtPerformancePoints(r, "ripple:relaxboard:"+mode, performancePoints)
 }
 
-func autopilotRankAtPerformancePoints(r *redis.Client, mode string, performancePoints int) *int {
+func autopilotRankAtPerformancePoints(r *redis.Client, mode string, performancePoints int) (int, error) {
 	return _rankAtPerformancePoints(r, "ripple:autoboard:"+mode, performancePoints)
 }
 
-func _rankAtPerformancePoints(r *redis.Client, key string, performancePoints int) *int {
+func _rankAtPerformancePoints(r *redis.Client, key string, performancePoints int) (int, error) {
 	res := r.ZCount(key, fmt.Sprintf("(%s", strconv.Itoa(performancePoints)), "inf")
-	if res.Err() == redis.Nil {
-		return nil
+	err := res.Err()
+	if err != nil {
+		return -1, nil
 	}
+
 	x := int(res.Val()) + 1
-	return &x
+	return x, nil
 }

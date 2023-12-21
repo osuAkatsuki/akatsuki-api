@@ -66,7 +66,7 @@ func autopilotRankAtPerformancePoints(r *redis.Client, mode string, performanceP
 }
 
 func _rankAtPerformancePoints(r *redis.Client, key string, performancePoints int) (int, error) {
-	res := r.ZCount(key, fmt.Sprintf("(%i", performancePoints), "inf")
+	res := r.ZCount(key, fmt.Sprintf("(%d", performancePoints), "inf")
 	err := res.Err()
 	if err != nil {
 		return -1, err

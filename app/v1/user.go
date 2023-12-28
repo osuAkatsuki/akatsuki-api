@@ -402,7 +402,7 @@ LIMIT 1
 	}
 	r.Followers = follower
 
-	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon FROM user_badges ub "+
+	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon, b.colour FROM user_badges ub "+
 		"LEFT JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
 	if err != nil {
 		md.Err(err)
@@ -410,7 +410,7 @@ LIMIT 1
 
 	for rows.Next() {
 		var badge singleBadge
-		err := rows.Scan(&badge.ID, &badge.Name, &badge.Icon)
+		err := rows.Scan(&badge.ID, &badge.Name, &badge.Icon, &badge.Colour)
 		if err != nil {
 			md.Err(err)
 			continue

@@ -10,6 +10,7 @@ type singleBadge struct {
 	ID   int    `json:"id,omitempty"`
 	Name string `json:"name"`
 	Icon string `json:"icon"`
+	Colour string `json:"colour"`
 }
 
 type multiBadgeData struct {
@@ -25,9 +26,9 @@ func BadgesGET(md common.MethodData) common.CodeMessager {
 		err  error
 	)
 	if md.Query("id") != "" {
-		rows, err = md.DB.Query("SELECT id, name, icon FROM badges WHERE id = ? LIMIT 1", md.Query("id"))
+		rows, err = md.DB.Query("SELECT id, name, icon, colour FROM badges WHERE id = ? LIMIT 1", md.Query("id"))
 	} else {
-		rows, err = md.DB.Query("SELECT id, name, icon FROM badges " + common.Paginate(md.Query("p"), md.Query("l"), 50))
+		rows, err = md.DB.Query("SELECT id, name, icon, colour FROM badges " + common.Paginate(md.Query("p"), md.Query("l"), 50))
 	}
 	if err != nil {
 		md.Err(err)
@@ -36,7 +37,7 @@ func BadgesGET(md common.MethodData) common.CodeMessager {
 	defer rows.Close()
 	for rows.Next() {
 		nb := singleBadge{}
-		err = rows.Scan(&nb.ID, &nb.Name, &nb.Icon)
+		err = rows.Scan(&nb.ID, &nb.Name, &nb.Icon, &nb.Colour)
 		if err != nil {
 			md.Err(err)
 		}

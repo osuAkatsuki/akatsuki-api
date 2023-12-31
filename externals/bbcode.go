@@ -413,6 +413,57 @@ func parseSeparator(text string) string {
 	return text
 }
 
+func parseContainer(text string) string {
+	regex := regexp.MustCompile(`\[container(.*?)\]`)
+
+	text = ReplaceAllStringSubmatchFunc(regex, text, func(matches []string, _ string) string {
+		style := ""
+		class := ""
+
+		if matches != nil {
+			args := strings.Split(strings.TrimSpace(matches[1]), " ")
+			for _, arg := range args {
+				argVars := strings.Split(arg, "=")
+				switch argVars[0] {
+				case "compact":
+					class += "compact-container"
+					break
+				case "center", "centre":
+					style += "margin: 0 auto;"
+					break
+				case "width":
+					if parsedInt, err := strconv.Atoi(argVars[1]); err == nil {
+						fixedInt := Clamp(parsedInt, 0, 100)
+						style += fmt.Sprintf("width: %d%%;", fixedInt)
+					}
+					break
+				default:
+					break
+				}
+			}
+		}
+
+		pseudoHtml := fmt.Sprintf("<div class='%s' style='%s'>", class, style)
+		return pseudoHtml
+	})
+
+	text = strings.Replace(text, "[/container]", "</div>", -1)
+
+	return text
+}
+
+func parseLeft(text string) string {
+	text = strings.Replace(text, "[left]", "<div style='text-align: left;'>", -1)
+	text = strings.Replace(text, "[/left]", "</div>", -1)
+	return text
+}
+
+func parseRight(text string) string {
+	text = strings.Replace(text, "[right]", "<div style='text-align: right;'>", -1)
+	text = strings.Replace(text, "[/right]", "</div>", -1)
+	return text
+}
+
 var policy = func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 
@@ -444,6 +495,7 @@ func ConvertBBCodeToHTML(bbcode string) string {
 	bbcode = parseNotice(bbcode)
 	bbcode = parseQuote(bbcode)
 	bbcode = parseHeading(bbcode)
+	bbcode = parseContainer(bbcode)
 
 	// inline
 	bbcode = parseAudio(bbcode)
@@ -462,6 +514,8 @@ func ConvertBBCodeToHTML(bbcode string) string {
 	bbcode = parseYoutube(bbcode)
 	bbcode = parseTwitch(bbcode)
 	bbcode = parseProfile(bbcode)
+	bbcode = parseLeft(bbcode)
+	bbcode = parseRight(bbcode)
 
 	bbcode = strings.Replace(bbcode, "\n", "<br>", -1)
 

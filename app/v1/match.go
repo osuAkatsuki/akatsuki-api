@@ -300,7 +300,7 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 					FROM match_game_scores s
 					INNER JOIN users u ON s.user_id = u.id
 					INNER JOIN users_stats us ON u.id = us.id
-					WHERE match_id = ? AND game_id = ? ORDER BY team %s, %s DESC`,
+					WHERE match_id = ? AND game_id = ? ORDER BY team %s, passed DESC, %s DESC`,
 				sortOrder, scoringTypeMap[me.Game.ScoringType],
 			),
 				r.Match.Id, me.Game.Id,

@@ -72,6 +72,9 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		// Auth-free API endpoints (public data)
 		r.Method("/api/v1/ping", v1.PingGET)
 		r.Method("/api/v1/surprise_me", v1.SurpriseMeGET)
+
+		r.Method("/api/v1/match", v1.MatchGET)
+
 		r.Method("/api/v1/users", v1.UsersGET)
 		r.Method("/api/v1/users/whatid", v1.UserWhatsTheIDGET)
 		r.Method("/api/v1/users/full", v1.UserFullGET)

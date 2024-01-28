@@ -105,7 +105,7 @@ type matchDataResponse struct {
 	CurrentGameId *int         `json:"current_game_id"`
 }
 
-var SongNameRegex = regexp.MustCompile(`^([^\[]+) - ([^\[]+) \[([^\[]+)\]$`)
+var SongNameRegex = regexp.MustCompile(`^(.+) - (.+) \[(.+)\]$`)
 
 func splitSongName(songName string) (string, string, string) {
 	var artist, title, version string

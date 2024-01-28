@@ -167,9 +167,10 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 		&participantsIds,
 		`SELECT JSON_ARRAYAGG(user_id) FROM (
 			SELECT DISTINCT(user_id) AS user_id FROM 
-			match_events WHERE match_id = ? AND event_type = 'MATCH_USER_JOIN'
+			match_events WHERE match_id = ? AND event_type = ?
 		) AS events`,
 		r.Match.Id,
+		common.MATCH_USER_JOIN,
 	)
 
 	if err != nil {

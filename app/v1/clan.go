@@ -391,7 +391,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	if u.Icon != "" {
 		match, _ := regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
 		if !match {
-			return common.SimpleResponse(200, "invalid icon url")
+			return common.SimpleResponse(400, "invalid icon url")
 		}
 	}
 	rss := []rune(u.Tag)

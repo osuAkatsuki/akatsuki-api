@@ -3,6 +3,7 @@ package v1
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 
 	// "regexp"
 	"strconv"
@@ -378,21 +379,21 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	u := struct {
 		Tag         string `json:"tag,omitempty"`
 		Description string `json:"desc,omitempty"`
-		// Icon        string `json:"icon,omitempty"`
-		Background string `json:"bg,omitempty"`
-		Status     int    `json:"status"`
+		Icon        string `json:"icon,omitempty"`
+		Background  string `json:"bg,omitempty"`
+		Status      int    `json:"status"`
 	}{}
 
 	md.Unmarshal(&u)
 	u.Tag = strings.TrimSpace(u.Tag)
 
 	// TODO: this should probably be an uploaded image to be safer..
-	/* if u.Icon != "" {
+	if u.Icon != "" {
 		match, _ := regexp.MatchString(`^https?://(?:www\.)?.+\..+/.+\.(?:jpeg|jpg|png)/?$`, u.Icon)
 		if !match {
 			return common.SimpleResponse(200, "invalid icon url")
 		}
-	} */
+	}
 	rss := []rune(u.Tag)
 	if len(rss) > 6 || len(rss) < 1 {
 		return common.SimpleResponse(400, "The given tag is too short or too long")
@@ -400,7 +401,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(403, "Another Clan has already taken this Tag")
 	}
 
-	_, err = md.DB.Exec("UPDATE clans SET tag = ?, description = ?, background = ?, status = ? WHERE id = ?", u.Tag, u.Description, u.Background, u.Status, c.ID)
+	_, err = md.DB.Exec("UPDATE clans SET tag = ?, description = ?, icon = ?, background = ?, status = ? WHERE id = ?", u.Tag, u.Description, u.Icon, u.Background, u.Status, c.ID)
 
 	if err != nil {
 		md.Err(err)

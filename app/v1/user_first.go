@@ -42,8 +42,7 @@ func UserFirstGET(md common.MethodData) common.CodeMessager {
 		%[1]s.completed,
 
 		beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-		beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-		beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+		beatmaps.song_name, beatmaps.ar, beatmaps.od,
 		beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 		beatmaps.ranked_status_freezed, beatmaps.latest_update
 		FROM scores_first
@@ -67,8 +66,7 @@ func UserFirstGET(md common.MethodData) common.CodeMessager {
 			&us.Completed,
 
 			&us.Beatmap.BeatmapID, &us.Beatmap.BeatmapsetID, &us.Beatmap.BeatmapMD5,
-			&us.Beatmap.SongName, &us.Beatmap.AR, &us.Beatmap.OD, &us.Beatmap.Diff2.STD,
-			&us.Beatmap.Diff2.Taiko, &us.Beatmap.Diff2.CTB, &us.Beatmap.Diff2.Mania,
+			&us.Beatmap.SongName, &us.Beatmap.AR, &us.Beatmap.OD,
 			&us.Beatmap.MaxCombo, &us.Beatmap.HitLength, &us.Beatmap.Ranked,
 			&us.Beatmap.RankedStatusFrozen, &us.Beatmap.LatestUpdate)
 		if err != nil {

@@ -14,14 +14,20 @@ type difficulty struct {
 }
 
 type beatmap struct {
-	BeatmapID          int                  `json:"beatmap_id"`
-	BeatmapsetID       int                  `json:"beatmapset_id"`
-	BeatmapMD5         string               `json:"beatmap_md5"`
-	SongName           string               `json:"song_name"`
-	AR                 float32              `json:"ar"`
-	OD                 float32              `json:"od"`
-	Difficulty         float64              `json:"difficulty"`
-	Diff2              difficulty           `json:"difficulty2"` // fuck nyo
+	BeatmapID    int     `json:"beatmap_id"`
+	BeatmapsetID int     `json:"beatmapset_id"`
+	BeatmapMD5   string  `json:"beatmap_md5"`
+	SongName     string  `json:"song_name"`
+	AR           float32 `json:"ar"`
+	OD           float32 `json:"od"`
+
+	// NOTE[2024-04-20]: We are removing the `difficulty_*` attributes
+	// from the beatmaps database (in preference of using the new
+	// performance-service or equivalent). We are leaving these
+	// fields here in the API for backwards compatibility.
+	Difficulty float64    `json:"difficulty"`
+	Diff2      difficulty `json:"difficulty2"`
+
 	MaxCombo           int                  `json:"max_combo"`
 	HitLength          int                  `json:"hit_length"`
 	Ranked             int                  `json:"ranked"`
@@ -102,10 +108,8 @@ func BeatmapGET(md common.MethodData) common.CodeMessager {
 const baseBeatmapSelect = `
 SELECT
 	beatmap_id, beatmapset_id, beatmap_md5,
-	song_name, ar, od, difficulty_std, difficulty_taiko,
-	difficulty_ctb, difficulty_mania, max_combo,
-	hit_length, ranked, ranked_status_freezed,
-	latest_update
+	song_name, ar, od, max_combo, hit_length,
+	ranked, ranked_status_freezed, latest_update
 FROM beatmaps
 `
 
@@ -116,10 +120,6 @@ func getMultipleBeatmaps(md common.MethodData) common.CodeMessager {
 			"beatmap_id",
 			"ar",
 			"od",
-			"difficulty_std",
-			"difficulty_taiko",
-			"difficulty_ctb",
-			"difficulty_mania",
 			"max_combo",
 			"latest_update",
 			"playcount",
@@ -148,12 +148,10 @@ func getMultipleBeatmaps(md common.MethodData) common.CodeMessager {
 		var b beatmap
 		err = rows.Scan(
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD, &b.Diff2.Taiko,
-			&b.Diff2.CTB, &b.Diff2.Mania, &b.MaxCombo,
+			&b.SongName, &b.AR, &b.OD, &b.MaxCombo,
 			&b.HitLength, &b.Ranked, &b.RankedStatusFrozen,
 			&b.LatestUpdate,
 		)
-		b.Difficulty = b.Diff2.STD
 		if err != nil {
 			md.Err(err)
 			continue
@@ -168,12 +166,10 @@ func getBeatmapSingle(md common.MethodData, beatmapID int) common.CodeMessager {
 	var b beatmap
 	err := md.DB.QueryRow(baseBeatmapSelect+"WHERE beatmap_id = ? LIMIT 1", beatmapID).Scan(
 		&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-		&b.SongName, &b.AR, &b.OD, &b.Diff2.STD, &b.Diff2.Taiko,
-		&b.Diff2.CTB, &b.Diff2.Mania, &b.MaxCombo,
+		&b.SongName, &b.AR, &b.OD, &b.MaxCombo,
 		&b.HitLength, &b.Ranked, &b.RankedStatusFrozen,
 		&b.LatestUpdate,
 	)
-	b.Difficulty = b.Diff2.STD
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "That beatmap could not be found!")

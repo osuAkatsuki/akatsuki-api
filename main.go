@@ -8,7 +8,6 @@ import (
 	"golang.org/x/exp/slog"
 
 	"github.com/osuAkatsuki/akatsuki-api/app"
-	"github.com/osuAkatsuki/akatsuki-api/beatmapget"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"
 
@@ -16,7 +15,6 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/serenize/snaker"
-	"gopkg.in/thehowl/go-osuapi.v1"
 )
 
 func init() {
@@ -48,9 +46,6 @@ func main() {
 		}
 		return snaker.CamelToSnake(s)
 	})
-
-	beatmapget.Client = osuapi.NewClient(settings.OSU_API_KEY)
-	beatmapget.DB = db
 
 	engine := app.Start(db)
 

@@ -44,58 +44,6 @@ type beatmapSetResponse struct {
 	Beatmaps []beatmap `json:"beatmaps"`
 }
 
-type beatmapSetStatusData struct {
-	BeatmapsetID int `json:"beatmapset_id"`
-	BeatmapID    int `json:"beatmap_id"`
-	RankedStatus int `json:"ranked_status"`
-	Frozen       int `json:"frozen"`
-}
-
-// BeatmapSetStatusPOST changes the ranked status of a beatmap, and whether
-// the beatmap ranked status is frozen. Or freezed. Freezed best meme 2k16
-func BeatmapSetStatusPOST(md common.MethodData) common.CodeMessager {
-	var req beatmapSetStatusData
-	md.Unmarshal(&req)
-
-	var miss []string
-	if req.BeatmapsetID <= 0 && req.BeatmapID <= 0 {
-		miss = append(miss, "beatmapset_id or beatmap_id")
-	}
-	if len(miss) != 0 {
-		return ErrMissingField(miss...)
-	}
-
-	if req.Frozen != 0 && req.Frozen != 1 {
-		return common.SimpleResponse(400, "frozen status must be either 0 or 1")
-	}
-	if req.RankedStatus > 4 || -1 > req.RankedStatus {
-		return common.SimpleResponse(400, "ranked status must be 5 < x < -2")
-	}
-
-	param := req.BeatmapsetID
-	if req.BeatmapID != 0 {
-		err := md.DB.QueryRow("SELECT beatmapset_id FROM beatmaps WHERE beatmap_id = ? LIMIT 1", req.BeatmapID).Scan(&param)
-		switch {
-		case err == sql.ErrNoRows:
-			return common.SimpleResponse(404, "That beatmap could not be found!")
-		case err != nil:
-			md.Err(err)
-			return Err500
-		}
-	}
-
-	md.DB.Exec(`UPDATE beatmaps
-		SET ranked = ?, ranked_status_freezed = ?
-		WHERE beatmapset_id = ?`, req.RankedStatus, req.Frozen, param)
-
-	if req.BeatmapID > 0 {
-		md.Ctx.Request.URI().QueryArgs().SetUint("bb", req.BeatmapID)
-	} else {
-		md.Ctx.Request.URI().QueryArgs().SetUint("s", req.BeatmapsetID)
-	}
-	return getMultipleBeatmaps(md)
-}
-
 // BeatmapGET retrieves a beatmap.
 func BeatmapGET(md common.MethodData) common.CodeMessager {
 	beatmapID := common.Int(md.Query("b"))
@@ -180,44 +128,5 @@ func getBeatmapSingle(md common.MethodData, beatmapID int) common.CodeMessager {
 	var r beatmapResponse
 	r.Code = 200
 	r.beatmap = b
-	return r
-}
-
-type beatmapReduced struct {
-	BeatmapID          int    `json:"beatmap_id"`
-	BeatmapsetID       int    `json:"beatmapset_id"`
-	BeatmapMD5         string `json:"beatmap_md5"`
-	Ranked             int    `json:"ranked"`
-	RankedStatusFrozen int    `json:"ranked_status_frozen"`
-}
-
-type beatmapRankedFrozenFullResponse struct {
-	common.ResponseBase
-	Beatmaps []beatmapReduced `json:"beatmaps"`
-}
-
-// BeatmapRankedFrozenFullGET retrieves all beatmaps with a certain
-// ranked_status_freezed
-func BeatmapRankedFrozenFullGET(md common.MethodData) common.CodeMessager {
-	rows, err := md.DB.Query(`
-	SELECT beatmap_id, beatmapset_id, beatmap_md5, ranked, ranked_status_freezed
-	FROM beatmaps
-	WHERE ranked_status_freezed = '1'
-	`)
-	if err != nil {
-		md.Err(err)
-		return Err500
-	}
-	var r beatmapRankedFrozenFullResponse
-	for rows.Next() {
-		var b beatmapReduced
-		err = rows.Scan(&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5, &b.Ranked, &b.RankedStatusFrozen)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-		r.Beatmaps = append(r.Beatmaps, b)
-	}
-	r.Code = 200
 	return r
 }

@@ -455,12 +455,12 @@ type userpageResponse struct {
 
 // UserUserpageGET gets an user's userpage, as in the customisable thing.
 func UserUserpageGET(md common.MethodData) common.CodeMessager {
-	shouldRet, whereClause, param := whereClauseUser(md, "users_stats")
+	shouldRet, whereClause, param := whereClauseUser(md, "users")
 	if shouldRet != nil {
 		return *shouldRet
 	}
 	var r userpageResponse
-	err := md.DB.QueryRow("SELECT userpage_content FROM users_stats WHERE "+whereClause+" LIMIT 1", param).Scan(&r.Userpage)
+	err := md.DB.QueryRow("SELECT userpage_content FROM users WHERE "+whereClause, param).Scan(&r.Userpage)
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user!")
@@ -487,7 +487,7 @@ func UserSelfUserpagePOST(md common.MethodData) common.CodeMessager {
 		return ErrMissingField("data")
 	}
 	cont := common.SanitiseString(*d.Data)
-	_, err := md.DB.Exec("UPDATE users_stats SET userpage_content = ? WHERE id = ? LIMIT 1", cont, md.ID())
+	_, err := md.DB.Exec("UPDATE users SET userpage_content = ? WHERE id = ?", cont, md.ID())
 	if err != nil {
 		md.Err(err)
 	}

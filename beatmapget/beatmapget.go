@@ -94,7 +94,7 @@ func UpdateRequired(b *BeatmapDefiningQuality) (bool, error) {
 		LatestUpdate common.UnixTimestamp
 	}
 	err := DB.QueryRow(
-		"SELECT ranked,ranked_status_freezed, latest_update "+
+		"SELECT ranked, ranked_status_freezed, latest_update "+
 			"FROM beatmaps WHERE "+where+" LIMIT 1", params...).
 		Scan(&data.Ranked, &data.Frozen, &data.LatestUpdate)
 	b.frozen = data.Frozen

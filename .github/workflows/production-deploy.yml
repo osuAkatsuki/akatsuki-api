@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - remove-unused-apis
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

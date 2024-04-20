@@ -31,23 +31,6 @@ func GetBeatmap(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		limit = "1"
 	}
 
-	// creator is not stored, silently ignore u and type
-	if args.Has("m") {
-		m := genmode(query(c, "m"))
-
-		if m == "std" {
-			// Since STD beatmaps are converted, all of the diffs must be != 0
-			for _, i := range modes {
-				whereClauses = append(whereClauses, "beatmaps.difficulty_"+i+" != 0")
-			}
-		} else {
-			whereClauses = append(whereClauses, "beatmaps.difficulty_"+m+" != 0")
-			if query(c, "a") == "1" {
-				whereClauses = append(whereClauses, "beatmaps.difficulty_std = 0")
-			}
-		}
-	}
-
 	if args.Has("h") {
 		whereClauses = append(whereClauses, "beatmaps.beatmap_md5 = ?")
 		params = append(params, query(c, "h"))
@@ -61,8 +44,7 @@ func GetBeatmap(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	rows, err := db.Query(`SELECT
 	beatmapset_id, beatmap_id, ranked, hit_length,
 	song_name, beatmap_md5, ar, od, bpm, playcount,
-	passcount, max_combo, difficulty_std, difficulty_taiko, difficulty_ctb, difficulty_mania,
-	latest_update
+	passcount, max_combo, latest_update
 
 FROM beatmaps `+where+" ORDER BY beatmap_id DESC LIMIT "+limit,
 		params...)
@@ -79,13 +61,11 @@ FROM beatmaps `+where+" ORDER BY beatmap_id DESC LIMIT "+limit,
 			rawRankedStatus int
 			rawName         string
 			rawLastUpdate   common.UnixTimestamp
-			diffs           [4]float64
 		)
 		err := rows.Scan(
 			&bm.BeatmapSetID, &bm.BeatmapID, &rawRankedStatus, &bm.HitLength,
 			&rawName, &bm.FileMD5, &bm.ApproachRate, &bm.OverallDifficulty, &bm.BPM, &bm.Playcount,
-			&bm.Passcount, &bm.MaxCombo, &diffs[0], &diffs[1], &diffs[2], &diffs[3],
-			&rawLastUpdate,
+			&bm.Passcount, &bm.MaxCombo, &rawLastUpdate,
 		)
 		if err != nil {
 			common.Err(c, err)
@@ -99,13 +79,6 @@ FROM beatmaps `+where+" ORDER BY beatmap_id DESC LIMIT "+limit,
 		// zero value of ApprovedStatus == osuapi.StatusPending, so /shrug
 		bm.Approved = rippleToOsuRankedStatus[rawRankedStatus]
 		bm.Artist, bm.Title, bm.DiffName = parseDiffName(rawName)
-		for i, diffVal := range diffs {
-			if diffVal != 0 {
-				bm.Mode = osuapi.Mode(i)
-				bm.DifficultyRating = diffVal
-				break
-			}
-		}
 		bms = append(bms, bm)
 	}
 

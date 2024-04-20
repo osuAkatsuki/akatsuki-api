@@ -93,13 +93,10 @@ func UpdateRequired(b *BeatmapDefiningQuality) (bool, error) {
 		Frozen       bool
 		LatestUpdate common.UnixTimestamp
 	}
-	err := DB.QueryRow("SELECT difficulty_taiko, difficulty_ctb, difficulty_mania, ranked,"+
-		"ranked_status_freezed, latest_update FROM beatmaps WHERE "+
-		where+" LIMIT 1", params...).
-		Scan(
-			&data.Difficulties[0], &data.Difficulties[1], &data.Difficulties[2],
-			&data.Ranked, &data.Frozen, &data.LatestUpdate,
-		)
+	err := DB.QueryRow(
+		"SELECT ranked,ranked_status_freezed, latest_update "+
+			"FROM beatmaps WHERE "+where+" LIMIT 1", params...).
+		Scan(&data.Ranked, &data.Frozen, &data.LatestUpdate)
 	b.frozen = data.Frozen
 	if b.frozen {
 		b.ranked = data.Ranked
@@ -109,9 +106,6 @@ func UpdateRequired(b *BeatmapDefiningQuality) (bool, error) {
 			return true, err
 		}
 		return false, err
-	}
-	if data.Difficulties[0] == 0 && data.Difficulties[1] == 0 && data.Difficulties[2] == 0 {
-		return true, nil
 	}
 
 	expire := Expire
@@ -161,17 +155,15 @@ func Update(b BeatmapDefiningQuality, beatmapInDB bool) error {
 		main.Approved = osuapi.ApprovedStatus(b.ranked)
 	}
 	songName := fmt.Sprintf("%s - %s [%s]", main.Artist, main.Title, main.DiffName)
-	_, err := DB.Exec(`INSERT INTO 
+	_, err := DB.Exec(`INSERT INTO
 	beatmaps (
 		beatmap_id, beatmapset_id, beatmap_md5,
-		song_name, ar, od, difficulty_std, difficulty_taiko,
-		difficulty_ctb, difficulty_mania, max_combo, hit_length,
+		song_name, ar, od, max_combo, hit_length,
 		bpm, ranked, latest_update, ranked_status_freezed
-	) 
+	)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
 		main.BeatmapID, main.BeatmapSetID, main.FileMD5,
-		songName, main.ApproachRate, main.OverallDifficulty, data[0].DifficultyRating, data[1].DifficultyRating,
-		data[2].DifficultyRating, data[3].DifficultyRating, main.MaxCombo, main.HitLength,
+		songName, main.ApproachRate, main.OverallDifficulty, main.MaxCombo, main.HitLength,
 		int(main.BPM), main.Approved, time.Now().Unix(), b.frozen,
 	)
 	if err != nil {

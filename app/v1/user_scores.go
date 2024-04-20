@@ -2,8 +2,8 @@ package v1
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/thehowl/go-osuapi.v1"
@@ -35,8 +35,7 @@ const relaxScoreSelectBase = `
 			scores_relax.completed, scores_relax.pinned,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-			beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od,
 			beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 			beatmaps.ranked_status_freezed, beatmaps.latest_update
 		FROM scores_relax
@@ -54,8 +53,7 @@ const autoScoreSelectBase = `
 			scores_ap.completed, scores_ap.pinned,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-			beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od,
 			beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 			beatmaps.ranked_status_freezed, beatmaps.latest_update
 		FROM scores_ap
@@ -73,8 +71,7 @@ const userScoreSelectBase = `
 			scores.completed, scores.pinned,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-			beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-			beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od,
 			beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 			beatmaps.ranked_status_freezed, beatmaps.latest_update
 		FROM scores
@@ -225,7 +222,7 @@ func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {
 
 	var u struct {
 		ID    string `json:"id"`
-		Relax int `json:"rx"`
+		Relax int    `json:"rx"`
 	}
 	md.Unmarshal(&u)
 
@@ -244,7 +241,7 @@ func ScoresPinDelPOST(md common.MethodData) common.CodeMessager {
 
 	var u struct {
 		ID    string `json:"id"`
-		Relax int `json:"rx"`
+		Relax int    `json:"rx"`
 	}
 	md.Unmarshal(&u)
 
@@ -336,8 +333,7 @@ func scoresPuts(md common.MethodData, whereClause string, params ...interface{})
 			&us.Completed, &us.Pinned,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
-			&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+			&b.SongName, &b.AR, &b.OD,
 			&b.MaxCombo, &b.HitLength, &b.Ranked,
 			&b.RankedStatusFrozen, &b.LatestUpdate,
 		)
@@ -345,7 +341,6 @@ func scoresPuts(md common.MethodData, whereClause string, params ...interface{})
 			md.Err(err)
 			return Err500
 		}
-		b.Difficulty = b.Diff2.STD
 		us.Beatmap = b
 		us.Rank = strings.ToUpper(getrank.GetRank(
 			osuapi.Mode(us.PlayMode),
@@ -385,8 +380,7 @@ func relaxPuts(md common.MethodData, whereClause string, params ...interface{}) 
 			&us.Completed, &us.Pinned,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
-			&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+			&b.SongName, &b.AR, &b.OD,
 			&b.MaxCombo, &b.HitLength, &b.Ranked,
 			&b.RankedStatusFrozen, &b.LatestUpdate,
 		)
@@ -394,7 +388,6 @@ func relaxPuts(md common.MethodData, whereClause string, params ...interface{}) 
 			md.Err(err)
 			return Err500
 		}
-		b.Difficulty = b.Diff2.STD
 		us.Beatmap = b
 		us.Rank = strings.ToUpper(getrank.GetRank(
 			osuapi.Mode(us.PlayMode),
@@ -434,8 +427,7 @@ func autoPuts(md common.MethodData, whereClause string, params ...interface{}) c
 			&us.Completed, &us.Pinned,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
-			&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+			&b.SongName, &b.AR, &b.OD,
 			&b.MaxCombo, &b.HitLength, &b.Ranked,
 			&b.RankedStatusFrozen, &b.LatestUpdate,
 		)
@@ -443,7 +435,6 @@ func autoPuts(md common.MethodData, whereClause string, params ...interface{}) c
 			md.Err(err)
 			return Err500
 		}
-		b.Difficulty = b.Diff2.STD
 		us.Beatmap = b
 		us.Rank = strings.ToUpper(getrank.GetRank(
 			osuapi.Mode(us.PlayMode),

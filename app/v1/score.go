@@ -114,8 +114,7 @@ SELECT
 	users.latest_activity, users_stats.username_aka, users_stats.country,
 
 	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-	beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-	beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+	beatmaps.song_name, beatmaps.ar, beatmaps.od,
 	beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 	beatmaps.ranked_status_freezed, beatmaps.latest_update
 FROM scores
@@ -137,8 +136,7 @@ SELECT
 	users.latest_activity, users_stats.username_aka, users_stats.country,
 
 	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-	beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-	beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+	beatmaps.song_name, beatmaps.ar, beatmaps.od,
 	beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 	beatmaps.ranked_status_freezed, beatmaps.latest_update
 FROM scores_relax
@@ -160,8 +158,7 @@ SELECT
 	users.latest_activity, users_stats.username_aka, users_stats.country,
 
 	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
-	beatmaps.song_name, beatmaps.ar, beatmaps.od, beatmaps.difficulty_std,
-	beatmaps.difficulty_taiko, beatmaps.difficulty_ctb, beatmaps.difficulty_mania,
+	beatmaps.song_name, beatmaps.ar, beatmaps.od,
 	beatmaps.max_combo, beatmaps.hit_length, beatmaps.ranked,
 	beatmaps.ranked_status_freezed, beatmaps.latest_update
 FROM scores_ap
@@ -199,8 +196,7 @@ func ScoreGET(md common.MethodData) common.CodeMessager {
 		&u.LatestActivity, &u.UsernameAKA, &u.Country,
 
 		&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-		&b.SongName, &b.AR, &b.OD, &b.Diff2.STD,
-		&b.Diff2.Taiko, &b.Diff2.CTB, &b.Diff2.Mania,
+		&b.SongName, &b.AR, &b.OD,
 		&b.MaxCombo, &b.HitLength, &b.Ranked,
 		&b.RankedStatusFrozen, &b.LatestUpdate,
 	)

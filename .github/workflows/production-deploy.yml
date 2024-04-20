@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - beatmaps-schema-cleanup
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -151,10 +151,6 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		r.Method("/api/v1/meta/restart", v1.MetaRestartGET, common.PrivilegeAPIMeta)
 		r.Method("/api/v1/meta/up_since", v1.MetaUpSinceGET, common.PrivilegeAPIMeta)
 		r.Method("/api/v1/meta/update", v1.MetaUpdateGET, common.PrivilegeAPIMeta)
-
-		// User Managing + meta
-		r.POSTMethod("/api/v1/tokens/fix_privileges", v1.TokenFixPrivilegesPOST,
-			common.PrivilegeManageUser, common.PrivilegeAPIMeta)
 	}
 
 	// Websocket API

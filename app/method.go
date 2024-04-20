@@ -21,8 +21,6 @@ func Method(f func(md common.MethodData) common.CodeMessager, privilegesNeeded .
 }
 
 func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) common.CodeMessager, privilegesNeeded ...int) {
-	var doggoTags []string
-
 	qa := c.Request.URI().QueryArgs()
 	var token string
 	var bearerToken bool
@@ -57,14 +55,7 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 		}
 		if exists {
 			md.User = tokenReal
-			doggoTags = append(doggoTags, "authorised")
 		}
-	}
-
-	// log into datadog that this is an hanayo request
-	settings := common.GetSettings()
-	if b2s(c.Request.Header.Peek("H-Key")) == settings.HANAYO_KEY && b2s(c.UserAgent()) == "hanayo" {
-		doggoTags = append(doggoTags, "hanayo")
 	}
 
 	missingPrivileges := 0

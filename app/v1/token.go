@@ -9,9 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
-	"golang.org/x/exp/slog"
 )
 
 // TokenSelfDeletePOST deletes the token the user is connecting with.
@@ -158,59 +156,4 @@ func getBearerToken(md common.MethodData) common.CodeMessager {
 	b.Code = 200
 	b.Privileges = md.User.TokenPrivileges
 	return b
-}
-
-// TokenFixPrivilegesPOST fixes the privileges on the token of the given user,
-// or of all the users if no user is given.
-func TokenFixPrivilegesPOST(md common.MethodData) common.CodeMessager {
-	id := common.Int(md.Query("id"))
-	if md.Query("id") == "self" {
-		id = md.ID()
-	}
-	go fixPrivileges(id, md.DB)
-	return common.SimpleResponse(200, "Privilege fixing started!")
-}
-
-func fixPrivileges(user int, db *sqlx.DB) {
-	var wc string
-	var params = make([]interface{}, 0, 1)
-	if user != 0 {
-		// dirty, but who gives a shit
-		wc = "WHERE user = ?"
-		params = append(params, user)
-	}
-	rows, err := db.Query(`
-SELECT
-	tokens.id, tokens.privileges, users.privileges
-FROM tokens
-LEFT JOIN users ON users.id = tokens.user
-`+wc, params...)
-	if err != nil {
-		slog.Error("Error fetching data", "error", err.Error())
-		return
-	}
-	for rows.Next() {
-		var (
-			id            int
-			privsRaw      uint64
-			privs         common.Privileges
-			newPrivs      common.Privileges
-			privilegesRaw uint64
-		)
-		err := rows.Scan(&id, &privsRaw, &privilegesRaw)
-		if err != nil {
-			slog.Error("Error copying data", "error", err.Error())
-			continue
-		}
-		privileges := common.UserPrivileges(privilegesRaw)
-		privs = common.Privileges(privsRaw)
-		newPrivs = privs.CanOnly(privileges)
-		if newPrivs != privs {
-			_, err := db.Exec("UPDATE tokens SET privileges = ? WHERE id = ? LIMIT 1", uint64(newPrivs), id)
-			if err != nil {
-				slog.Error("Error updating tokens table", "error", err.Error())
-				continue
-			}
-		}
-	}
 }

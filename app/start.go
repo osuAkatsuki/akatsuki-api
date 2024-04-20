@@ -129,28 +129,6 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/clans/leave", v1.ClanLeavePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/settings", v1.ClanSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/kick", v1.ClanKickPOST, common.PrivilegeWrite)
-
-		// Admin: RAP
-		r.POSTMethod("/api/v1/rap/log", v1.RAPLogPOST)
-
-		// Admin: beatmap
-		r.POSTMethod("/api/v1/beatmaps/set_status", v1.BeatmapSetStatusPOST, common.PrivilegeBeatmap)
-		r.Method("/api/v1/beatmaps/ranked_frozen_full", v1.BeatmapRankedFrozenFullGET, common.PrivilegeBeatmap)
-
-		// Admin: user managing
-		r.POSTMethod("/api/v1/users/manage/set_allowed", v1.UserManageSetAllowedPOST, common.PrivilegeManageUser)
-		r.POSTMethod("/api/v1/users/edit", v1.UserEditPOST, common.PrivilegeManageUser)
-		r.POSTMethod("/api/v1/users/wipe", v1.WipeUserPOST, common.PrivilegeManageUser)
-		r.POSTMethod("/api/v1/scores/reports", v1.ScoreReportPOST, common.PrivilegeManageUser)
-		r.Method("/api/v1/users/unweighted", v1.UserUnweightedPerformanceGET, common.PrivilegeManageUser)
-
-		// M E T A
-		// E     T    "wow thats so meta"
-		// T     E                  -- the one who said "wow thats so meta"
-		// A T E M
-		r.Method("/api/v1/meta/restart", v1.MetaRestartGET, common.PrivilegeAPIMeta)
-		r.Method("/api/v1/meta/up_since", v1.MetaUpSinceGET, common.PrivilegeAPIMeta)
-		r.Method("/api/v1/meta/update", v1.MetaUpdateGET, common.PrivilegeAPIMeta)
 	}
 
 	// Websocket API

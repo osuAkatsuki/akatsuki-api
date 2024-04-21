@@ -30,7 +30,7 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	}
 	var user osuapi.User
 	whereClause, p := genUser(c, db)
-	whereClause = "WHERE " + whereClause + " AND mode = ? "
+	whereClause = "WHERE " + whereClause + " AND user_stats.mode = ? "
 
 	mode := genmodei(query(c, "m"))
 	modeStr := genmode(query(c, "m"))

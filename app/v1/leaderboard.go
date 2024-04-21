@@ -25,75 +25,27 @@ type leaderboardResponse struct {
 	Users []leaderboardUser `json:"users"`
 }
 
-const rxUserQuery = `
-		SELECT
-			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-			rx_stats.username_aka, users_stats.country,
-			rx_stats.play_style, rx_stats.favourite_mode,
-
-			rx_stats.ranked_score_%[1]s, rx_stats.total_score_%[1]s, rx_stats.playcount_%[1]s,
-			rx_stats.replays_watched_%[1]s, rx_stats.total_hits_%[1]s,
-			rx_stats.avg_accuracy_%[1]s, rx_stats.pp_%[1]s
-		FROM users
-		INNER JOIN rx_stats ON rx_stats.id = users.id
-		INNER JOIN users_stats ON users_stats.id = users.id `
-
-const apUserQuery = `
-		SELECT
-			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-			ap_stats.username_aka, users_stats.country,
-			ap_stats.play_style, ap_stats.favourite_mode,
-
-			ap_stats.ranked_score_%[1]s, ap_stats.total_score_%[1]s, ap_stats.playcount_%[1]s,
-			ap_stats.replays_watched_%[1]s, ap_stats.total_hits_%[1]s,
-			ap_stats.avg_accuracy_%[1]s, ap_stats.pp_%[1]s
-		FROM users
-		INNER JOIN ap_stats ON ap_stats.id = users.id
-		INNER JOIN users_stats ON users_stats.id = users.id `
-
 const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+			users.username_aka, users.country, users.play_style, users.favourite_mode,
 
-			users_stats.username_aka, users_stats.country,
-			users_stats.play_style, users_stats.favourite_mode,
-
-			users_stats.ranked_score_%[1]s, users_stats.total_score_%[1]s, users_stats.playcount_%[1]s,
-			users_stats.replays_watched_%[1]s, users_stats.total_hits_%[1]s,
-			users_stats.avg_accuracy_%[1]s, users_stats.pp_%[1]s
+			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
+			user_stats.replays_watched, user_stats.total_hits,
+			user_stats.avg_accuracy, user_stats.pp
 		FROM users
-		INNER JOIN users_stats ON users_stats.id = users.id `
+		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
 // previously done horrible hardcoding makes this the spaghetti it is
-func getLbUsersDb(p, l int, rx int, m, sort string, md *common.MethodData) []leaderboardUser {
+func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.MethodData) []leaderboardUser {
 	var query, order string
 	if sort == "score" {
-		if rx == 1 {
-			order = "ORDER BY rx_stats.ranked_score_%[1]s DESC, rx_stats.pp_%[1]s DESC"
-		} else if rx == 2 {
-			order = "ORDER BY ap_stats.ranked_score_%[1]s DESC, ap_stats.pp_%[1]s DESC"
-		} else {
-			order = "ORDER BY users_stats.ranked_score_%[1]s DESC, users_stats.pp_%[1]s DESC"
-		}
+		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
 	} else {
-		if rx == 1 {
-			order = "ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC"
-		} else if rx == 2 {
-			order = "ORDER BY ap_stats.pp_%[1]s DESC, ap_stats.ranked_score_%[1]s DESC"
-		} else {
-			order = "ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC"
-		}
+		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
 	}
-	if rx == 1 {
-		query = fmt.Sprintf(rxUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
-	} else if rx == 2 {
-		query = fmt.Sprintf(apUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
-	} else {
-		query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 "+order+" LIMIT %d, %d", m, p*l, l)
-	}
-	rows, err := md.DB.Query(query)
+	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND user_stats.mode = ? "+order+" LIMIT %d, %d", p*l, l)
+	rows, err := md.DB.Query(query, modeInt+(rx*4))
 	if err != nil {
 		md.Err(err)
 		return make([]leaderboardUser, 0)
@@ -124,6 +76,7 @@ func getLbUsersDb(p, l int, rx int, m, sort string, md *common.MethodData) []lea
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))
+	modeInt := getModeInt(m)
 
 	// md.Query.Country
 	p := common.Int(md.Query("p")) - 1
@@ -138,7 +91,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 
 	if sort != "pp" {
-		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, m, sort, &md)}
+		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, modeInt, sort, &md)}
 		resp.Code = 200
 		return resp
 	}
@@ -161,19 +114,12 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	var resp leaderboardResponse
 	resp.Code = 200
 	if len(results) == 0 {
-		resp.Users = getLbUsersDb(p, l, rx, m, sort, &md)
+		resp.Users = getLbUsersDb(p, l, rx, modeInt, sort, &md)
 		return resp
 	}
 
-	var query string
-	if rx == 1 {
-		query = fmt.Sprintf(rxUserQuery+`WHERE users.id IN (?) ORDER BY rx_stats.pp_%[1]s DESC, rx_stats.ranked_score_%[1]s DESC`, m)
-	} else if rx == 2 {
-		query = fmt.Sprintf(apUserQuery+`WHERE users.id IN (?) ORDER BY ap_stats.pp_%[1]s DESC, ap_stats.ranked_score_%[1]s DESC`, m)
-	} else {
-		query = fmt.Sprintf(lbUserQuery+`WHERE users.id IN (?) ORDER BY users_stats.pp_%[1]s DESC, users_stats.ranked_score_%[1]s DESC`, m)
-	}
-	query, params, _ := sqlx.In(query, results)
+	var query = lbUserQuery + `WHERE users.id IN (?) AND user_stats.mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
+	query, params, _ := sqlx.In(query, results, modeInt+(rx*4))
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)

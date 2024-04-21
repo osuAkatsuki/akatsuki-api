@@ -7,9 +7,9 @@ import (
 )
 
 type singleBadge struct {
-	ID   int    `json:"id,omitempty"`
-	Name string `json:"name"`
-	Icon string `json:"icon"`
+	ID     int    `json:"id,omitempty"`
+	Name   string `json:"name"`
+	Icon   string `json:"icon"`
 	Colour string `json:"colour"`
 }
 
@@ -64,14 +64,13 @@ func BadgeMembersGET(md common.MethodData) common.CodeMessager {
 
 	var members badgeMembersData
 
-	err := md.DB.Select(&members.Members, `SELECT users.id, users.username, register_datetime, users.privileges,
-	latest_activity, users_stats.username_aka,
-	users_stats.country
-FROM user_badges ub
-INNER JOIN users ON users.id = ub.user
-INNER JOIN users_stats ON users_stats.id = ub.user
-WHERE badge = ?
-ORDER BY id ASC `+common.Paginate(md.Query("p"), md.Query("l"), 50), i)
+	err := md.DB.Select(&members.Members, `
+	SELECT users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users.username_aka, users.country
+	FROM user_badges ub
+	INNER JOIN users ON users.id = ub.user
+	WHERE badge = ?
+	ORDER BY id ASC `+common.Paginate(md.Query("p"), md.Query("l"), 50), i)
 
 	if err != nil {
 		md.Err(err)

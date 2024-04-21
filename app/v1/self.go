@@ -41,7 +41,7 @@ func UsersSelfFavouriteModeGET(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return f
 	}
-	err := md.DB.QueryRow("SELECT users_stats.favourite_mode FROM users_stats WHERE id = ?", md.ID()).
+	err := md.DB.QueryRow("SELECT favourite_mode FROM users WHERE id = ?", md.ID()).
 		Scan(&f.FavouriteMode)
 	if err != nil {
 		md.Err(err)
@@ -115,14 +115,13 @@ func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	r.Code = 200
 	err := md.DB.QueryRow(`
 SELECT
-	u.id, u.username,
-	u.email, s.username_aka, s.favourite_mode,
-	s.show_custom_badge, s.custom_badge_icon,
-	s.custom_badge_name, s.can_custom_badge,
-	s.play_style
-FROM users u
-LEFT JOIN users_stats s ON u.id = s.id
-WHERE u.id = ?`, md.ID()).Scan(
+	id, username,
+	email, username_aka, favourite_mode,
+	show_custom_badge, custom_badge_icon,
+	custom_badge_name, can_custom_badge,
+	play_style
+FROM users
+WHERE id = ?`, md.ID()).Scan(
 		&r.ID, &r.Username,
 		&r.Email, &r.UsernameAKA, &r.FavouriteMode,
 		&r.CustomBadge.Show, &r.CustomBadge.Icon,

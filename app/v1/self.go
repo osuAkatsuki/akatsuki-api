@@ -92,7 +92,7 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
-	_, err = md.DB.Exec("UPDATE users SET "+q.Fields()+"Where id = ?", append(q.Parameters, md.ID())...)
+	_, err = md.DB.Exec("UPDATE users SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
 	if err != nil {
 		md.Err(err)
 		return Err500

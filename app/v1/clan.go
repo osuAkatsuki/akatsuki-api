@@ -358,25 +358,36 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
+	tx, err := md.DB.Begin()
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
 	if clan.Owner == md.ID() {
-		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", clan.ID)
+		_, err = tx.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", clan.ID)
 		if err != nil {
+			tx.Rollback()
 			md.Err(err)
 			return Err500
 		}
 
 		err := disbandClan(clan.ID, md)
 		if err != nil {
+			tx.Rollback()
 			md.Err(err)
 			return Err500
 		}
 	} else {
-		_, err := md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
+		_, err := tx.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
 		if err != nil {
+			tx.Rollback()
 			md.Err(err)
 			return Err500
 		}
 	}
+
+	tx.Commit()
 
 	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
 

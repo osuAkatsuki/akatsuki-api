@@ -34,7 +34,7 @@ const lbUserQuery = `
 			user_stats.replays_watched, user_stats.total_hits,
 			user_stats.avg_accuracy, user_stats.pp
 		FROM users
-		INNER JOIN user_stats ON user_stats.id = users.id `
+		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
 // previously done horrible hardcoding makes this the spaghetti it is
 func getLbUsersDb(p, l int, rx int, m, sort string, md *common.MethodData) []leaderboardUser {

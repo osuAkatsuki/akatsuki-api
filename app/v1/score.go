@@ -322,6 +322,19 @@ func getMode(m string) string {
 	}
 }
 
+func getModeInt(m string) int {
+	switch m {
+	case "taiko":
+		return 1
+	case "ctb":
+		return 2
+	case "mania":
+		return 3
+	default:
+		return 0
+	}
+}
+
 func genModeClause(md common.MethodData) string {
 	var modeClause string
 	if md.Query("mode") != "" {

@@ -76,6 +76,7 @@ func getLbUsersDb(p, l int, rx int, m, sort string, md *common.MethodData) []lea
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))
+	modeInt := getModeInt(m)
 
 	// md.Query.Country
 	p := common.Int(md.Query("p")) - 1
@@ -118,7 +119,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 
 	var query = lbUserQuery + `WHERE user.id IN (?) AND mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
-	query, params, _ := sqlx.In(query, results)
+	query, params, _ := sqlx.In(query, results, modeInt+(rx*4))
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)

@@ -87,12 +87,7 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 		Add("custom_badge_icon", d.CustomBadge.Icon).
 		Add("show_custom_badge", d.CustomBadge.Show).
 		Add("play_style", d.PlayStyle)
-	_, err := md.DB.Exec("UPDATE users_stats SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
-	if err != nil {
-		md.Err(err)
-		return Err500
-	}
-	_, err = md.DB.Exec("UPDATE users SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
+	_, err := md.DB.Exec("UPDATE users SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
 	if err != nil {
 		md.Err(err)
 		return Err500

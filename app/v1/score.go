@@ -13,7 +13,7 @@ import (
 
 // Score is a score done on Ripple.
 type Score struct {
-	ID         int64                `json:"id"`
+	ID         string               `json:"id,int64"`
 	BeatmapMD5 string               `json:"beatmap_md5"`
 	Score      int64                `json:"score"`
 	MaxCombo   int                  `json:"max_combo"`

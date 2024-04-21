@@ -27,16 +27,13 @@ type leaderboardResponse struct {
 
 const lbUserQuery = `
 		SELECT
-		users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-		users.username_aka, users.country, users.play_style, users.favourite_mode,
-
-		user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
-		user_stats.replays_watched, user_stats.total_hits,
-		user_stats.avg_accuracy
-		FROM user_stats
-		JOIN users ON users.id = user_stats.user_id
-		WHERE user_stats.user_id IN (?) AND user_stats.mode = ?
-`
+			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+			users.username_aka, users.country, users.play_style, users.favourite_mode,
+			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
+			user_stats.replays_watched, user_stats.total_hits,
+			user_stats.avg_accuracy, user_stats.pp
+		FROM users
+		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
 // previously done horrible hardcoding makes this the spaghetti it is
 func getLbUsersDb(p, l int, rx int, m, sort string, md *common.MethodData) []leaderboardUser {

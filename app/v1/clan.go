@@ -181,7 +181,20 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 
 	cms.ChosenMode.PP = int(pp)
 	var rank int
-	err = md.DB.QueryRow("SELECT COUNT(pp) FROM (SELECT SUM(pp_"+dbmode[mode]+")/(COUNT(clan_id)+1) AS pp FROM "+tableName+"_stats LEFT JOIN users ON users.id = "+tableName+"_stats.id WHERE clan_id <> 0 AND (users.privileges&3)>=3 GROUP BY clan_id) x WHERE x.pp >= ?", cms.ChosenMode.PP).Scan(&rank)
+	err = md.DB.QueryRow(`
+		SELECT COUNT(pp)
+		FROM (
+			SELECT SUM(pp) / (COUNT(clan_id) + 1) AS pp
+			FROM user_stats LEFT JOIN users ON users.id = user_stats.user_id
+			WHERE clan_id <> 0
+			AND user_stats.mode = ?
+			AND (users.privileges & 3) >= 3
+			GROUP BY clan_id
+		) x
+		WHERE x.pp >= ?`,
+		mode+(relax*4),
+		cms.ChosenMode.PP,
+	).Scan(&rank)
 	if err != nil {
 		md.Err(err)
 		return Err500

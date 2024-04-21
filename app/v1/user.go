@@ -25,8 +25,8 @@ type userData struct {
 }
 
 const userFields = `
-SELECT users.id, users.username, register_datetime, users.privileges,
-latest_activity, users.username_aka, users.country
+SELECT users.id, users.username, users.register_datetime, users.privileges,
+users.latest_activity, users.username_aka, users.country
 FROM users
 `
 

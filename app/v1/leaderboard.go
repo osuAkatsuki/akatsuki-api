@@ -117,7 +117,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		return resp
 	}
 
-	var query = lbUserQuery + `WHERE user_id IN (?) AND mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
+	var query = lbUserQuery + `WHERE user.id IN (?) AND mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
 	query, params, _ := sqlx.In(query, results)
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {

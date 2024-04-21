@@ -223,16 +223,6 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		return *shouldRet
 	}
 
-	// Hellest query I've ever done.
-	query := `
-SELECT
-	user_stats.ranked_score, user_stats.total_score, user_stats.playcount, user_stats.playtime,
-	user_stats.replays_watched, user_stats.total_hits,
-	user_stats.avg_accuracy, user_stats.pp, user_stats.max_combo
-FROM user_stats
-LEFT JOIN users ON users.id = user_stats.user_id
-WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stats.mode = ?
-`
 	r := userFullResponse{}
 	var (
 		b singleBadge
@@ -249,6 +239,7 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 			silence_end, notes, ban_datetime, email, clan_id
 		FROM users
 		WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true),
+		userIdParam,
 	).Scan(
 		&r.ID, &r.Username, &r.RegisteredOn, &r.Privileges, &r.LatestActivity,
 		&r.UsernameAKA, &r.Country, &r.PlayStyle, &r.FavouriteMode, &b.Icon,
@@ -264,6 +255,15 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 	}
 
 	// Scan stats into response for all gamemodes, across vn/rx/ap
+	query := `
+		SELECT
+			user_stats.ranked_score, user_stats.total_score, user_stats.playcount, user_stats.playtime,
+			user_stats.replays_watched, user_stats.total_hits,
+			user_stats.avg_accuracy, user_stats.pp, user_stats.max_combo
+		FROM user_stats
+		LEFT JOIN users ON users.id = user_stats.user_id
+		WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stats.mode = ?
+`
 	for _, relaxMode := range []int{0, 1, 2} {
 		modeOffset := relaxMode * 4
 		// Scan vanilla gamemode information into response
@@ -278,6 +278,11 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 		case err != nil:
 			md.Err(err)
 			return Err500
+		}
+
+		if relaxMode == 2 {
+			// AP only has osu! standard
+			continue
 		}
 
 		// Scan taiko gamemode information into response
@@ -306,6 +311,11 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 		case err != nil:
 			md.Err(err)
 			return Err500
+		}
+
+		if relaxMode == 1 {
+			// RX does not have mania
+			continue
 		}
 
 		// Scan mania gamemode information into response

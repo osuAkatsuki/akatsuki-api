@@ -24,9 +24,9 @@ type userData struct {
 	Country        string               `json:"country"`
 }
 
-const userFields = `SELECT users.id, users.username, register_datetime, users.privileges,
-	latest_activity, users.username_aka,
-	users.country
+const userFields = `
+SELECT users.id, users.username, register_datetime, users.privileges,
+latest_activity, users.username_aka, users.country
 FROM users
 `
 

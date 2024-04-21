@@ -265,12 +265,13 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 	}
 
 	// Scan stats into response for all gamemodes, across vn/rx/ap
-	for _, modeOffset := range []int{0, 4, 8} {
+	for _, relaxMode := range []int{0, 1, 2} {
+		modeOffset := relaxMode * 4
 		// Scan vanilla gamemode information into response
 		err = md.DB.QueryRow(query, userIdParam, 0+modeOffset).Scan(
-			r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime,
-			&r.Stats[0].STD.ReplaysWatched, &r.Stats[0].STD.TotalHits,
-			&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP, &r.Stats[0].STD.MaxCombo,
+			r.Stats[relaxMode].STD.RankedScore, &r.Stats[relaxMode].STD.TotalScore, &r.Stats[relaxMode].STD.PlayCount, &r.Stats[relaxMode].STD.PlayTime,
+			&r.Stats[relaxMode].STD.ReplaysWatched, &r.Stats[relaxMode].STD.TotalHits,
+			&r.Stats[relaxMode].STD.Accuracy, &r.Stats[relaxMode].STD.PP, &r.Stats[relaxMode].STD.MaxCombo,
 		)
 		switch {
 		case err == sql.ErrNoRows:
@@ -282,9 +283,9 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 
 		// Scan taiko gamemode information into response
 		err = md.DB.QueryRow(query, userIdParam, 1+modeOffset).Scan(
-			r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime,
-			&r.Stats[0].Taiko.ReplaysWatched, &r.Stats[0].Taiko.TotalHits,
-			&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP, &r.Stats[0].Taiko.MaxCombo,
+			r.Stats[relaxMode].Taiko.RankedScore, &r.Stats[relaxMode].Taiko.TotalScore, &r.Stats[relaxMode].Taiko.PlayCount, &r.Stats[relaxMode].Taiko.PlayTime,
+			&r.Stats[relaxMode].Taiko.ReplaysWatched, &r.Stats[relaxMode].Taiko.TotalHits,
+			&r.Stats[relaxMode].Taiko.Accuracy, &r.Stats[relaxMode].Taiko.PP, &r.Stats[relaxMode].Taiko.MaxCombo,
 		)
 		switch {
 		case err == sql.ErrNoRows:
@@ -296,9 +297,9 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 
 		// Scan ctb gamemode information into response
 		err = md.DB.QueryRow(query, userIdParam, 2+modeOffset).Scan(
-			r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime,
-			&r.Stats[0].CTB.ReplaysWatched, &r.Stats[0].CTB.TotalHits,
-			&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP, &r.Stats[0].CTB.MaxCombo,
+			r.Stats[relaxMode].CTB.RankedScore, &r.Stats[relaxMode].CTB.TotalScore, &r.Stats[relaxMode].CTB.PlayCount, &r.Stats[relaxMode].CTB.PlayTime,
+			&r.Stats[relaxMode].CTB.ReplaysWatched, &r.Stats[relaxMode].CTB.TotalHits,
+			&r.Stats[relaxMode].CTB.Accuracy, &r.Stats[relaxMode].CTB.PP, &r.Stats[relaxMode].CTB.MaxCombo,
 		)
 		switch {
 		case err == sql.ErrNoRows:
@@ -310,9 +311,9 @@ WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stat
 
 		// Scan mania gamemode information into response
 		err = md.DB.QueryRow(query, userIdParam, 3+modeOffset).Scan(
-			r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime,
-			&r.Stats[0].Mania.ReplaysWatched, &r.Stats[0].Mania.TotalHits,
-			&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP, &r.Stats[0].Mania.MaxCombo,
+			r.Stats[relaxMode].Mania.RankedScore, &r.Stats[relaxMode].Mania.TotalScore, &r.Stats[relaxMode].Mania.PlayCount, &r.Stats[relaxMode].Mania.PlayTime,
+			&r.Stats[relaxMode].Mania.ReplaysWatched, &r.Stats[relaxMode].Mania.TotalHits,
+			&r.Stats[relaxMode].Mania.Accuracy, &r.Stats[relaxMode].Mania.PP, &r.Stats[relaxMode].Mania.MaxCombo,
 		)
 		switch {
 		case err == sql.ErrNoRows:

@@ -4,6 +4,7 @@ package peppy
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"time"
 
 	"strings"
@@ -33,18 +34,22 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 
 	mode := genmodei(query(c, "m"))
 	modeStr := genmode(query(c, "m"))
-	rx := query(c, "rx")
+	rx, err := strconv.Atoi(query(c, "rx"))
+	if err != nil {
+		json(c, 200, defaultResponse)
+		return
+	}
 
 	redisTable := "leaderboard"
 	switch rx {
-	case "1":
+	case 1:
 		redisTable = "relaxboard"
-	case "2":
+	case 2:
 		redisTable = "autoboard"
 	}
 
 	var joinDate int64
-	err := db.QueryRow(fmt.Sprintf(
+	err = db.QueryRow(fmt.Sprintf(
 		`SELECT
 			users.id, users.username, users.register_datetime, users.country,
 
@@ -55,11 +60,10 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 		%[1]s
 		LIMIT 1`,
 		whereClause,
-	), p, mode).Scan(
-		&user.UserID, &user.Username, &joinDate,
+	), p, mode+(4*rx)).Scan(
+		&user.UserID, &user.Username, &joinDate, &user.Country,
 		&user.Playcount, &user.RankedScore, &user.TotalScore,
 		&user.PP, &user.Accuracy,
-		&user.Country,
 	)
 	if err != nil {
 		json(c, 200, defaultResponse)

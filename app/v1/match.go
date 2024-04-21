@@ -166,7 +166,7 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 	err = md.DB.Get(
 		&participantsIds,
 		`SELECT JSON_ARRAYAGG(user_id) FROM (
-			SELECT DISTINCT(user_id) AS user_id FROM 
+			SELECT DISTINCT(user_id) AS user_id FROM
 			match_events WHERE match_id = ? AND event_type = ?
 		) AS events`,
 		r.Match.Id,
@@ -207,7 +207,7 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 
 	rows, err := md.DB.Query(
 		fmt.Sprintf(
-			`SELECT id, game_id, user_id, event_type, timestamp 
+			`SELECT id, game_id, user_id, event_type, timestamp
 			FROM match_events WHERE match_id = ? %s ORDER BY id %s LIMIT ?`,
 			extraQuery, sortOrderEvents,
 		),
@@ -249,11 +249,11 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 			me.Game = &MatchGame{}
 			var songName string
 			err = md.DB.QueryRow(
-				`SELECT g.id, g.mode, g.mods, g.scoring_type, g.team_type, 
+				`SELECT g.id, g.mode, g.mods, g.scoring_type, g.team_type,
 				g.start_time, g.end_time, b.beatmap_id, b.beatmapset_id, b.song_name
-				FROM match_games g 
-				INNER JOIN beatmaps b 
-				ON g.beatmap_id = b.beatmap_id 
+				FROM match_games g
+				INNER JOIN beatmaps b
+				ON g.beatmap_id = b.beatmap_id
 				WHERE id = ? LIMIT 1`,
 				gameId,
 			).Scan(
@@ -278,7 +278,7 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 
 			var winningTeam int
 			err = md.DB.Get(&winningTeam, fmt.Sprintf(
-				`SELECT team FROM match_game_scores WHERE game_id = ? 
+				`SELECT team FROM match_game_scores WHERE game_id = ?
 					GROUP BY team ORDER BY %s(%s) DESC LIMIT 1`,
 				mysqlFunc, scoringTypeMap[me.Game.ScoringType]),
 				me.Game.Id,
@@ -295,12 +295,11 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 			}
 
 			scoreRows, err := md.DB.Query(fmt.Sprintf(
-				`SELECT u.id, u.username, us.country, s.id, s.count_300, s.count_100, s.count_50,
+				`SELECT u.id, u.username, u.country, s.id, s.count_300, s.count_100, s.count_50,
 					s.count_geki, s.count_katu, s.count_miss, s.score, s.accuracy, s.max_combo,
-					s.mods, s.mode, s.passed, s.team, s.timestamp 
+					s.mods, s.mode, s.passed, s.team, s.timestamp
 					FROM match_game_scores s
 					INNER JOIN users u ON s.user_id = u.id
-					INNER JOIN users_stats us ON u.id = us.id
 					WHERE match_id = ? AND game_id = ? ORDER BY team %s, passed DESC, %s DESC`,
 				sortOrder, scoringTypeMap[me.Game.ScoringType],
 			),

@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -25,52 +24,17 @@ type SleaderboardResponse struct {
 	Users []SleaderboardUser `json:"users"`
 }
 
-const SrxUserQuery = `
-		SELECT
-			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-			rx_stats.username_aka, users_stats.country,
-			rx_stats.play_style, rx_stats.favourite_mode,
-
-			rx_stats.ranked_score_%[1]s, rx_stats.total_score_%[1]s, rx_stats.playcount_%[1]s,
-			rx_stats.replays_watched_%[1]s, rx_stats.total_hits_%[1]s,
-			rx_stats.avg_accuracy_%[1]s
-		FROM users
-		INNER JOIN rx_stats ON rx_stats.id = users.id
-		INNER JOIN users_stats ON users_stats.id = users.id
-		WHERE users.id IN (?)
-		`
-
-
-const SapUserQuery = `
-		SELECT
-			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-			ap_stats.username_aka, users_stats.country,
-			ap_stats.play_style, ap_stats.favourite_mode,
-
-			ap_stats.ranked_score_%[1]s, ap_stats.total_score_%[1]s, ap_stats.playcount_%[1]s,
-			ap_stats.replays_watched_%[1]s, ap_stats.total_hits_%[1]s,
-			ap_stats.avg_accuracy_%[1]s
-		FROM users
-		INNER JOIN ap_stats ON ap_stats.id = users.id
-		INNER JOIN users_stats ON users_stats.id = users.id
-		WHERE users.id IN (?)
-		`
-
 const SlbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+			users.username_aka, users.country, users.play_style, users.favourite_mode,
 
-			users_stats.username_aka, users_stats.country,
-			users_stats.play_style, users_stats.favourite_mode,
-
-			users_stats.ranked_score_%[1]s, users_stats.total_score_%[1]s, users_stats.playcount_%[1]s,
-			users_stats.replays_watched_%[1]s, users_stats.total_hits_%[1]s,
-			users_stats.avg_accuracy_%[1]s
-		FROM users
-		INNER JOIN users_stats ON users_stats.id = users.id
-		WHERE users.id IN (?)
+			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
+			user_stats.replays_watched, user_stats.total_hits,
+			user_stats.avg_accuracy
+		FROM user_stats
+		JOIN users ON users.id = user_stats.user_id
+		WHERE user_stats.user_id IN (?) AND user_stats.mode = ?
 		`
 
 // LeaderboardGET gets the leaderboard.
@@ -108,12 +72,7 @@ func SLeaderboardGET(md common.MethodData) common.CodeMessager {
 		return resp
 	}
 
-	query := fmt.Sprintf(lbUserQuery+` ORDER BY users_stats.ranked_score_%[1]s DESC`, m)
-	if rx == 1 {
-		query = fmt.Sprintf(rxUserQuery+` ORDER BY rx_stats.ranked_score_%[1]s DESC`, m)
-	} else if rx == 2 {
-		query = fmt.Sprintf(rxUserQuery+` ORDER BY ap_stats.ranked_score_%[1]s DESC`, m)
-	}
+	query := lbUserQuery + ` ORDER BY user_stats.ranked_score DESC`
 	query, params, _ := sqlx.In(query, results)
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {

@@ -62,10 +62,9 @@ SELECT
 	scores.completed, scores.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
-	users.latest_activity, users_stats.username_aka, users_stats.country
+	users.latest_activity, users.username_aka, users.country
 FROM scores
 INNER JOIN users ON users.id = scores.userid
-INNER JOIN users_stats ON users_stats.id = scores.userid
 WHERE scores.beatmap_md5 = ? AND scores.play_mode = ? AND scores.completed = '3' AND `
 
 var rxQuery = `
@@ -78,10 +77,9 @@ SELECT
 	scores_relax.completed, scores_relax.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
-	users.latest_activity, users_stats.username_aka, users_stats.country
+	users.latest_activity, users.username_aka, users.country
 FROM scores_relax
 INNER JOIN users ON users.id = scores_relax.userid
-INNER JOIN users_stats ON users_stats.id = scores_relax.userid
 WHERE scores_relax.beatmap_md5 = ? AND scores_relax.play_mode = ? AND scores_relax.completed = '3' AND `
 
 var apQuery = `
@@ -94,10 +92,9 @@ SELECT
 	scores_ap.completed, scores_ap.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
-	users.latest_activity, users_stats.username_aka, users_stats.country
+	users.latest_activity, users.username_aka, users.country
 FROM scores_ap
 INNER JOIN users ON users.id = scores_ap.userid
-INNER JOIN users_stats ON users_stats.id = scores_ap.userid
 WHERE scores_ap.beatmap_md5 = ? AND scores_ap.play_mode = ? AND scores_ap.completed = '3' AND `
 
 var vnQuerySingle = `
@@ -110,7 +107,7 @@ SELECT
 	scores.completed, scores.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
-	users.latest_activity, users_stats.username_aka, users_stats.country,
+	users.latest_activity, users.username_aka, users.country,
 
 	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 	beatmaps.song_name, beatmaps.ar, beatmaps.od,
@@ -118,7 +115,6 @@ SELECT
 	beatmaps.ranked_status_freezed, beatmaps.latest_update
 FROM scores
 INNER JOIN users ON users.id = scores.userid
-INNER JOIN users_stats ON users_stats.id = scores.userid
 INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
 WHERE scores.id = ? `
 
@@ -132,7 +128,7 @@ SELECT
 	scores_relax.completed, scores_relax.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
-	users.latest_activity, users_stats.username_aka, users_stats.country,
+	users.latest_activity, users.username_aka, users.country,
 
 	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 	beatmaps.song_name, beatmaps.ar, beatmaps.od,
@@ -140,7 +136,6 @@ SELECT
 	beatmaps.ranked_status_freezed, beatmaps.latest_update
 FROM scores_relax
 INNER JOIN users ON users.id = scores_relax.userid
-INNER JOIN users_stats ON users_stats.id = scores_relax.userid
 INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_relax.beatmap_md5
 WHERE scores_relax.id = ? `
 
@@ -154,7 +149,7 @@ SELECT
 	scores_ap.completed, scores_ap.pinned,
 
 	users.id, users.username, users.register_datetime, users.privileges,
-	users.latest_activity, users_stats.username_aka, users_stats.country,
+	users.latest_activity, users.username_aka, users.country,
 
 	beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 	beatmaps.song_name, beatmaps.ar, beatmaps.od,
@@ -162,7 +157,6 @@ SELECT
 	beatmaps.ranked_status_freezed, beatmaps.latest_update
 FROM scores_ap
 INNER JOIN users ON users.id = scores_ap.userid
-INNER JOIN users_stats ON users_stats.id = scores_ap.userid
 INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores_ap.beatmap_md5
 WHERE scores_ap.id = ? `
 

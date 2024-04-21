@@ -42,15 +42,11 @@ func FriendsGET(md common.MethodData) common.CodeMessager {
 	myFriendsQuery := `
 SELECT
 	users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-	users_stats.username_aka,
-	users_stats.country
+	users.username_aka, users.country
 FROM users_relationships
 LEFT JOIN users
 ON users_relationships.user2 = users.id
-LEFT JOIN users_stats
-ON users_relationships.user2=users_stats.id
-WHERE users_relationships.user1=?
+WHERE users_relationships.user1 = ?
 AND privileges & 1
 `
 

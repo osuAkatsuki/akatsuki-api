@@ -25,11 +25,9 @@ type userData struct {
 }
 
 const userFields = `SELECT users.id, users.username, register_datetime, users.privileges,
-	latest_activity, users_stats.username_aka,
-	users_stats.country
+	latest_activity, users.username_aka,
+	users.country
 FROM users
-INNER JOIN users_stats
-ON users.id=users_stats.id
 `
 
 // UsersGET is the API handler for GET /users
@@ -81,13 +79,13 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		Where("users.privileges = ?", md.Query("privileges")).
 		Where("users.privileges & ? > 0", md.Query("has_privileges")).
 		Where("users.privileges & ? = 0", md.Query("has_not_privileges")).
-		Where("users_stats.country = ?", md.Query("country")).
-		Where("users_stats.username_aka = ?", md.Query("name_aka")).
+		Where("users.country = ?", md.Query("country")).
+		Where("users.username_aka = ?", md.Query("name_aka")).
 		Where("privileges_groups.name = ?", md.Query("privilege_group")).
 		In("users.id", pm("ids")...).
 		In("users.username_safe", safeUsernameBulk(pm("names"))...).
-		In("users_stats.username_aka", pm("names_aka")...).
-		In("users_stats.country", pm("countries")...)
+		In("users.username_aka", pm("names_aka")...).
+		In("users.country", pm("countries")...)
 
 	var extraJoin string
 	if md.Query("privilege_group") != "" {
@@ -220,7 +218,7 @@ type silenceInfo struct {
 
 // UserFullGET gets all of an user's information, with one exception: their userpage.
 func UserFullGET(md common.MethodData) common.CodeMessager {
-	shouldRet, whereClause, param := whereClauseUser(md, "users")
+	shouldRet, whereClause, userIdParam := whereClauseUser(md, "users")
 	if shouldRet != nil {
 		return *shouldRet
 	}
@@ -228,62 +226,12 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	// Hellest query I've ever done.
 	query := `
 SELECT
-	users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-
-	users_stats.username_aka, users_stats.country, users_stats.play_style, users_stats.favourite_mode,
-
-	users_stats.custom_badge_icon, users_stats.custom_badge_name, users_stats.can_custom_badge,
-	users_stats.show_custom_badge,
-
-	users_stats.ranked_score_std, users_stats.total_score_std, users_stats.playcount_std, users_stats.playtime_std,
-	users_stats.replays_watched_std, users_stats.total_hits_std,
-	users_stats.avg_accuracy_std, users_stats.pp_std, users_stats.max_combo_std,
-
-	users_stats.ranked_score_taiko, users_stats.total_score_taiko, users_stats.playcount_taiko, users_stats.playtime_taiko,
-	users_stats.replays_watched_taiko, users_stats.total_hits_taiko,
-	users_stats.avg_accuracy_taiko, users_stats.pp_taiko, users_stats.max_combo_taiko,
-
-	users_stats.ranked_score_ctb, users_stats.total_score_ctb, users_stats.playcount_ctb, users_stats.playtime_ctb,
-	users_stats.replays_watched_ctb, users_stats.total_hits_ctb,
-	users_stats.avg_accuracy_ctb, users_stats.pp_ctb, users_stats.max_combo_ctb,
-
-	users_stats.ranked_score_mania, users_stats.total_score_mania, users_stats.playcount_mania, users_stats.playtime_mania,
-	users_stats.replays_watched_mania, users_stats.total_hits_mania,
-	users_stats.avg_accuracy_mania, users_stats.pp_mania, users_stats.max_combo_mania,
-
-	rx_stats.ranked_score_std, rx_stats.total_score_std, rx_stats.playcount_std, users_stats.playtime_std,
-	rx_stats.replays_watched_std, rx_stats.total_hits_std,
-	rx_stats.avg_accuracy_std, rx_stats.pp_std, rx_stats.max_combo_std,
-
-	rx_stats.ranked_score_taiko, rx_stats.total_score_taiko, rx_stats.playcount_taiko, users_stats.playtime_taiko,
-	rx_stats.replays_watched_taiko, rx_stats.total_hits_taiko,
-	rx_stats.avg_accuracy_taiko, rx_stats.pp_taiko, rx_stats.max_combo_taiko,
-
-	rx_stats.ranked_score_ctb, rx_stats.total_score_ctb, rx_stats.playcount_ctb, users_stats.playtime_ctb,
-	rx_stats.replays_watched_ctb, rx_stats.total_hits_ctb,
-	rx_stats.avg_accuracy_ctb, rx_stats.pp_ctb, rx_stats.max_combo_ctb,
-
-	rx_stats.ranked_score_mania, rx_stats.total_score_mania, rx_stats.playcount_mania, users_stats.playtime_mania,
-	rx_stats.replays_watched_mania, rx_stats.total_hits_mania,
-	rx_stats.avg_accuracy_mania, rx_stats.pp_mania, rx_stats.max_combo_mania,
-
-	ap_stats.ranked_score_std, ap_stats.total_score_std, ap_stats.playcount_std, users_stats.playtime_std,
-	ap_stats.replays_watched_std, ap_stats.total_hits_std,
-	ap_stats.avg_accuracy_std, ap_stats.pp_std, ap_stats.max_combo_std,
-
-	users.silence_reason, users.silence_end,
-	users.notes, users.ban_datetime, users.email,
-	users.clan_id
-
-FROM users
-LEFT JOIN users_stats
-ON users.id=users_stats.id
-LEFT JOIN rx_stats
-ON users.id=rx_stats.id
-LEFT JOIN ap_stats
-ON users.id=ap_stats.id
-WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
-LIMIT 1
+	user_stats.ranked_score, user_stats.total_score, user_stats.playcount, user_stats.playtime,
+	user_stats.replays_watched, user_stats.total_hits,
+	user_stats.avg_accuracy, user_stats.pp, user_stats.max_combo,
+FROM user_stats
+LEFT JOIN users ON users.id = user_stats.user_id
+WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stats.mode = ?
 `
 	// Fuck.
 	r := userFullResponse{}
@@ -293,52 +241,20 @@ LIMIT 1
 		can  bool
 		show bool
 	)
-	err := md.DB.QueryRow(query, param).Scan(
+	// Scan user information into response
+	err := md.DB.QueryRow(`
+		SELECT
+			id, username, register_datetime, privileges, latest_activity,
+			username_aka, country, play_style, favourite_mode, custom_badge_icon,
+			custom_badge_name, can_custom_badge, show_custom_badge, silence_reason,
+			silence_end, notes, ban_datetime, email, clan_id
+		FROM users
+		WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true),
+	).Scan(
 		&r.ID, &r.Username, &r.RegisteredOn, &r.Privileges, &r.LatestActivity,
-
-		&r.UsernameAKA, &r.Country,
-		&r.PlayStyle, &r.FavouriteMode,
-
-		&b.Icon, &b.Name, &can, &show,
-
-		&r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime,
-		&r.Stats[0].STD.ReplaysWatched, &r.Stats[0].STD.TotalHits,
-		&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP, &r.Stats[0].STD.MaxCombo,
-
-		&r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime,
-		&r.Stats[0].Taiko.ReplaysWatched, &r.Stats[0].Taiko.TotalHits,
-		&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP, &r.Stats[0].Taiko.MaxCombo,
-
-		&r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime,
-		&r.Stats[0].CTB.ReplaysWatched, &r.Stats[0].CTB.TotalHits,
-		&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP, &r.Stats[0].CTB.MaxCombo,
-
-		&r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime,
-		&r.Stats[0].Mania.ReplaysWatched, &r.Stats[0].Mania.TotalHits,
-		&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP, &r.Stats[0].Mania.MaxCombo,
-
-		&r.Stats[1].STD.RankedScore, &r.Stats[1].STD.TotalScore, &r.Stats[1].STD.PlayCount, &r.Stats[1].STD.PlayTime,
-		&r.Stats[1].STD.ReplaysWatched, &r.Stats[1].STD.TotalHits,
-		&r.Stats[1].STD.Accuracy, &r.Stats[1].STD.PP, &r.Stats[1].STD.MaxCombo,
-
-		&r.Stats[1].Taiko.RankedScore, &r.Stats[1].Taiko.TotalScore, &r.Stats[1].Taiko.PlayCount, &r.Stats[1].Taiko.PlayTime,
-		&r.Stats[1].Taiko.ReplaysWatched, &r.Stats[1].Taiko.TotalHits,
-		&r.Stats[1].Taiko.Accuracy, &r.Stats[1].Taiko.PP, &r.Stats[1].Taiko.MaxCombo,
-
-		&r.Stats[1].CTB.RankedScore, &r.Stats[1].CTB.TotalScore, &r.Stats[1].CTB.PlayCount, &r.Stats[1].CTB.PlayTime,
-		&r.Stats[1].CTB.ReplaysWatched, &r.Stats[1].CTB.TotalHits,
-		&r.Stats[1].CTB.Accuracy, &r.Stats[1].CTB.PP, &r.Stats[1].CTB.MaxCombo,
-
-		&r.Stats[1].Mania.RankedScore, &r.Stats[1].Mania.TotalScore, &r.Stats[1].Mania.PlayCount, &r.Stats[1].Mania.PlayTime,
-		&r.Stats[1].Mania.ReplaysWatched, &r.Stats[1].Mania.TotalHits,
-		&r.Stats[1].Mania.Accuracy, &r.Stats[1].Mania.PP, &r.Stats[1].Mania.MaxCombo,
-
-		&r.Stats[2].STD.RankedScore, &r.Stats[2].STD.TotalScore, &r.Stats[2].STD.PlayCount, &r.Stats[2].STD.PlayTime,
-		&r.Stats[2].STD.ReplaysWatched, &r.Stats[2].STD.TotalHits,
-		&r.Stats[2].STD.Accuracy, &r.Stats[2].STD.PP, &r.Stats[2].STD.MaxCombo,
-
-		&r.SilenceInfo.Reason, &r.SilenceInfo.End,
-		&r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID,
+		&r.UsernameAKA, &r.Country, &r.PlayStyle, &r.FavouriteMode, &b.Icon,
+		&b.Name, &can, &show, &r.SilenceInfo.Reason,
+		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID,
 	)
 	switch {
 	case err == sql.ErrNoRows:
@@ -346,6 +262,65 @@ LIMIT 1
 	case err != nil:
 		md.Err(err)
 		return Err500
+	}
+
+	// Scan stats into response for all gamemodes, across vn/rx/ap
+	for _, modeOffset := range []int{0, 4, 8} {
+		// Scan vanilla gamemode information into response
+		err = md.DB.QueryRow(query, userIdParam, 0+modeOffset).Scan(
+			r.Stats[0].STD.RankedScore, &r.Stats[0].STD.TotalScore, &r.Stats[0].STD.PlayCount, &r.Stats[0].STD.PlayTime,
+			&r.Stats[0].STD.ReplaysWatched, &r.Stats[0].STD.TotalHits,
+			&r.Stats[0].STD.Accuracy, &r.Stats[0].STD.PP, &r.Stats[0].STD.MaxCombo,
+		)
+		switch {
+		case err == sql.ErrNoRows:
+			return common.SimpleResponse(404, "That user could not be found!")
+		case err != nil:
+			md.Err(err)
+			return Err500
+		}
+
+		// Scan taiko gamemode information into response
+		err = md.DB.QueryRow(query, userIdParam, 1+modeOffset).Scan(
+			r.Stats[0].Taiko.RankedScore, &r.Stats[0].Taiko.TotalScore, &r.Stats[0].Taiko.PlayCount, &r.Stats[0].Taiko.PlayTime,
+			&r.Stats[0].Taiko.ReplaysWatched, &r.Stats[0].Taiko.TotalHits,
+			&r.Stats[0].Taiko.Accuracy, &r.Stats[0].Taiko.PP, &r.Stats[0].Taiko.MaxCombo,
+		)
+		switch {
+		case err == sql.ErrNoRows:
+			return common.SimpleResponse(404, "That user could not be found!")
+		case err != nil:
+			md.Err(err)
+			return Err500
+		}
+
+		// Scan ctb gamemode information into response
+		err = md.DB.QueryRow(query, userIdParam, 2+modeOffset).Scan(
+			r.Stats[0].CTB.RankedScore, &r.Stats[0].CTB.TotalScore, &r.Stats[0].CTB.PlayCount, &r.Stats[0].CTB.PlayTime,
+			&r.Stats[0].CTB.ReplaysWatched, &r.Stats[0].CTB.TotalHits,
+			&r.Stats[0].CTB.Accuracy, &r.Stats[0].CTB.PP, &r.Stats[0].CTB.MaxCombo,
+		)
+		switch {
+		case err == sql.ErrNoRows:
+			return common.SimpleResponse(404, "That user could not be found!")
+		case err != nil:
+			md.Err(err)
+			return Err500
+		}
+
+		// Scan mania gamemode information into response
+		err = md.DB.QueryRow(query, userIdParam, 3+modeOffset).Scan(
+			r.Stats[0].Mania.RankedScore, &r.Stats[0].Mania.TotalScore, &r.Stats[0].Mania.PlayCount, &r.Stats[0].Mania.PlayTime,
+			&r.Stats[0].Mania.ReplaysWatched, &r.Stats[0].Mania.TotalHits,
+			&r.Stats[0].Mania.Accuracy, &r.Stats[0].Mania.PP, &r.Stats[0].Mania.MaxCombo,
+		)
+		switch {
+		case err == sql.ErrNoRows:
+			return common.SimpleResponse(404, "That user could not be found!")
+		case err != nil:
+			md.Err(err)
+			return Err500
+		}
 	}
 
 	can = can && show && common.UserPrivileges(r.Privileges)&common.UserPrivilegeDonor > 0

@@ -150,12 +150,10 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	}
 
 	relax := common.Int(md.Query("rx"))
-	tableName := "users"
-	if relax == 1 {
-		tableName = "rx"
-	} else if relax == 2 {
-		tableName = "ap"
+	if relax < 0 || relax > 2 {
+		return common.SimpleResponse(400, "invalid relax value")
 	}
+
 	type Res struct {
 		common.ResponseBase
 		Clan clanModeStats `json:"clan"`
@@ -165,14 +163,17 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		return Res{Clan: cms}
 	}
-	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp, SUM(ranked_score_%[1]s),
-		SUM(total_score_%[1]s), SUM(playcount_%[1]s), SUM(replays_watched_%[1]s),
-		AVG(avg_accuracy_%[1]s), SUM(total_hits_%[1]s)
-		FROM %[2]s_stats LEFT JOIN users ON users.id = %[2]s_stats.id
-		WHERE users.clan_id = ? AND users.privileges & 1
-		LIMIT 1`, dbmode[mode], tableName)
+	q := `SELECT SUM(pp) / (COUNT(users.clan_id) + 1) AS pp, SUM(ranked_score),
+		SUM(total_score), SUM(playcount), SUM(replays_watched),
+		AVG(avg_accuracy), SUM(total_hits)
+		FROM user_stats LEFT JOIN users ON users.id = user_stats.user_id
+		WHERE users.clan_id = ? AND user_stats.mode = ? AND users.privileges & 1`
 	var pp float64
-	err = md.DB.QueryRow(q, id).Scan(&pp, &cms.ChosenMode.RankedScore, &cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched, &cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits)
+	err = md.DB.QueryRow(q, id, mode+(relax*4)).Scan(
+		&pp, &cms.ChosenMode.RankedScore,
+		&cms.ChosenMode.TotalScore, &cms.ChosenMode.PlayCount, &cms.ChosenMode.ReplaysWatched,
+		&cms.ChosenMode.Accuracy, &cms.ChosenMode.TotalHits,
+	)
 	if err != nil {
 		md.Err(err)
 		return Err500

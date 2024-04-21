@@ -2,7 +2,6 @@ package v1
 
 import (
 	"database/sql"
-	"fmt"
 
 	// "regexp"
 	"strconv"
@@ -89,22 +88,25 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 		Clans []clanLbData `json:"clans"`
 	}
 	relax := common.Int(md.Query("rx"))
-	tableName := "users"
-	if relax == 1 {
-		tableName = "rx"
-	} else if relax == 2 {
-		tableName = "ap"
+	if relax < 0 || relax > 2 {
+		return common.SimpleResponse(400, "invalid relax value")
 	}
+
 	cl := clanLeaderboard{Page: page}
-	q := fmt.Sprintf(`SELECT SUM(pp_%[1]s)/(COUNT(clan_id)+1) AS pp,
-		SUM(ranked_score_%[1]s), SUM(total_score_%[1]s), SUM(playcount_%[1]s), AVG(avg_accuracy_%[1]s),
-		clans.name, clans.id
-		FROM %[2]s_stats
-		LEFT JOIN users ON users.id = %[2]s_stats.id
+	q := `SELECT SUM(pp) / (COUNT(clan_id) + 1) AS pp, SUM(ranked_score),
+	    SUM(total_score), SUM(playcount),
+		AVG(avg_accuracy), clans.name, clans.id
+		FROM user_stats
+		LEFT JOIN users ON users.id = user_stats.user_id
 		INNER JOIN clans ON clans.id = users.clan_id
-		WHERE users.clan_id <> 0 AND users.privileges & 1
-		GROUP BY users.clan_id ORDER BY pp DESC LIMIT ?,50`, dbmode[mode], tableName)
-	rows, err := md.DB.Query(q, (page-1)*50)
+		WHERE users.clan_id <> 0
+		AND user_stats.mode = ?
+		AND users.privileges & 1
+		GROUP BY users.clan_id
+		ORDER BY pp DESC
+		LIMIT ?, 50`
+
+	rows, err := md.DB.Query(q, mode+(relax*4), (page-1)*50)
 	if err != nil {
 		md.Err(err)
 		return Err500

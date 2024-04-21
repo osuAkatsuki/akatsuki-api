@@ -37,15 +37,15 @@ const lbUserQuery = `
 		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
 // previously done horrible hardcoding makes this the spaghetti it is
-func getLbUsersDb(p, l int, rx int, modeInt int, sort string, md *common.MethodData) []leaderboardUser {
+func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.MethodData) []leaderboardUser {
 	var query, order string
 	if sort == "score" {
 		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
 	} else {
 		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
 	}
-	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND users_stats.mode = ? "+order+" LIMIT %d, %d", p*l, l)
-	rows, err := md.DB.Query(query, modeInt)
+	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND user_stats.mode = ? "+order+" LIMIT %d, %d", p*l, l)
+	rows, err := md.DB.Query(query, modeInt+(rx*4))
 	if err != nil {
 		md.Err(err)
 		return make([]leaderboardUser, 0)
@@ -91,7 +91,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 
 	if sort != "pp" {
-		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, m, sort, &md)}
+		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, modeInt, sort, &md)}
 		resp.Code = 200
 		return resp
 	}

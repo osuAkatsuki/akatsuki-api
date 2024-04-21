@@ -29,6 +29,7 @@ const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 			users.username_aka, users.country, users.play_style, users.favourite_mode,
+
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
 			user_stats.avg_accuracy, user_stats.pp

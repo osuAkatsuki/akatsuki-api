@@ -4,7 +4,6 @@ package peppy
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
 	"time"
 
 	"strings"
@@ -33,6 +32,7 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	whereClause = "WHERE " + whereClause + " AND mode = ? "
 
 	mode := genmodei(query(c, "m"))
+	modeStr := genmode(query(c, "m"))
 	rx := query(c, "rx")
 
 	redisTable := "leaderboard"
@@ -72,13 +72,13 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 	user.Date = osuapi.MySQLDate(time.Unix(joinDate, 0))
 
 	if gRank := leaderboardPosition(
-		R, "ripple:"+redisTable+":"+strconv.Itoa(mode), user.UserID,
+		R, "ripple:"+redisTable+":"+modeStr, user.UserID,
 	); gRank != nil {
 		user.Rank = *gRank
 	}
 
 	if cRank := leaderboardPosition(
-		R, "ripple:"+redisTable+":"+strconv.Itoa(mode)+":"+strings.ToLower(user.Country), user.UserID,
+		R, "ripple:"+redisTable+":"+modeStr+":"+strings.ToLower(user.Country), user.UserID,
 	); cRank != nil {
 		user.CountryRank = *cRank
 	}

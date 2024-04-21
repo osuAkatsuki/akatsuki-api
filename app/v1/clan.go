@@ -115,7 +115,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	for i := 1; rows.Next(); i++ {
 		clan := clanLbData{}
 		var pp float64
-		rows.Scan(&pp, &clan.ChosenMode.RankedScore, &clan.ChosenMode.TotalScore, &clan.ChosenMode.PlayCount, &clan.ChosenMode.Accuracy, &clan.Name, &clan.ID)
+		err = rows.Scan(&pp, &clan.ChosenMode.RankedScore, &clan.ChosenMode.TotalScore, &clan.ChosenMode.PlayCount, &clan.ChosenMode.Accuracy, &clan.Name, &clan.ID)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -133,8 +133,6 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	r.ResponseBase.Code = 200
 	return r
 }
-
-var dbmode = [...]string{"std", "taiko", "ctb", "mania"}
 
 func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if md.Query("id") == "" {
@@ -312,9 +310,19 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 
 		if c.Status == 3 {
 			_, err = md.DB.Exec("INSERT INTO clan_requests VALUES (?, ?, DEFAULT) ON DUPLICATE KEY UPDATE time = NOW()", c.ID, md.ID())
+			if err != nil {
+				md.Err(err)
+				return Err500
+			}
+
 			return common.SimpleResponse(200, "join request sent")
 		}
 		_, err = md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ?", c.ID, md.ID())
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
 		r.Clan = c
 		r.Code = 200
 
@@ -558,14 +566,4 @@ func getClan(id int, md common.MethodData) (Clan, error) {
 	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner, status FROM clans WHERE id = ?", id).Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner, &c.Status)
 
 	return c, err
-}
-
-func getUserData(id int, md common.MethodData) (userData, error) {
-	u := userData{}
-	if id == 0 {
-		return u, nil
-	}
-	err := md.DB.QueryRow("SELECT id, username, register_datetime, privileges, latest_activity, username_aka, country FROM users WHERE id = ?", id).Scan(&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity, &u.UsernameAKA, &u.Country)
-
-	return u, err
 }

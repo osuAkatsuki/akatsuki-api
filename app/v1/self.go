@@ -81,13 +81,18 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
 	q := new(common.UpdateQuery).
-		Add("s.username_aka", d.UsernameAKA).
-		Add("s.favourite_mode", d.FavouriteMode).
-		Add("s.custom_badge_name", d.CustomBadge.Name).
-		Add("s.custom_badge_icon", d.CustomBadge.Icon).
-		Add("s.show_custom_badge", d.CustomBadge.Show).
-		Add("s.play_style", d.PlayStyle)
-	_, err := md.DB.Exec("UPDATE users u, users_stats s SET "+q.Fields()+" WHERE s.id = u.id AND u.id = ?", append(q.Parameters, md.ID())...)
+		Add("username_aka", d.UsernameAKA).
+		Add("favourite_mode", d.FavouriteMode).
+		Add("custom_badge_name", d.CustomBadge.Name).
+		Add("custom_badge_icon", d.CustomBadge.Icon).
+		Add("show_custom_badge", d.CustomBadge.Show).
+		Add("play_style", d.PlayStyle)
+	_, err := md.DB.Exec("UPDATE users_stats SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	_, err = md.DB.Exec("UPDATE users SET "+q.Fields()+"Where id = ?", append(q.Parameters, md.ID())...)
 	if err != nil {
 		md.Err(err)
 		return Err500

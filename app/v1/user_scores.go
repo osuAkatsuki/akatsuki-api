@@ -33,7 +33,7 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 		return *cm
 	}
 
-	mc := genModeClause(md, false)
+	mode := common.Int(md.Query("mode"))
 	rx := common.Int(md.Query("rx"))
 
 	query := fmt.Sprintf(`
@@ -59,17 +59,17 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 			AND %s
 			ORDER BY scores.pp DESC, scores.score DESC %s
 		)
-		SELECT * FROM the_scores WHERE %s`,
-		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100), mc)
+		SELECT * FROM the_scores WHERE play_mode = ?`,
+		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
 	if rx == 1 {
-		query = strings.Replace(query, "scores.", "scores_relax.", -1)
-		return relaxPuts(md, query, param)
+		query = strings.Replace(query, "scores", "scores_relax", -1)
+		return relaxPuts(md, query, param, mode)
 	} else if rx == 2 {
-		query = strings.Replace(query, "scores.", "scores_ap.", -1)
-		return autoPuts(md, query, param)
+		query = strings.Replace(query, "scores", "scores_ap", -1)
+		return autoPuts(md, query, param, mode)
 	} else {
-		return scoresPuts(md, query, param)
+		return scoresPuts(md, query, param, mode)
 	}
 }
 
@@ -79,7 +79,8 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 	if cm != nil {
 		return *cm
 	}
-	mc := genModeClause(md, false)
+
+	mode := common.Int(md.Query("mode"))
 	rx := common.Int(md.Query("rx"))
 
 	query := fmt.Sprintf(`
@@ -104,17 +105,17 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 			AND %s
 			ORDER BY scores.id DESC %s
 		)
-		SELECT * FROM the_scores WHERE %s`,
-		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100), mc)
+		SELECT * FROM the_scores WHERE play_mode = ?`,
+		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
 	if rx == 1 {
-		query = strings.Replace(query, "scores.", "scores_relax.", -1)
-		return relaxPuts(md, query, param)
+		query = strings.Replace(query, "scores", "scores_relax", -1)
+		return relaxPuts(md, query, param, mode)
 	} else if rx == 2 {
-		query = strings.Replace(query, "scores.", "scores_ap.", -1)
-		return autoPuts(md, query, param)
+		query = strings.Replace(query, "scores", "scores_ap", -1)
+		return autoPuts(md, query, param, mode)
 	} else {
-		return scoresPuts(md, query, param)
+		return scoresPuts(md, query, param, mode)
 	}
 }
 
@@ -125,7 +126,7 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 		return *cm
 	}
 
-	mc := genModeClause(md, false)
+	mode := common.Int(md.Query("mode"))
 	rx := common.Int(md.Query("rx"))
 
 	query := fmt.Sprintf(`
@@ -150,17 +151,17 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 			AND %s
 			ORDER BY scores.pp DESC %s
 		)
-		SELECT * FROM the_scores WHERE %s`,
-		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100), mc)
+		SELECT * FROM the_scores WHERE play_mode = ?`,
+		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
 	if rx == 1 {
-		query = strings.Replace(query, "scores.", "scores_relax.", -1)
-		return relaxPuts(md, query, param)
+		query = strings.Replace(query, "scores", "scores_relax", -1)
+		return relaxPuts(md, query, param, mode)
 	} else if rx == 2 {
-		query = strings.Replace(query, "scores.", "scores_ap.", -1)
-		return autoPuts(md, query, param)
+		query = strings.Replace(query, "scores", "scores_ap", -1)
+		return autoPuts(md, query, param, mode)
 	} else {
-		return scoresPuts(md, query, param)
+		return scoresPuts(md, query, param, mode)
 	}
 }
 

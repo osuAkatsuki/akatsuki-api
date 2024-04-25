@@ -63,14 +63,10 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100), mc)
 
 	if rx == 1 {
-		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
 		query = strings.Replace(query, "scores.", "scores_relax.", -1)
-
 		return relaxPuts(md, query, param)
 	} else if rx == 2 {
-		mc = strings.Replace(mc, "scores.", "scores_ap.", 1)
 		query = strings.Replace(query, "scores.", "scores_ap.", -1)
-
 		return autoPuts(md, query, param)
 	} else {
 		return scoresPuts(md, query, param)
@@ -112,14 +108,10 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100), mc)
 
 	if rx == 1 {
-		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
 		query = strings.Replace(query, "scores.", "scores_relax.", -1)
-
 		return relaxPuts(md, query, param)
 	} else if rx == 2 {
-		mc = strings.Replace(mc, "scores.", "scores_ap.", 1)
 		query = strings.Replace(query, "scores.", "scores_ap.", -1)
-
 		return autoPuts(md, query, param)
 	} else {
 		return scoresPuts(md, query, param)
@@ -162,14 +154,10 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100), mc)
 
 	if rx == 1 {
-		mc = strings.Replace(mc, "scores.", "scores_relax.", 1)
 		query = strings.Replace(query, "scores.", "scores_relax.", -1)
-
 		return relaxPuts(md, query, param)
 	} else if rx == 2 {
-		mc = strings.Replace(mc, "scores.", "scores_ap.", 1)
 		query = strings.Replace(query, "scores.", "scores_ap.", -1)
-
 		return autoPuts(md, query, param)
 	} else {
 		return scoresPuts(md, query, param)
@@ -274,6 +262,7 @@ func unpinScore(md common.MethodData, id int64, relax int, userId int) common.Co
 }
 
 func scoresPuts(md common.MethodData, query string, params ...interface{}) common.CodeMessager {
+	fmt.Printf("score query: %s\n", query)
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)

@@ -22,7 +22,11 @@ type MethodData struct {
 // ClientIP implements a best effort algorithm to return the real client IP, it parses
 // X-Real-IP and X-Forwarded-For in order to work properly with reverse-proxies such us: nginx or haproxy.
 func (md MethodData) ClientIP() string {
-	clientIP := strings.TrimSpace(string(md.Ctx.Request.Header.Peek("X-Real-Ip")))
+	clientIP := strings.TrimSpace(string(md.Ctx.Request.Header.Peek("CF-Connecting-IP")))
+	if len(clientIP) > 0 {
+		return clientIP
+	}
+	clientIP = strings.TrimSpace(string(md.Ctx.Request.Header.Peek("X-Real-Ip")))
 	if len(clientIP) > 0 {
 		return clientIP
 	}

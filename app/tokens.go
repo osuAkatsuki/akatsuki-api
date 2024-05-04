@@ -51,6 +51,9 @@ WHERE token = ? LIMIT 1`,
 var updateTokens = make(chan int, 100)
 
 func tokenUpdater(db *sqlx.DB) {
+	// A cron which updates the last_updated field of tokens every 10 seconds.
+	// This is done for the purpose of invalidating tokens which are no longer in use.
+	// And is used to improve performance by not having to update the database for every request.
 	for {
 		// prepare a queue of tokens to update.
 		tokensToUpdate := make([]int, 0, 50)
@@ -72,8 +75,6 @@ func tokenUpdater(db *sqlx.DB) {
 			case x := <-updateTokens:
 				tokensToUpdate = append(tokensToUpdate, x)
 			case <-time.After(10 * time.Second):
-				// wondering what this means?
-				// https://golang.org/ref/spec#Break_statements
 				break AwaitLoop
 			}
 		}

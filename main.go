@@ -1,11 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"syscall"
 
 	"golang.org/x/exp/slog"
+	"gopkg.in/redis.v5"
 
 	"github.com/osuAkatsuki/akatsuki-api/app"
 	"github.com/osuAkatsuki/akatsuki-api/common"
@@ -35,19 +37,33 @@ func main() {
 		settings.DB_NAME,
 	)
 
-	db, err := sqlx.Open(settings.DB_SCHEME, dns)
+	dbConn, err := sqlx.Open(settings.DB_SCHEME, dns)
 	if err != nil {
 		slog.Error("Error opening DB connection", "error", err.Error())
 	}
 
-	db.MapperFunc(func(s string) string {
+	dbConn.MapperFunc(func(s string) string {
 		if x, ok := commonClusterfucks[s]; ok {
 			return x
 		}
 		return snaker.CamelToSnake(s)
 	})
 
-	engine := app.Start(db)
+	// initialise redis
+	var tlsConfig *tls.Config
+	if settings.REDIS_USE_SSL {
+		tlsConfig = &tls.Config{
+			ServerName: settings.REDIS_SSL_SERVER_NAME,
+		}
+	}
+	redisConn := redis.NewClient(&redis.Options{
+		Addr:      fmt.Sprintf("%s:%d", settings.REDIS_HOST, settings.REDIS_PORT),
+		Password:  settings.REDIS_PASS,
+		DB:        settings.REDIS_DB,
+		TLSConfig: tlsConfig,
+	})
+
+	engine := app.Start(dbConn, redisConn)
 
 	err = fasthttp.ListenAndServe(fmt.Sprintf(":%d", settings.APP_PORT), engine.Handler)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	fhr "github.com/buaazp/fasthttprouter"
+	fhr "github.com/georgecookeiw/fasthttprouter"
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/app/internals"
 	"github.com/osuAkatsuki/akatsuki-api/app/peppy"
@@ -25,6 +25,12 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 	db = dbO
 
 	rawRouter := fhr.New()
+
+	rawRouter.HandleOPTIONS = true
+	rawRouter.HandleCORS.Handle = true
+	rawRouter.HandleCORS.AllowOrigin = "*"
+	rawRouter.HandleCORS.AllowMethods = []string{"GET"}
+
 	r := router{rawRouter}
 
 	settings := common.GetSettings()

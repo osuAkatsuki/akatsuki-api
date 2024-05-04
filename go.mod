@@ -3,8 +3,8 @@ module github.com/osuAkatsuki/akatsuki-api
 go 1.20
 
 require (
-	github.com/buaazp/fasthttprouter v0.1.1
 	github.com/frustra/bbcode v0.0.0-20201127003707-6ef347fbe1c8
+	github.com/georgecookeiw/fasthttprouter v0.1.2
 	github.com/getsentry/raven-go v0.2.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/jmoiron/sqlx v1.3.4

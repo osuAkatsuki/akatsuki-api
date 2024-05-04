@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/buaazp/fasthttprouter"
+	"github.com/georgecookeiw/fasthttprouter"
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/valyala/fasthttp"

@@ -5,8 +5,9 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
-	"golang.org/x/exp/slog"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"

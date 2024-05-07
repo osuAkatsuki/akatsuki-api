@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/thehowl/go-osuapi.v1"
@@ -98,7 +99,6 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
 		INNER JOIN users ON users.id = scores.userid
 		AND %s
-		AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)
 		AND %s
 		AND play_mode = ?
 		ORDER BY scores.id DESC %s`,
@@ -148,15 +148,32 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 		ORDER BY scores.pp DESC %s`,
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
+	var response common.CodeMessager
 	if rx == 1 {
 		query = strings.Replace(query, "scores", "scores_relax", -1)
-		return relaxPuts(md, query, param, mode)
+		response = relaxPuts(md, query, param, mode)
 	} else if rx == 2 {
 		query = strings.Replace(query, "scores", "scores_ap", -1)
-		return autoPuts(md, query, param, mode)
+		response = autoPuts(md, query, param, mode)
 	} else {
-		return scoresPuts(md, query, param, mode)
+		response = scoresPuts(md, query, param, mode)
 	}
+
+	if response.GetCode() != 200 {
+		return response
+	}
+
+	scoresResponse := response.(userScoresResponse)
+
+	scores := []userScore{}
+	for i := range scoresResponse.Scores {
+		if scoresResponse.Scores[i].Time.After(time.Now().Add(-24 * time.Hour)) {
+			scores = append(scores, scoresResponse.Scores[i])
+		}
+	}
+
+	scoresResponse.Scores = scores
+	return scoresResponse
 }
 
 func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {

@@ -37,29 +37,27 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 	rx := common.Int(md.Query("rx"))
 
 	query := fmt.Sprintf(`
-		WITH the_scores AS (
-			SELECT
-				scores.id, scores.beatmap_md5, scores.score,
-				scores.max_combo, scores.full_combo, scores.mods,
-				scores.300_count, scores.100_count, scores.50_count,
-				scores.gekis_count, scores.katus_count, scores.misses_count,
-				scores.time, scores.play_mode, scores.accuracy, scores.pp,
-				scores.completed, scores.pinned,
+		SELECT
+			scores.id, scores.beatmap_md5, scores.score,
+			scores.max_combo, scores.full_combo, scores.mods,
+			scores.300_count, scores.100_count, scores.50_count,
+			scores.gekis_count, scores.katus_count, scores.misses_count,
+			scores.time, scores.play_mode, scores.accuracy, scores.pp,
+			scores.completed, scores.pinned,
 
-				beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
-				beatmaps.song_name, beatmaps.ar, beatmaps.od,
-				beatmaps.max_combo AS beatmap_max_combo, beatmaps.hit_length, beatmaps.ranked,
-				beatmaps.ranked_status_freezed, beatmaps.latest_update
-			FROM scores
-			INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
-			INNER JOIN users ON users.id = scores.userid
-			WHERE scores.completed = 3
-			AND beatmaps.ranked IN (2, 3)
-			AND %s
-			AND %s
-			ORDER BY scores.pp DESC, scores.score DESC %s
-		)
-		SELECT * FROM the_scores WHERE play_mode = ?`,
+			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od,
+			beatmaps.max_combo AS beatmap_max_combo, beatmaps.hit_length, beatmaps.ranked,
+			beatmaps.ranked_status_freezed, beatmaps.latest_update
+		FROM scores
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
+		INNER JOIN users ON users.id = scores.userid
+		WHERE scores.completed = 3
+		AND beatmaps.ranked IN (2, 3)
+		AND %s
+		AND %s
+		AND play_mode = ?
+		ORDER BY scores.pp DESC, scores.score DESC %s`,
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
 	if rx == 1 {
@@ -84,28 +82,26 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 	rx := common.Int(md.Query("rx"))
 
 	query := fmt.Sprintf(`
-		WITH the_scores AS (
-			SELECT
-				scores.id, scores.beatmap_md5, scores.score,
-				scores.max_combo, scores.full_combo, scores.mods,
-				scores.300_count, scores.100_count, scores.50_count,
-				scores.gekis_count, scores.katus_count, scores.misses_count,
-				scores.time, scores.play_mode, scores.accuracy, scores.pp,
-				scores.completed, scores.pinned,
+		SELECT
+			scores.id, scores.beatmap_md5, scores.score,
+			scores.max_combo, scores.full_combo, scores.mods,
+			scores.300_count, scores.100_count, scores.50_count,
+			scores.gekis_count, scores.katus_count, scores.misses_count,
+			scores.time, scores.play_mode, scores.accuracy, scores.pp,
+			scores.completed, scores.pinned,
 
-				beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
-				beatmaps.song_name, beatmaps.ar, beatmaps.od,
-				beatmaps.max_combo AS beatmap_max_combo, beatmaps.hit_length, beatmaps.ranked,
-				beatmaps.ranked_status_freezed, beatmaps.latest_update
-			FROM scores
-			INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
-			INNER JOIN users ON users.id = scores.userid
-			AND %s
-			AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)
-			AND %s
-			ORDER BY scores.id DESC %s
-		)
-		SELECT * FROM the_scores WHERE play_mode = ?`,
+			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od,
+			beatmaps.max_combo AS beatmap_max_combo, beatmaps.hit_length, beatmaps.ranked,
+			beatmaps.ranked_status_freezed, beatmaps.latest_update
+		FROM scores
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
+		INNER JOIN users ON users.id = scores.userid
+		AND %s
+		AND time > UNIX_TIMESTAMP(NOW() - INTERVAL 24 HOUR)
+		AND %s
+		AND play_mode = ?
+		ORDER BY scores.id DESC %s`,
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
 	if rx == 1 {
@@ -130,28 +126,26 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 	rx := common.Int(md.Query("rx"))
 
 	query := fmt.Sprintf(`
-		WITH the_scores AS (
-			SELECT
-				scores.id, scores.beatmap_md5, scores.score,
-				scores.max_combo, scores.full_combo, scores.mods,
-				scores.300_count, scores.100_count, scores.50_count,
-				scores.gekis_count, scores.katus_count, scores.misses_count,
-				scores.time, scores.play_mode, scores.accuracy, scores.pp,
-				scores.completed, scores.pinned,
+		SELECT
+			scores.id, scores.beatmap_md5, scores.score,
+			scores.max_combo, scores.full_combo, scores.mods,
+			scores.300_count, scores.100_count, scores.50_count,
+			scores.gekis_count, scores.katus_count, scores.misses_count,
+			scores.time, scores.play_mode, scores.accuracy, scores.pp,
+			scores.completed, scores.pinned,
 
-				beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
-				beatmaps.song_name, beatmaps.ar, beatmaps.od,
-				beatmaps.max_combo AS beatmap_max_combo, beatmaps.hit_length, beatmaps.ranked,
-				beatmaps.ranked_status_freezed, beatmaps.latest_update
-			FROM scores
-			INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
-			INNER JOIN users ON users.id = scores.userid
-			AND %s
-			AND pinned = 1
-			AND %s
-			ORDER BY scores.pp DESC %s
-		)
-		SELECT * FROM the_scores WHERE play_mode = ?`,
+			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
+			beatmaps.song_name, beatmaps.ar, beatmaps.od,
+			beatmaps.max_combo AS beatmap_max_combo, beatmaps.hit_length, beatmaps.ranked,
+			beatmaps.ranked_status_freezed, beatmaps.latest_update
+		FROM scores
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
+		INNER JOIN users ON users.id = scores.userid
+		AND %s
+		AND pinned = 1
+		AND %s
+		AND play_mode = ?
+		ORDER BY scores.pp DESC %s`,
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
 	if rx == 1 {

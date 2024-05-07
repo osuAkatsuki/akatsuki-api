@@ -257,7 +257,6 @@ func unpinScore(md common.MethodData, id int64, relax int, userId int) common.Co
 }
 
 func scoresPuts(md common.MethodData, query string, params ...interface{}) common.CodeMessager {
-	fmt.Printf("score query: %s\n", query)
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)
@@ -305,7 +304,6 @@ func scoresPuts(md common.MethodData, query string, params ...interface{}) commo
 }
 
 func relaxPuts(md common.MethodData, query string, params ...interface{}) common.CodeMessager {
-	fmt.Printf("score query: %s\n", query)
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)
@@ -353,7 +351,6 @@ func relaxPuts(md common.MethodData, query string, params ...interface{}) common
 }
 
 func autoPuts(md common.MethodData, query string, params ...interface{}) common.CodeMessager {
-	fmt.Printf("score query: %s\n", query)
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)

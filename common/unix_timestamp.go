@@ -10,6 +10,11 @@ import (
 // unix timestamp in the database into a native time.Time.
 type UnixTimestamp time.Time
 
+func (u *UnixTimestamp) After(afterTime time.Time) bool {
+	unixTime := time.Time(*u)
+	return unixTime.After(afterTime)
+}
+
 // Scan decodes src into an unix timestamp.
 func (u *UnixTimestamp) Scan(src interface{}) error {
 	if u == nil {

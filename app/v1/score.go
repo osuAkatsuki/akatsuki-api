@@ -238,7 +238,7 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 	}
 
 	queryDb := vnQuery
-	mc := genModeClause(md)
+	mc := genModeClause(md, true)
 	sort := common.Sort(md, common.SortConfiguration{
 		Default: "scores.pp DESC, scores.score DESC",
 		Table:   "scores",
@@ -335,12 +335,16 @@ func getModeInt(m string) int {
 	}
 }
 
-func genModeClause(md common.MethodData) string {
+func genModeClause(md common.MethodData, includeAnd bool) string {
 	var modeClause string
 	if md.Query("mode") != "" {
 		m, err := strconv.Atoi(md.Query("mode"))
 		if err == nil && m >= 0 && m <= 3 {
-			modeClause = fmt.Sprintf("AND scores.play_mode = '%d'", m)
+			modeClause = fmt.Sprintf("scores.play_mode = '%d'", m)
+
+			if includeAnd {
+				modeClause = "AND " + modeClause
+			}
 		}
 	}
 	return modeClause

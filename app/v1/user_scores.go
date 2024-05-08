@@ -108,7 +108,23 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 		query = strings.Replace(query, "scores", "scores_ap", -1)
 	}
 
-	return scoresPuts(md, query, param, mode)
+	response := scoresPuts(md, query, param, mode)
+
+	if response.GetCode() != 200 {
+		return response
+	}
+
+	scoresResponse := response.(userScoresResponse)
+
+	scores := []userScore{}
+	for i := range scoresResponse.Scores {
+		if scoresResponse.Scores[i].Time.After(time.Now().Add(-24 * time.Hour)) {
+			scores = append(scores, scoresResponse.Scores[i])
+		}
+	}
+
+	scoresResponse.Scores = scores
+	return scoresResponse
 }
 
 // UserScoresPinnedGET retrieves an user's pinned scores.
@@ -150,23 +166,7 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 		query = strings.Replace(query, "scores", "scores_ap", -1)
 	}
 
-	response := scoresPuts(md, query, param, mode)
-
-	if response.GetCode() != 200 {
-		return response
-	}
-
-	scoresResponse := response.(userScoresResponse)
-
-	scores := []userScore{}
-	for i := range scoresResponse.Scores {
-		if scoresResponse.Scores[i].Time.After(time.Now().Add(-24 * time.Hour)) {
-			scores = append(scores, scoresResponse.Scores[i])
-		}
-	}
-
-	scoresResponse.Scores = scores
-	return scoresResponse
+	return scoresPuts(md, query, param, mode)
 }
 
 func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {

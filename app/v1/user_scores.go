@@ -63,13 +63,11 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 
 	if rx == 1 {
 		query = strings.Replace(query, "scores", "scores_relax", -1)
-		return relaxPuts(md, query, param, mode)
 	} else if rx == 2 {
 		query = strings.Replace(query, "scores", "scores_ap", -1)
-		return autoPuts(md, query, param, mode)
-	} else {
-		return scoresPuts(md, query, param, mode)
 	}
+
+	return scoresPuts(md, query, param, mode)
 }
 
 // UserScoresRecentGET retrieves an user's latest scores.
@@ -106,13 +104,11 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 
 	if rx == 1 {
 		query = strings.Replace(query, "scores", "scores_relax", -1)
-		return relaxPuts(md, query, param, mode)
 	} else if rx == 2 {
 		query = strings.Replace(query, "scores", "scores_ap", -1)
-		return autoPuts(md, query, param, mode)
-	} else {
-		return scoresPuts(md, query, param, mode)
 	}
+
+	return scoresPuts(md, query, param, mode)
 }
 
 // UserScoresPinnedGET retrieves an user's pinned scores.
@@ -148,16 +144,13 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 		ORDER BY scores.pp DESC %s`,
 		wc, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100))
 
-	var response common.CodeMessager
 	if rx == 1 {
 		query = strings.Replace(query, "scores", "scores_relax", -1)
-		response = relaxPuts(md, query, param, mode)
 	} else if rx == 2 {
 		query = strings.Replace(query, "scores", "scores_ap", -1)
-		response = autoPuts(md, query, param, mode)
-	} else {
-		response = scoresPuts(md, query, param, mode)
 	}
+
+	response := scoresPuts(md, query, param, mode)
 
 	if response.GetCode() != 200 {
 		return response
@@ -274,100 +267,6 @@ func unpinScore(md common.MethodData, id int64, relax int, userId int) common.Co
 }
 
 func scoresPuts(md common.MethodData, query string, params ...interface{}) common.CodeMessager {
-	rows, err := md.DB.Query(query, params...)
-	if err != nil {
-		md.Err(err)
-		return Err500
-	}
-	var scores []userScore
-	for rows.Next() {
-		var (
-			us userScore
-			b  beatmap
-		)
-		err = rows.Scan(
-			&us.ID, &us.BeatmapMD5, &us.Score.Score,
-			&us.MaxCombo, &us.FullCombo, &us.Mods,
-			&us.Count300, &us.Count100, &us.Count50,
-			&us.CountGeki, &us.CountKatu, &us.CountMiss,
-			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
-			&us.Completed, &us.Pinned,
-
-			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD,
-			&b.MaxCombo, &b.HitLength, &b.Ranked,
-			&b.RankedStatusFrozen, &b.LatestUpdate,
-		)
-		if err != nil {
-			md.Err(err)
-			return Err500
-		}
-		us.Beatmap = b
-		us.Rank = strings.ToUpper(getrank.GetRank(
-			osuapi.Mode(us.PlayMode),
-			osuapi.Mods(us.Mods),
-			us.Accuracy,
-			us.Count300,
-			us.Count100,
-			us.Count50,
-			us.CountMiss,
-		))
-		scores = append(scores, us)
-	}
-	r := userScoresResponse{}
-	r.Code = 200
-	r.Scores = scores
-	return r
-}
-
-func relaxPuts(md common.MethodData, query string, params ...interface{}) common.CodeMessager {
-	rows, err := md.DB.Query(query, params...)
-	if err != nil {
-		md.Err(err)
-		return Err500
-	}
-	var scores []userScore
-	for rows.Next() {
-		var (
-			us userScore
-			b  beatmap
-		)
-		err = rows.Scan(
-			&us.ID, &us.BeatmapMD5, &us.Score.Score,
-			&us.MaxCombo, &us.FullCombo, &us.Mods,
-			&us.Count300, &us.Count100, &us.Count50,
-			&us.CountGeki, &us.CountKatu, &us.CountMiss,
-			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
-			&us.Completed, &us.Pinned,
-
-			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD,
-			&b.MaxCombo, &b.HitLength, &b.Ranked,
-			&b.RankedStatusFrozen, &b.LatestUpdate,
-		)
-		if err != nil {
-			md.Err(err)
-			return Err500
-		}
-		us.Beatmap = b
-		us.Rank = strings.ToUpper(getrank.GetRank(
-			osuapi.Mode(us.PlayMode),
-			osuapi.Mods(us.Mods),
-			us.Accuracy,
-			us.Count300,
-			us.Count100,
-			us.Count50,
-			us.CountMiss,
-		))
-		scores = append(scores, us)
-	}
-	r := userScoresResponse{}
-	r.Code = 200
-	r.Scores = scores
-	return r
-}
-
-func autoPuts(md common.MethodData, query string, params ...interface{}) common.CodeMessager {
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)

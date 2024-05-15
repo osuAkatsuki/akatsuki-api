@@ -351,7 +351,7 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 
 	err = md.DB.Get(
 		&r.CurrentGameId,
-		`SELECT id FROM match_games WHERE match_id = ? AND end_time IS NULL ORDER BY id DESC LIMIT 1`,
+		`SELECT game_id FROM match_events WHERE match_id = ? ORDER BY id DESC LIMIT 1`,
 		r.Match.Id,
 	)
 

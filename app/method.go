@@ -66,12 +66,16 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 	}
 	if missingPrivileges != 0 {
 		c.SetStatusCode(401)
-		mkjson(c, common.SimpleResponse(401, "Unauthorized."))
+		mkjson(c, common.SimpleResponse(401, "You don't have the privilege(s): "+common.Privileges(missingPrivileges).String()+"."))
 		return
 	}
 
 	resp := f(md)
-	c.SetStatusCode(resp.GetCode())
+	if md.HasQuery("pls200") {
+		c.SetStatusCode(200)
+	} else {
+		c.SetStatusCode(resp.GetCode())
+	}
 
 	if md.HasQuery("callback") {
 		c.Response.Header.Add("Content-Type", "application/javascript; charset=utf-8")
@@ -91,7 +95,7 @@ func mkjson(c *fasthttp.RequestCtx, data interface{}) {
 	exported, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		slog.Error("Error marshalling JSON", "error", err.Error())
-		exported = []byte(`{ "code": 500, "message": "An unexpected error occurred." }`)
+		exported = []byte(`{ "code": 500, "message": "something has gone really really really really really really wrong." }`)
 	}
 	cb := string(c.URI().QueryArgs().Peek("callback"))
 	willcb := cb != "" &&

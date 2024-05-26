@@ -29,7 +29,9 @@ type Settings struct {
 	APP_PORT   int
 	APP_DOMAIN string
 
-	HANAYO_KEY string
+	HANAYO_KEY                string
+	BEATMAP_REQUESTS_PER_USER int
+	RANK_QUEUE_SIZE           int
 
 	OSU_API_KEY string
 
@@ -57,6 +59,8 @@ func LoadSettings() Settings {
 	settings.APP_DOMAIN = getEnv("APP_DOMAIN")
 
 	settings.HANAYO_KEY = getEnv("HANAYO_KEY")
+	settings.BEATMAP_REQUESTS_PER_USER = strToInt(getEnv("BEATMAP_REQUESTS_PER_USER"))
+	settings.RANK_QUEUE_SIZE = strToInt(getEnv("RANK_QUEUE_SIZE"))
 
 	settings.OSU_API_KEY = getEnv("OSU_API_KEY")
 

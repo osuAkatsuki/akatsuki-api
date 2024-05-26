@@ -24,7 +24,7 @@ func LoadAchievementsEvery(db *sqlx.DB, d time.Duration) {
 	for {
 		achievs = nil
 		err := db.Select(&achievs,
-			"SELECT id, name, description, icon FROM achievements ORDER BY id ASC")
+			"SELECT id, name, desc AS description, file AS icon FROM less_achievements ORDER BY id ASC")
 		if err != nil {
 			slog.Error("LoadAchievements error", "error", err.Error())
 			common.GenericError(err)

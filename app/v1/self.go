@@ -57,7 +57,8 @@ type userSettingsData struct {
 		singleBadge
 		Show *bool `json:"show"`
 	} `json:"custom_badge"`
-	PlayStyle *int `json:"play_style"`
+	PlayStyle             *int  `json:"play_style"`
+	VanillaPPLeaderboards *bool `json:"vanilla_pp_leaderboards"`
 }
 
 // UsersSelfSettingsPOST allows to modify information about the current user.
@@ -86,7 +87,8 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 		Add("custom_badge_name", d.CustomBadge.Name).
 		Add("custom_badge_icon", d.CustomBadge.Icon).
 		Add("show_custom_badge", d.CustomBadge.Show).
-		Add("play_style", d.PlayStyle)
+		Add("play_style", d.PlayStyle).
+		Add("vanilla_pp_leaderboards", d.VanillaPPLeaderboards)
 	_, err := md.DB.Exec("UPDATE users SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
 	if err != nil {
 		md.Err(err)
@@ -114,14 +116,14 @@ SELECT
 	email, username_aka, favourite_mode,
 	show_custom_badge, custom_badge_icon,
 	custom_badge_name, can_custom_badge,
-	play_style
+	play_style, vanilla_pp_leaderboards
 FROM users
 WHERE id = ?`, md.ID()).Scan(
 		&r.ID, &r.Username,
 		&r.Email, &r.UsernameAKA, &r.FavouriteMode,
 		&r.CustomBadge.Show, &r.CustomBadge.Icon,
 		&r.CustomBadge.Name, &ccb,
-		&r.PlayStyle,
+		&r.PlayStyle, &r.VanillaPPLeaderboards,
 	)
 	if err != nil {
 		md.Err(err)

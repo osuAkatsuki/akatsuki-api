@@ -93,7 +93,7 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 			beatmaps.song_name, beatmaps.ar, beatmaps.od,
 			beatmaps.max_combo AS beatmap_max_combo, beatmaps.hit_length, beatmaps.ranked,
 			beatmaps.ranked_status_freezed, beatmaps.latest_update
-		FROM scores
+		FROM scores USE INDEX (scores_idx_userid_playmode_id_desc)
 		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = scores.beatmap_md5
 		INNER JOIN users ON users.id = scores.userid
 		AND %s

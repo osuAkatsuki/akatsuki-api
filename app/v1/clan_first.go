@@ -12,7 +12,7 @@ func ClansFirstPlaceRankingGET(md common.MethodData) common.CodeMessager {
 
 	rx := common.Int(md.Query("rx"))
 	rows, err := md.DB.Query(`
-		SELECT /*+ MAX_EXECUTION_TIME(15000) */ COUNT(*) AS count, clans.id, clans.tag, clans.name
+		SELECT COUNT(*) AS count, clans.id, clans.tag, clans.name
 		FROM scores_first
 		JOIN users ON users.id = userid
 		JOIN clans ON clans.id = users.clan_id

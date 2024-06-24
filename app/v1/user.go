@@ -261,7 +261,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			user_stats.replays_watched, user_stats.total_hits,
 			user_stats.avg_accuracy, user_stats.pp, user_stats.max_combo
 		FROM user_stats
-		LEFT JOIN users ON users.id = user_stats.user_id
+		INNER JOIN users ON users.id = user_stats.user_id
 		WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stats.mode = ?
 `
 	for _, relaxMode := range []int{0, 1, 2} {
@@ -386,7 +386,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	r.Followers = follower
 
 	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon, b.colour FROM user_badges ub "+
-		"LEFT JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
+		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}
@@ -408,7 +408,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	}
 
 	rows, err = md.DB.Query("SELECT tb.id, tb.name, tb.icon FROM user_tourmnt_badges tub "+
-		"LEFT JOIN tourmnt_badges tb ON tub.badge = tb.id WHERE user = ?", r.ID)
+		"INNER JOIN tourmnt_badges tb ON tub.badge = tb.id WHERE user = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}

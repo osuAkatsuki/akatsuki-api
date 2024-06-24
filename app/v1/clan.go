@@ -97,7 +97,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	    SUM(total_score), SUM(playcount),
 		AVG(avg_accuracy), clans.name, clans.id
 		FROM user_stats
-		LEFT JOIN users ON users.id = user_stats.user_id
+		INNER JOIN users ON users.id = user_stats.user_id
 		INNER JOIN clans ON clans.id = users.clan_id
 		WHERE users.clan_id <> 0
 		AND user_stats.mode = ?
@@ -168,7 +168,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	q := `SELECT SUM(pp) / (COUNT(users.clan_id) + 1) AS pp, SUM(ranked_score),
 		SUM(total_score), SUM(playcount), SUM(replays_watched),
 		AVG(avg_accuracy), SUM(total_hits)
-		FROM user_stats LEFT JOIN users ON users.id = user_stats.user_id
+		FROM user_stats INNER JOIN users ON users.id = user_stats.user_id
 		WHERE users.clan_id = ? AND user_stats.mode = ? AND users.privileges & 1`
 	var pp float64
 	err = md.DB.QueryRow(q, id, mode+(relax*4)).Scan(
@@ -187,7 +187,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 		SELECT COUNT(pp)
 		FROM (
 			SELECT SUM(pp) / (COUNT(clan_id) + 1) AS pp
-			FROM user_stats LEFT JOIN users ON users.id = user_stats.user_id
+			FROM user_stats INNER JOIN users ON users.id = user_stats.user_id
 			WHERE clan_id <> 0
 			AND user_stats.mode = ?
 			AND (users.privileges & 3) >= 3

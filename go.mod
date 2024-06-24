@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/buaazp/fasthttprouter v0.1.1
-	github.com/getsentry/raven-go v0.2.0
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/joho/godotenv v1.5.1
@@ -23,13 +22,11 @@ require (
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/certifi/gocertifi v0.0.0-20210507211836-431795d63e8d // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.13.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	golang.org/x/net v0.10.0 // indirect

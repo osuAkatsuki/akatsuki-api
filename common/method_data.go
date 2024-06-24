@@ -73,7 +73,7 @@ func GenericError(err error) {
 func _err(err error, tags map[string]string, c *fasthttp.RequestCtx) {
 	_, file, no, ok := runtime.Caller(2)
 	if ok {
-		slog.ErrorContext(c, "An error occurred", "filename", file, "line", no, "error", err.Error())
+		slog.ErrorContext(c, "An error occurred", "filename", file, "test", "cmyui", "line", no, "error", err.Error())
 	} else {
 		slog.ErrorContext(c, "An error occurred", "error", err.Error())
 	}

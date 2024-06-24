@@ -5,8 +5,9 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"fmt"
-	"golang.org/x/exp/slog"
 	"time"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
@@ -23,7 +24,7 @@ func GetTokenFull(token string, db *sqlx.DB) (common.Token, bool) {
 	err := db.QueryRow(`SELECT
 	t.id, t.user, t.privileges, t.private, u.privileges
 FROM tokens t
-LEFT JOIN users u ON u.id = t.user
+INNER JOIN users u ON u.id = t.user
 WHERE token = ? LIMIT 1`,
 		fmt.Sprintf("%x", md5.Sum([]byte(token)))).
 		Scan(

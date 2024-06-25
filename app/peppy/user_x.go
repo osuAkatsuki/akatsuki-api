@@ -85,8 +85,8 @@ func getUserX(c *fasthttp.RequestCtx, db *sqlx.DB, orderBy string, limit int) {
 			%[1]s.full_combo, %[1]s.mods, users.id, %[1]s.time,
 			%[1]s.pp, %[1]s.accuracy
 		FROM %[1]s
-		LEFT JOIN beatmaps ON beatmaps.beatmap_md5 = %[1]s.beatmap_md5
-		LEFT JOIN users ON %[1]s.userid = users.id
+		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = %[1]s.beatmap_md5
+		INNER JOIN users ON %[1]s.userid = users.id
 		WHERE %[2]s AND %[1]s.play_mode = ? AND users.privileges & 1 > 0
 		%[3]s
 		LIMIT %[4]d`, table, whereClause, orderBy, limit,

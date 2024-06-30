@@ -346,6 +346,7 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
+	disbanded := false
 	if clan.Owner == md.ID() {
 		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", clan.ID)
 		if err != nil {
@@ -358,6 +359,7 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 			md.Err(err)
 			return Err500
 		}
+		disbanded = true
 	} else {
 		_, err := md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
 		if err != nil {
@@ -368,7 +370,11 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 
 	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
 
-	return common.SimpleResponse(200, "success")
+	message := "success"
+	if disbanded {
+		message = "disbanded"
+	}
+	return common.SimpleResponse(200, message)
 }
 
 func disbandClan(clanId int, md common.MethodData) error {

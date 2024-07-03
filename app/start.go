@@ -126,6 +126,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/clans/leave", v1.ClanLeavePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/settings", v1.ClanSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/kick", v1.ClanKickPOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/clans/transfer-ownership", v1.ClanTransferOwnershipPOST, common.PrivilegeWrite)
 	}
 
 	// Websocket API

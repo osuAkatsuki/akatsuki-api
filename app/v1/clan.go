@@ -469,6 +469,38 @@ func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 	return r
 }
 
+func ClanTransferOwnershipPOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+
+	var clan int
+	if md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&clan) == sql.ErrNoRows {
+		return common.SimpleResponse(401, "not authorised")
+	}
+
+	u := struct {
+		User int `json:"user"`
+	}{}
+
+	md.Unmarshal(&u)
+	if u.User == 0 {
+		return common.SimpleResponse(400, "bad user id")
+	}
+
+	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND clan_id = ?", u.User, clan).Scan(new(int)) == sql.ErrNoRows {
+		return common.SimpleResponse(403, "user not in clan")
+	}
+
+	_, err := md.DB.Exec("UPDATE clans SET owner = ? WHERE id = ?", u.User, clan)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	return common.SimpleResponse(200, "success")
+}
+
 func ClanKickPOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")

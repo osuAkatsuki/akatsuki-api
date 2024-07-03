@@ -480,19 +480,19 @@ func ClanTransferOwnershipPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	u := struct {
-		User int `json:"user"`
+		NewOwnerUserID int `json:"new_owner_user_id"`
 	}{}
 
 	md.Unmarshal(&u)
-	if u.User == 0 {
+	if u.NewOwnerUserID == 0 {
 		return common.SimpleResponse(400, "bad user id")
 	}
 
-	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND clan_id = ?", u.User, clan).Scan(new(int)) == sql.ErrNoRows {
+	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND clan_id = ?", u.NewOwnerUserID, clan).Scan(new(int)) == sql.ErrNoRows {
 		return common.SimpleResponse(403, "user not in clan")
 	}
 
-	_, err := md.DB.Exec("UPDATE clans SET owner = ? WHERE id = ?", u.User, clan)
+	_, err := md.DB.Exec("UPDATE clans SET owner = ? WHERE id = ?", u.NewOwnerUserID, clan)
 	if err != nil {
 		md.Err(err)
 		return Err500

@@ -474,8 +474,8 @@ func ClanTransferOwnershipPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(401, "not authorised")
 	}
 
-	var clan int
-	if md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&clan) == sql.ErrNoRows {
+	var clan_id int
+	if md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&clan_id) == sql.ErrNoRows {
 		return common.SimpleResponse(401, "not authorised")
 	}
 
@@ -484,15 +484,15 @@ func ClanTransferOwnershipPOST(md common.MethodData) common.CodeMessager {
 	}{}
 
 	md.Unmarshal(&u)
-	if u.NewOwnerUserID == 0 {
+	if u.NewOwnerUserID <= 0 {
 		return common.SimpleResponse(400, "bad user id")
 	}
 
-	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND clan_id = ?", u.NewOwnerUserID, clan).Scan(new(int)) == sql.ErrNoRows {
+	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND clan_id = ?", u.NewOwnerUserID, clan_id).Scan(new(int)) == sql.ErrNoRows {
 		return common.SimpleResponse(403, "user not in clan")
 	}
 
-	_, err := md.DB.Exec("UPDATE clans SET owner = ? WHERE id = ?", u.NewOwnerUserID, clan)
+	_, err := md.DB.Exec("UPDATE clans SET owner = ? WHERE id = ?", u.NewOwnerUserID, clan_id)
 	if err != nil {
 		md.Err(err)
 		return Err500

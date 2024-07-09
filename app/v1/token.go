@@ -85,7 +85,7 @@ func (o *oauthClient) Scan(src interface{}) error {
 	case []byte:
 		s = x
 	default:
-		return errors.New("Can't scan non-string")
+		return errors.New("can't scan non-string")
 	}
 
 	var vals [3]string

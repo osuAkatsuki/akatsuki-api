@@ -115,7 +115,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	for i := 1; rows.Next(); i++ {
 		clan := clanLbData{}
 		var pp float64
-		rows.Scan(&pp, &clan.ChosenMode.RankedScore, &clan.ChosenMode.TotalScore, &clan.ChosenMode.PlayCount, &clan.ChosenMode.Accuracy, &clan.Name, &clan.ID)
+		err = rows.Scan(&pp, &clan.ChosenMode.RankedScore, &clan.ChosenMode.TotalScore, &clan.ChosenMode.PlayCount, &clan.ChosenMode.Accuracy, &clan.Name, &clan.ID)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -133,8 +133,6 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	r.ResponseBase.Code = 200
 	return r
 }
-
-var dbmode = [...]string{"std", "taiko", "ctb", "mania"}
 
 func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	if md.Query("id") == "" {
@@ -232,13 +230,6 @@ func ResolveInviteGET(md common.MethodData) common.CodeMessager {
 	return r
 }
 
-func resolveInvite(c string, md *common.MethodData) (id int, err error) {
-	row := md.DB.QueryRow("SELECT id FROM clans where invite = ?", c)
-	err = row.Scan(&id)
-
-	return
-}
-
 func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	if md.ID() == 0 {
 		return common.SimpleResponse(401, "not authorised")
@@ -272,7 +263,8 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 	var hasInvite bool
 
 	if u.Invite != "" {
-		u.ID, err = resolveInvite(u.Invite, &md)
+		row := md.DB.QueryRow("SELECT id FROM clans where invite = ?", u.Invite)
+		err = row.Scan(&u.ID)
 
 		if err != nil {
 			if err == sql.ErrNoRows {
@@ -285,45 +277,65 @@ func ClanJoinPOST(md common.MethodData) common.CodeMessager {
 		hasInvite = true
 	}
 
-	if u.ID > 0 {
-		c, err := getClan(u.ID, md)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return common.SimpleResponse(404, "clan not found")
-			}
-			md.Err(err)
-			return Err500
-		}
-
-		if c.Status == 0 || (c.Status == 2 && !hasInvite) {
-			return common.SimpleResponse(403, "closed")
-		}
-
-		var count int
-		err = md.DB.QueryRow("SELECT COUNT(id) FROM users WHERE clan_id = ?", c.ID).Scan(&count)
-		if err != nil {
-			md.Err(err)
-			return Err500
-		}
-
-		if count >= clanMemberLimit {
-			return common.SimpleResponse(403, "clan is full")
-		}
-
-		if c.Status == 3 {
-			_, err = md.DB.Exec("INSERT INTO clan_requests VALUES (?, ?, DEFAULT) ON DUPLICATE KEY UPDATE time = NOW()", c.ID, md.ID())
-			return common.SimpleResponse(200, "join request sent")
-		}
-		_, err = md.DB.Exec("UPDATE users SET clan_id = ? WHERE id = ?", c.ID, md.ID())
-		r.Clan = c
-		r.Code = 200
-
-		md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
-
-		return r
-	} else {
+	if u.ID <= 0 {
 		return common.SimpleResponse(400, "invalid id parameter")
 	}
+
+	c, err := getClan(u.ID, md)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(404, "clan not found")
+		}
+		md.Err(err)
+		return Err500
+	}
+
+	if c.Status == 0 || (c.Status == 2 && !hasInvite) {
+		return common.SimpleResponse(403, "closed")
+	}
+
+	var count int
+	err = md.DB.QueryRow("SELECT COUNT(id) FROM users WHERE clan_id = ?", c.ID).Scan(&count)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	if count >= clanMemberLimit {
+		return common.SimpleResponse(403, "clan is full")
+	}
+
+	tx, err := md.DB.Begin()
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	if c.Status == 3 {
+		_, err = tx.Exec("INSERT INTO clan_requests VALUES (?, ?, DEFAULT) ON DUPLICATE KEY UPDATE time = NOW()", c.ID, md.ID())
+		if err != nil {
+			tx.Rollback()
+			md.Err(err)
+			return Err500
+		}
+
+		return common.SimpleResponse(200, "join request sent")
+	}
+	_, err = tx.Exec("UPDATE users SET clan_id = ? WHERE id = ?", c.ID, md.ID())
+	if err != nil {
+		tx.Rollback()
+		md.Err(err)
+		return Err500
+	}
+
+	tx.Commit()
+
+	r.Clan = c
+	r.Code = 200
+
+	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
+
+	return r
 }
 
 func ClanLeavePOST(md common.MethodData) common.CodeMessager {
@@ -346,27 +358,38 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
+	tx, err := md.DB.Begin()
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
 	disbanded := false
 	if clan.Owner == md.ID() {
-		_, err = md.DB.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", clan.ID)
+		_, err = tx.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", clan.ID)
 		if err != nil {
+			tx.Rollback()
 			md.Err(err)
 			return Err500
 		}
 
 		err := disbandClan(clan.ID, md)
 		if err != nil {
+			tx.Rollback()
 			md.Err(err)
 			return Err500
 		}
 		disbanded = true
 	} else {
-		_, err := md.DB.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
+		_, err := tx.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
 		if err != nil {
+			tx.Rollback()
 			md.Err(err)
 			return Err500
 		}
 	}
+
+	tx.Commit()
 
 	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
 
@@ -596,14 +619,4 @@ func getClan(id int, md common.MethodData) (Clan, error) {
 	err := md.DB.QueryRow("SELECT id, name, description, tag, icon, owner, status FROM clans WHERE id = ?", id).Scan(&c.ID, &c.Name, &c.Description, &c.Tag, &c.Icon, &c.Owner, &c.Status)
 
 	return c, err
-}
-
-func getUserData(id int, md common.MethodData) (userData, error) {
-	u := userData{}
-	if id == 0 {
-		return u, nil
-	}
-	err := md.DB.QueryRow("SELECT id, username, register_datetime, privileges, latest_activity, username_aka, country FROM users WHERE id = ?", id).Scan(&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity, &u.UsernameAKA, &u.Country)
-
-	return u, err
 }

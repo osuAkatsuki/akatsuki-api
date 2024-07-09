@@ -90,14 +90,11 @@ AND privileges & 1
 }
 
 func friendPuts(md common.MethodData, row *sql.Rows) (user friendData) {
-	var err error
-
-	err = row.Scan(&user.ID, &user.Username, &user.RegisteredOn, &user.Privileges, &user.LatestActivity, &user.UsernameAKA, &user.Country)
+	err := row.Scan(&user.ID, &user.Username, &user.RegisteredOn, &user.Privileges, &user.LatestActivity, &user.UsernameAKA, &user.Country)
 	if err != nil {
 		md.Err(err)
 		return
 	}
-
 	return
 }
 

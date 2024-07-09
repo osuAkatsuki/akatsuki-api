@@ -97,7 +97,7 @@ func ClanLeaderboardGET(md common.MethodData) common.CodeMessager {
 	    SUM(total_score), SUM(playcount),
 		AVG(avg_accuracy), clans.name, clans.id
 		FROM user_stats
-		LEFT JOIN users ON users.id = user_stats.user_id
+		INNER JOIN users ON users.id = user_stats.user_id
 		INNER JOIN clans ON clans.id = users.clan_id
 		WHERE users.clan_id <> 0
 		AND user_stats.mode = ?
@@ -166,7 +166,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 	q := `SELECT SUM(pp) / (COUNT(users.clan_id) + 1) AS pp, SUM(ranked_score),
 		SUM(total_score), SUM(playcount), SUM(replays_watched),
 		AVG(avg_accuracy), SUM(total_hits)
-		FROM user_stats LEFT JOIN users ON users.id = user_stats.user_id
+		FROM user_stats INNER JOIN users ON users.id = user_stats.user_id
 		WHERE users.clan_id = ? AND user_stats.mode = ? AND users.privileges & 1`
 	var pp float64
 	err = md.DB.QueryRow(q, id, mode+(relax*4)).Scan(
@@ -185,7 +185,7 @@ func ClanStatsGET(md common.MethodData) common.CodeMessager {
 		SELECT COUNT(pp)
 		FROM (
 			SELECT SUM(pp) / (COUNT(clan_id) + 1) AS pp
-			FROM user_stats LEFT JOIN users ON users.id = user_stats.user_id
+			FROM user_stats INNER JOIN users ON users.id = user_stats.user_id
 			WHERE clan_id <> 0
 			AND user_stats.mode = ?
 			AND (users.privileges & 3) >= 3
@@ -364,6 +364,7 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
+	disbanded := false
 	if clan.Owner == md.ID() {
 		_, err = tx.Exec("UPDATE users SET clan_id = 0 WHERE clan_id = ?", clan.ID)
 		if err != nil {
@@ -378,6 +379,7 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 			md.Err(err)
 			return Err500
 		}
+		disbanded = true
 	} else {
 		_, err := tx.Exec("UPDATE users SET clan_id = 0 WHERE id = ?", md.ID())
 		if err != nil {
@@ -391,7 +393,11 @@ func ClanLeavePOST(md common.MethodData) common.CodeMessager {
 
 	md.R.Publish("api:update_user_clan", strconv.Itoa(md.ID()))
 
-	return common.SimpleResponse(200, "success")
+	message := "success"
+	if disbanded {
+		message = "disbanded"
+	}
+	return common.SimpleResponse(200, message)
 }
 
 func disbandClan(clanId int, md common.MethodData) error {
@@ -484,6 +490,38 @@ func ClanGenerateInvitePOST(md common.MethodData) common.CodeMessager {
 	}{Invite: invite}
 	r.Code = 200
 	return r
+}
+
+func ClanTransferOwnershipPOST(md common.MethodData) common.CodeMessager {
+	if md.ID() == 0 {
+		return common.SimpleResponse(401, "not authorised")
+	}
+
+	var clan_id int
+	if md.DB.QueryRow("SELECT id FROM clans WHERE owner = ?", md.ID()).Scan(&clan_id) == sql.ErrNoRows {
+		return common.SimpleResponse(401, "not authorised")
+	}
+
+	u := struct {
+		NewOwnerUserID int `json:"new_owner_user_id"`
+	}{}
+
+	md.Unmarshal(&u)
+	if u.NewOwnerUserID <= 0 {
+		return common.SimpleResponse(400, "bad user id")
+	}
+
+	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND clan_id = ?", u.NewOwnerUserID, clan_id).Scan(new(int)) == sql.ErrNoRows {
+		return common.SimpleResponse(403, "user not in clan")
+	}
+
+	_, err := md.DB.Exec("UPDATE clans SET owner = ? WHERE id = ?", u.NewOwnerUserID, clan_id)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	return common.SimpleResponse(200, "success")
 }
 
 func ClanKickPOST(md common.MethodData) common.CodeMessager {

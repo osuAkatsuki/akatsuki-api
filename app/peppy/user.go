@@ -56,7 +56,7 @@ func GetUser(c *fasthttp.RequestCtx, db *sqlx.DB) {
 			user_stats.playcount, user_stats.ranked_score, user_stats.total_score,
 			user_stats.pp, user_stats.avg_accuracy
 		FROM users
-		LEFT JOIN user_stats ON user_stats.user_id = users.id
+		INNER JOIN user_stats ON user_stats.user_id = users.id
 		%[1]s
 		LIMIT 1`,
 		whereClause,

@@ -445,7 +445,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	if !clanNameRegex.MatchString(u.Name) {
 		return common.SimpleResponse(400, "Your clans name must contain alphanumerical characters, spaces, or any of _[]-.")
 	} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE name = ? AND id != ?", u.Name, c.ID).Scan(new(int)) != sql.ErrNoRows {
-		return common.SimpleResponse(403, "Another Clan has already taken this Name")
+		return common.SimpleResponse(403, "Another clan has already taken this name")
 	}
 	
 	tagRunes := []rune(u.Tag)

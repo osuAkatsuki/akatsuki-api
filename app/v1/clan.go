@@ -30,6 +30,8 @@ const (
 
 const clanMemberLimit = 25
 
+var clanNameRegex = regexp.MustCompile(`^[A-Za-z0-9 '_\[\]-]{2,15}$`)
+
 type SingleClanResponse struct {
 	common.ResponseBase
 	Clan `json:"clan"`
@@ -422,14 +424,16 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 
 	u := struct {
 		Tag         string `json:"tag,omitempty"`
+		Name        string `json:"name,omitempty"`
 		Description string `json:"desc,omitempty"`
 		// Icon        string `json:"icon,omitempty"`
-		Background string `json:"bg,omitempty"`
-		Status     int    `json:"status"`
+		Background  string `json:"bg,omitempty"`
+		Status      int    `json:"status"`
 	}{}
 
 	md.Unmarshal(&u)
 	u.Tag = strings.TrimSpace(u.Tag)
+	u.Name = strings.TrimSpace(u.Name)
 
 	// TODO: this should probably be an uploaded image to be safer..
 	/* if u.Icon != "" {
@@ -438,14 +442,20 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 			return common.SimpleResponse(200, "invalid icon url")
 		}
 	} */
-	rss := []rune(u.Tag)
-	if len(rss) > 6 || len(rss) < 1 {
+	if !clanNameRegex.MatchString(u.Name) {
+		return common.SimpleResponse(400, "Your clans name must contain alphanumerical characters, spaces, or any of _[]-.")
+	} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE name = ? AND id != ?", u.Name, c.ID).Scan(new(int)) != sql.ErrNoRows {
+		return common.SimpleResponse(403, "Another clan has already taken this name")
+	}
+	
+	tagRunes := []rune(u.Tag)
+	if len(tagRunes) > 6 || len(tagRunes) < 1 {
 		return common.SimpleResponse(400, "The given tag is too short or too long")
 	} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
 		return common.SimpleResponse(403, "Another Clan has already taken this Tag")
 	}
 
-	_, err = md.DB.Exec("UPDATE clans SET tag = ?, description = ?, background = ?, status = ? WHERE id = ?", u.Tag, u.Description, u.Background, u.Status, c.ID)
+	_, err = md.DB.Exec("UPDATE clans SET name = ?, tag = ?, description = ?, background = ?, status = ? WHERE id = ?", u.Name, u.Tag, u.Description, u.Background, u.Status, c.ID)
 
 	if err != nil {
 		md.Err(err)

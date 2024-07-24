@@ -44,7 +44,7 @@ func UserScoresBestGET(md common.MethodData) common.CodeMessager {
 			scores.300_count, scores.100_count, scores.50_count,
 			scores.gekis_count, scores.katus_count, scores.misses_count,
 			scores.time, scores.play_mode, scores.accuracy, scores.pp,
-			scores.completed, scores.pinned,
+			scores.completed, scores.pinned, scores.userid,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
 			beatmaps.song_name, beatmaps.ar, beatmaps.od,
@@ -87,7 +87,7 @@ func UserScoresRecentGET(md common.MethodData) common.CodeMessager {
 			scores.300_count, scores.100_count, scores.50_count,
 			scores.gekis_count, scores.katus_count, scores.misses_count,
 			scores.time, scores.play_mode, scores.accuracy, scores.pp,
-			scores.completed, scores.pinned,
+			scores.completed, scores.pinned, scores.userid,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
 			beatmaps.song_name, beatmaps.ar, beatmaps.od,
@@ -144,7 +144,7 @@ func UserScoresPinnedGET(md common.MethodData) common.CodeMessager {
 			scores.300_count, scores.100_count, scores.50_count,
 			scores.gekis_count, scores.katus_count, scores.misses_count,
 			scores.time, scores.play_mode, scores.accuracy, scores.pp,
-			scores.completed, scores.pinned,
+			scores.completed, scores.pinned, scores.userid,
 
 			beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5 AS beatmap_beatmap_md5,
 			beatmaps.song_name, beatmaps.ar, beatmaps.od,
@@ -284,7 +284,7 @@ func scoresPuts(md common.MethodData, query string, params ...interface{}) commo
 			&us.Count300, &us.Count100, &us.Count50,
 			&us.CountGeki, &us.CountKatu, &us.CountMiss,
 			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
-			&us.Completed, &us.Pinned,
+			&us.Completed, &us.Pinned, &us.UserID,
 
 			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
 			&b.SongName, &b.AR, &b.OD,

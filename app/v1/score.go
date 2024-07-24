@@ -32,6 +32,7 @@ type Score struct {
 	Rank       string               `json:"rank"`
 	Completed  int                  `json:"completed"`
 	Pinned     bool                 `json:"pinned"`
+	UserID     int                  `json:"user_id"`
 }
 
 // beatmapScore is to differentiate from userScore, as beatmapScore contains
@@ -59,7 +60,7 @@ SELECT
 	scores.300_count, scores.100_count, scores.50_count,
 	scores.gekis_count, scores.katus_count, scores.misses_count,
 	scores.time, scores.play_mode, scores.accuracy, scores.pp,
-	scores.completed, scores.pinned,
+	scores.completed, scores.pinned, scores.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country
@@ -74,7 +75,7 @@ SELECT
 	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
 	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
 	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-	scores_relax.completed, scores_relax.pinned,
+	scores_relax.completed, scores_relax.pinned, scores.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country
@@ -89,7 +90,7 @@ SELECT
 	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
 	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
 	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
-	scores_ap.completed, scores_ap.pinned,
+	scores_ap.completed, scores_ap.pinned, scores.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country
@@ -104,7 +105,7 @@ SELECT
 	scores.300_count, scores.100_count, scores.50_count,
 	scores.gekis_count, scores.katus_count, scores.misses_count,
 	scores.time, scores.play_mode, scores.accuracy, scores.pp,
-	scores.completed, scores.pinned,
+	scores.completed, scores.pinned, scores.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country,
@@ -125,7 +126,7 @@ SELECT
 	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
 	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
 	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-	scores_relax.completed, scores_relax.pinned,
+	scores_relax.completed, scores_relax.pinned, scores.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country,
@@ -146,7 +147,7 @@ SELECT
 	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
 	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
 	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
-	scores_ap.completed, scores_ap.pinned,
+	scores_ap.completed, scores_ap.pinned, scores.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country,
@@ -183,7 +184,7 @@ func ScoreGET(md common.MethodData) common.CodeMessager {
 		&s.Count300, &s.Count100, &s.Count50,
 		&s.CountGeki, &s.CountKatu, &s.CountMiss,
 		&s.Time, &s.PlayMode, &s.Accuracy, &s.PP,
-		&s.Completed, &s.Pinned,
+		&s.Completed, &s.Pinned, &s.UserID,
 
 		&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges,
 		&u.LatestActivity, &u.UsernameAKA, &u.Country,
@@ -284,7 +285,7 @@ func ScoresGET(md common.MethodData) common.CodeMessager {
 			&s.Count300, &s.Count100, &s.Count50,
 			&s.CountGeki, &s.CountKatu, &s.CountMiss,
 			&s.Time, &s.PlayMode, &s.Accuracy, &s.PP,
-			&s.Completed, &s.Pinned,
+			&s.Completed, &s.Pinned, &s.UserID,
 
 			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges,
 			&u.LatestActivity, &u.UsernameAKA, &u.Country,

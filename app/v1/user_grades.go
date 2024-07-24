@@ -2,6 +2,7 @@ package v1
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
@@ -25,13 +26,15 @@ func UserGradesGET(md common.MethodData) common.CodeMessager {
 	var response userGradesResponse
 	mode := common.Int(md.Query("mode"))
 	userID := common.Int(md.Query("id"))
-	query := `
+	query := fmt.Sprintf(`
 		SELECT
 			xh_count, x_count, sh_count, s_count,
 			a_count, b_count, c_count, d_count
 		FROM user_stats
-		WHERE user_id = ? AND user_stats.mode = ?
-	`
+		INNER JOIN users ON users.id = user_stats.user_id
+		WHERE user_id = ? AND user_stats.mode = ? AND %s`,
+		md.User.OnlyUserPublic(true),
+	)
 
 	err := md.DB.QueryRow(query, userID, mode).Scan(
 		&response.Grades.XHCount,

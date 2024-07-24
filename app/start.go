@@ -10,7 +10,6 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/app/internals"
 	"github.com/osuAkatsuki/akatsuki-api/app/peppy"
 	v1 "github.com/osuAkatsuki/akatsuki-api/app/v1"
-	"github.com/osuAkatsuki/akatsuki-api/app/websockets"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"gopkg.in/redis.v5"
 )
@@ -46,9 +45,6 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 
 	// token updater
 	go tokenUpdater(db)
-
-	// start websocket
-	// websockets.Start(red, db)
 
 	// start load achievements
 	go v1.LoadAchievementsEvery(db, time.Minute*10)
@@ -128,11 +124,6 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/clans/settings", v1.ClanSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/kick", v1.ClanKickPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/transfer-ownership", v1.ClanTransferOwnershipPOST, common.PrivilegeWrite)
-	}
-
-	// Websocket API
-	{
-		r.PlainGET("/api/v1/ws", websockets.WebsocketV1Entry)
 	}
 
 	// in the new osu-web, the old endpoints are also in /v1 it seems. So /shrug

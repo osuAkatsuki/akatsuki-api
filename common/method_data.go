@@ -58,13 +58,6 @@ func Err(c *fasthttp.RequestCtx, err error) {
 	_err(err, tags, c)
 }
 
-// WSErr is the error function for errors happening in the websockets.
-func WSErr(err error) {
-	_err(err, map[string]string{
-		"endpoint": "/api/v1/ws",
-	}, nil)
-}
-
 // GenericError is just an error. Can't make a good description.
 func GenericError(err error) {
 	_err(err, nil, nil)

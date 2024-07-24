@@ -427,8 +427,8 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		Name        string `json:"name,omitempty"`
 		Description string `json:"desc,omitempty"`
 		// Icon        string `json:"icon,omitempty"`
-		Background  string `json:"bg,omitempty"`
-		Status      int    `json:"status"`
+		Background string `json:"bg,omitempty"`
+		Status     int    `json:"status"`
 	}{}
 
 	md.Unmarshal(&u)
@@ -447,7 +447,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE name = ? AND id != ?", u.Name, c.ID).Scan(new(int)) != sql.ErrNoRows {
 		return common.SimpleResponse(403, "Another clan has already taken this name")
 	}
-	
+
 	tagRunes := []rune(u.Tag)
 	if len(tagRunes) > 6 || len(tagRunes) < 1 {
 		return common.SimpleResponse(400, "The given tag is too short or too long")

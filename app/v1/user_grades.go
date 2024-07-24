@@ -1,10 +1,12 @@
 package v1
 
 import (
+	"database/sql"
+
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
-type grades struct {
+type userGrades struct {
 	XHCount int `json:"xh_count"`
 	XCount  int `json:"x_count"`
 	SHCount int `json:"sh_count"`
@@ -16,10 +18,10 @@ type grades struct {
 }
 type userGradesResponse struct {
 	common.ResponseBase
-	Grades grades `json:"grades"`
+	Grades userGrades `json:"grades"`
 }
 
-func UserGradesGet(md common.MethodData) common.CodeMessager {
+func UserGradesGET(md common.MethodData) common.CodeMessager {
 	var response userGradesResponse
 	mode := common.Int(md.Query("mode"))
 	userID := common.Int(md.Query("id"))
@@ -32,11 +34,22 @@ func UserGradesGet(md common.MethodData) common.CodeMessager {
 	`
 
 	err := md.DB.QueryRow(query, userID, mode).Scan(
-		&response.Grades.XHCount, &response.Grades.XCount, &response.Grades.SHCount, &response.Grades.SCount,
-		&response.Grades.ACount, &response.Grades.BCount, &response.Grades.CCount, &response.Grades.DCount)
+		&response.Grades.XHCount,
+		&response.Grades.XCount,
+		&response.Grades.SHCount,
+		&response.Grades.SCount,
+		&response.Grades.ACount,
+		&response.Grades.BCount,
+		&response.Grades.CCount,
+		&response.Grades.DCount,
+	)
+
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return common.SimpleResponse(404, "User stats not found")
+		}
 		md.Err(err)
-		return common.SimpleResponse(404, "Not real")
+		return Err500
 	}
 	response.Code = 200
 	return response

@@ -7,7 +7,6 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/joho/godotenv v1.5.1
-	github.com/leavengood/websocket v0.0.0-20170104145153-470559ebf58e
 	github.com/microcosm-cc/bluemonday v1.0.24
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/thehowl/go-osuapi v0.0.0-20181219091033-b29455689881
@@ -23,7 +22,6 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
-	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.13.0 // indirect

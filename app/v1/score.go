@@ -75,7 +75,7 @@ SELECT
 	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
 	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
 	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-	scores_relax.completed, scores_relax.pinned, scores.userid,
+	scores_relax.completed, scores_relax.pinned, scores_relax.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country
@@ -90,7 +90,7 @@ SELECT
 	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
 	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
 	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
-	scores_ap.completed, scores_ap.pinned, scores.userid,
+	scores_ap.completed, scores_ap.pinned, scores_ap.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country
@@ -126,7 +126,7 @@ SELECT
 	scores_relax.300_count, scores_relax.100_count, scores_relax.50_count,
 	scores_relax.gekis_count, scores_relax.katus_count, scores_relax.misses_count,
 	scores_relax.time, scores_relax.play_mode, scores_relax.accuracy, scores_relax.pp,
-	scores_relax.completed, scores_relax.pinned, scores.userid,
+	scores_relax.completed, scores_relax.pinned, scores_relax.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country,
@@ -147,7 +147,7 @@ SELECT
 	scores_ap.300_count, scores_ap.100_count, scores_ap.50_count,
 	scores_ap.gekis_count, scores_ap.katus_count, scores_ap.misses_count,
 	scores_ap.time, scores_ap.play_mode, scores_ap.accuracy, scores_ap.pp,
-	scores_ap.completed, scores_ap.pinned, scores.userid,
+	scores_ap.completed, scores_ap.pinned, scores_ap.userid,
 
 	users.id, users.username, users.register_datetime, users.privileges,
 	users.latest_activity, users.username_aka, users.country,

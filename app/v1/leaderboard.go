@@ -114,7 +114,6 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	var resp leaderboardResponse
 	resp.Code = 200
 	if len(results) == 0 {
-		resp.Users = getLbUsersDb(p, l, rx, modeInt, sort, &md)
 		return resp
 	}
 

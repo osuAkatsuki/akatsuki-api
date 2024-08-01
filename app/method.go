@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -56,6 +57,10 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 		if exists {
 			md.User = tokenReal
 		}
+	}
+
+	if md.User.ID == 1001 {
+		fmt.Printf("md.User: %v\n", md.User)
 	}
 
 	missingPrivileges := 0

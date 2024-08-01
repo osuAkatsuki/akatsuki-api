@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - trolling-in-prod
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -42,10 +43,10 @@ jobs:
 
       - name: Get kubeconfig from github secrets
         run: |
-            mkdir -p $HOME/.kube
-            echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-            sudo chown $(id -u):$(id -g) $HOME/.kube/config
-            chmod 600 $HOME/.kube/config
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
 
       - name: Install helm
         uses: azure/setup-helm@v3

@@ -59,9 +59,9 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 		}
 	}
 
-	if md.User.ID == 1001 {
-		slog.Error(fmt.Sprintf("md.User: %v\n", md.User))
-	}
+	// if md.User.ID == 1001 {
+	slog.Error(fmt.Sprintf("md.User: %v\n", md.User))
+	// }
 
 	missingPrivileges := 0
 	for _, privilege := range privilegesNeeded {

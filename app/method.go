@@ -67,6 +67,8 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 	if missingPrivileges != 0 {
 		slog.Error(
 			"Denied access due to missing privileges",
+			"tokenHas", md.User.TokenPrivileges,
+			"userHas", md.User.UserPrivileges,
 			"missing", missingPrivileges,
 			"userID", md.User.UserID,
 			"route", string(c.Request.URI().Path()),

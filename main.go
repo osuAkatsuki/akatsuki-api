@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"syscall"
 
 	"golang.org/x/exp/slog"
 
@@ -17,11 +15,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/serenize/snaker"
 )
-
-func init() {
-	log.SetFlags(log.Ltime)
-	log.SetPrefix(fmt.Sprintf("%d|", syscall.Getpid()))
-}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))

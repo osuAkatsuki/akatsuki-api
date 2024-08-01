@@ -60,7 +60,7 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 	}
 
 	if md.User.ID == 1001 {
-		fmt.Printf("md.User: %v\n", md.User)
+		slog.Error(fmt.Sprintf("md.User: %v\n", md.User))
 	}
 
 	missingPrivileges := 0

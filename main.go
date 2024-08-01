@@ -2,8 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"syscall"
+	"os"
 
 	"golang.org/x/exp/slog"
 
@@ -17,12 +16,11 @@ import (
 	"github.com/serenize/snaker"
 )
 
-func init() {
-	log.SetFlags(log.Ltime)
-	log.SetPrefix(fmt.Sprintf("%d|", syscall.Getpid()))
-}
-
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	slog.SetDefault(logger)
+
 	slog.Info("Akatsuki API")
 
 	settings := common.LoadSettings()

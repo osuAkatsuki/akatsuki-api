@@ -25,6 +25,8 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 	var token string
 	var bearerToken bool
 	switch {
+	case len(c.Request.Header.CookieBytes([]byte("X-Ripple-Token"))) > 0:
+		token = string(c.Request.Header.CookieBytes([]byte("X-Ripple-Token")))
 	case len(c.Request.Header.Peek("X-Ripple-Token")) > 0:
 		token = string(c.Request.Header.Peek("X-Ripple-Token"))
 	case strings.HasPrefix(string(c.Request.Header.Peek("Authorization")), "Bearer "):
@@ -65,6 +67,14 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 		}
 	}
 	if missingPrivileges != 0 {
+		slog.Error(
+			"Denied access due to missing privileges",
+			"tokenHas", md.User.TokenPrivileges,
+			"userHas", md.User.UserPrivileges,
+			"missing", missingPrivileges,
+			"userID", md.User.UserID,
+			"route", string(c.Request.URI().Path()),
+		)
 		c.SetStatusCode(401)
 		mkjson(c, common.SimpleResponse(401, "Unauthorized."))
 		return

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"syscall"
 
 	"golang.org/x/exp/slog"
@@ -23,6 +24,10 @@ func init() {
 }
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	slog.SetDefault(logger)
+
 	slog.Info("Akatsuki API")
 
 	settings := common.LoadSettings()

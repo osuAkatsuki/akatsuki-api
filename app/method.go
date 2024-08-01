@@ -65,7 +65,12 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 		}
 	}
 	if missingPrivileges != 0 {
-		slog.Error("Denied access due to missing privileges", "missing", missingPrivileges, "userID", md.User.UserID, "route", string(c.Request.URI().Path()))
+		slog.Error(
+			"Denied access due to missing privileges",
+			"missing", missingPrivileges,
+			"userID", md.User.UserID,
+			"route", string(c.Request.URI().Path()),
+		)
 		c.SetStatusCode(401)
 		mkjson(c, common.SimpleResponse(401, "Unauthorized."))
 		return

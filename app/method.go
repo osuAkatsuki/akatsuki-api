@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -59,10 +58,6 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 		}
 	}
 
-	if md.User.UserID == 1001 {
-		slog.Error(fmt.Sprintf("md.User: %v\n", md.User))
-	}
-
 	missingPrivileges := 0
 	for _, privilege := range privilegesNeeded {
 		if uint64(md.User.TokenPrivileges)&uint64(privilege) == 0 {
@@ -70,6 +65,7 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 		}
 	}
 	if missingPrivileges != 0 {
+		slog.Error("Denied access due to missing privileges", "missing", missingPrivileges, "userID", md.User.UserID, "route", string(c.Request.URI().Path()))
 		c.SetStatusCode(401)
 		mkjson(c, common.SimpleResponse(401, "Unauthorized."))
 		return

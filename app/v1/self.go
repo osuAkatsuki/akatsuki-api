@@ -51,7 +51,6 @@ func UsersSelfFavouriteModeGET(md common.MethodData) common.CodeMessager {
 }
 
 type userSettingsData struct {
-	UsernameAKA   *string `json:"username_aka"`
 	FavouriteMode *int    `json:"favourite_mode"`
 	CustomBadge   struct {
 		singleBadge
@@ -67,11 +66,6 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	var d userSettingsData
 	md.Unmarshal(&d)
 
-	aka := strings.TrimSpace(*d.UsernameAKA)
-	if aka == "" {
-		*d.UsernameAKA = ""
-	}
-
 	// input sanitisation
 	if md.User.UserPrivileges&common.UserPrivilegeDonor > 0 {
 		d.CustomBadge.Name = common.SanitiseString(d.CustomBadge.Name)
@@ -83,7 +77,6 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
 	q := new(common.UpdateQuery).
-		Add("username_aka", d.UsernameAKA).
 		Add("favourite_mode", d.FavouriteMode).
 		Add("custom_badge_name", d.CustomBadge.Name).
 		Add("custom_badge_icon", d.CustomBadge.Icon).
@@ -115,7 +108,7 @@ func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	err := md.DB.QueryRow(`
 SELECT
 	id, username,
-	email, username_aka, favourite_mode,
+	email, favourite_mode,
 	show_custom_badge, custom_badge_icon,
 	custom_badge_name, can_custom_badge,
 	play_style, vanilla_pp_leaderboards,
@@ -123,7 +116,7 @@ SELECT
 FROM users
 WHERE id = ?`, md.ID()).Scan(
 		&r.ID, &r.Username,
-		&r.Email, &r.UsernameAKA, &r.FavouriteMode,
+		&r.Email, &r.FavouriteMode,
 		&r.CustomBadge.Show, &r.CustomBadge.Icon,
 		&r.CustomBadge.Name, &ccb,
 		&r.PlayStyle, &r.VanillaPPLeaderboards,

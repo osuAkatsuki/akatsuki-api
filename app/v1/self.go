@@ -1,8 +1,6 @@
 package v1
 
 import (
-	"strings"
-
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
@@ -51,7 +49,7 @@ func UsersSelfFavouriteModeGET(md common.MethodData) common.CodeMessager {
 }
 
 type userSettingsData struct {
-	FavouriteMode *int    `json:"favourite_mode"`
+	FavouriteMode *int `json:"favourite_mode"`
 	CustomBadge   struct {
 		singleBadge
 		Show *bool `json:"show"`

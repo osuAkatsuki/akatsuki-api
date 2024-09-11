@@ -108,7 +108,7 @@ func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	err := md.DB.QueryRow(`
 SELECT
 	id, username,
-	email, username_aka, favourite_mode,
+	email, favourite_mode,
 	show_custom_badge, custom_badge_icon,
 	custom_badge_name, can_custom_badge,
 	play_style, vanilla_pp_leaderboards,
@@ -116,7 +116,7 @@ SELECT
 FROM users
 WHERE id = ?`, md.ID()).Scan(
 		&r.ID, &r.Username,
-		&r.Email, &r.UsernameAKA, &r.FavouriteMode,
+		&r.Email, &r.FavouriteMode,
 		&r.CustomBadge.Show, &r.CustomBadge.Icon,
 		&r.CustomBadge.Name, &ccb,
 		&r.PlayStyle, &r.VanillaPPLeaderboards,

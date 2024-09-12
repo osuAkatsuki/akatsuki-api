@@ -16,6 +16,11 @@ type friendsGETResponse struct {
 	Friends []friendData `json:"friends"`
 }
 
+type followersGETResponse struct {
+	common.ResponseBase
+	Followers []userData `json:"followers"`
+}
+
 // FriendsGET is the API request handler for GET /friends.
 // It retrieves an user's friends, and whether the friendship is mutual or not.
 func FriendsGET(md common.MethodData) common.CodeMessager {
@@ -86,6 +91,68 @@ AND privileges & 1
 	r := friendsGETResponse{}
 	r.Code = 200
 	r.Friends = myFriends
+	return r
+}
+
+func FollowersGET(md common.MethodData) common.CodeMessager {
+	r := followersGETResponse{}
+
+	if md.User.UserPrivileges&common.UserPrivilegePremium == 0 {
+		return common.SimpleResponse(403, "You don't have privileges to access that route.")
+	}
+
+	myFollowersQuery := `
+	SELECT 
+		users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+		users.username_aka, users.country
+	FROM 
+		users_relationships 
+	INNER JOIN 
+		users
+	ON 
+		users_relationships.user1 = users.id 
+	WHERE 
+		users_relationships.user2 = ? AND users_relationships.user1 NOT IN 
+	(SELECT user2 FROM users_relationships WHERE user1 = ?) AND users.privileges & 1 `
+
+	myFollowersQuery += common.Sort(md, common.SortConfiguration{
+		Allowed: []string{
+			"id",
+			"username",
+			"latest_activity",
+		},
+		Default: "users.id asc",
+		Table:   "users",
+	}) + "\n"
+
+	results, err := md.DB.Query(myFollowersQuery+common.Paginate(md.Query("p"), md.Query("l"), 100), md.ID(), md.ID())
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	var followers []userData
+	defer results.Close()
+	for results.Next() {
+		u := userData{}
+		err = results.Scan(
+			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity,
+			&u.UsernameAKA, &u.Country,
+		)
+
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		followers = append(followers, u)
+	}
+	if err := results.Err(); err != nil {
+		md.Err(err)
+	}
+
+	r.Code = 200
+	r.Followers = followers
 	return r
 }
 

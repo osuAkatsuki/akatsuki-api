@@ -106,6 +106,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 
 		// ReadConfidential privilege required
 		r.Method("/api/v1/friends", v1.FriendsGET, common.PrivilegeReadConfidential)
+		r.Method("/api/v1/followers", v1.FollowersGET, common.PrivilegeReadConfidential)
 		r.Method("/api/v1/friends/with", v1.FriendsWithGET, common.PrivilegeReadConfidential)
 		r.Method("/api/v1/users/self/donor_info", v1.UsersSelfDonorInfoGET, common.PrivilegeReadConfidential)
 		r.Method("/api/v1/users/self/favourite_mode", v1.UsersSelfFavouriteModeGET, common.PrivilegeReadConfidential)

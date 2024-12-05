@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"database/sql"
 	"encoding/json"
 
 	"github.com/go-resty/resty/v2"
@@ -8,14 +9,17 @@ import (
 )
 
 func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
-	state := md.Query("state")
-	if state == "" {
-		return ErrBadJSON
-	}
-
 	code := md.Query("code")
 	if code == "" {
 		return ErrBadJSON
+	}
+
+	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND discord_account_id IS NOT NULL", md.ID()).
+		Scan(new(int)) != sql.ErrNoRows {
+		var r common.ResponseBase
+		r.Code = 403
+		r.Message = "You already have a Discord account linked!"
+		return r
 	}
 
 	settings := common.GetSettings()
@@ -56,7 +60,7 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 	}
 
 	var discordUser struct {
-		ID int64 `json:"id"`
+		ID string `json:"id"`
 	}
 
 	if err := json.Unmarshal(userResp.Body(), &discordUser); err != nil {
@@ -65,7 +69,6 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 	}
 
 	md.DB.Exec("UPDATE users SET discord_account_id = ? WHERE id = ?", discordUser.ID, md.ID())
-	md.DB.Exec("DELETE FROM discord_states WHERE state = ?", state)
 
 	md.Ctx.Redirect("https://akatsuki.gg", 301)
 	return common.SimpleResponse(301, "")

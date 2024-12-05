@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"database/sql"
 	"encoding/json"
 
 	"github.com/go-resty/resty/v2"
@@ -17,15 +16,6 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 	code := md.Query("code")
 	if code == "" {
 		return ErrBadJSON
-	}
-
-	var userID int
-	err := md.DB.QueryRow("SELECT user_id FROM discord_states WHERE state = ?", state).Scan(&userID)
-	if err == sql.ErrNoRows {
-		return common.SimpleResponse(404, "Discord link not found")
-	} else if err != nil {
-		md.Err(err)
-		return Err500
 	}
 
 	settings := common.GetSettings()
@@ -74,7 +64,7 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	md.DB.Exec("UPDATE users SET discord_account_id = ? WHERE id = ?", discordUser.ID, userID)
+	md.DB.Exec("UPDATE users SET discord_account_id = ? WHERE id = ?", discordUser.ID, md.ID())
 	md.DB.Exec("DELETE FROM discord_states WHERE state = ?", state)
 
 	md.Ctx.Redirect("https://akatsuki.gg", 301)

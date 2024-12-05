@@ -104,7 +104,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		r.Method("/api/v1/countries", v1.CountriesGET)
 		r.Method("/api/v1/hypothetical-rank", v1.HypotheticalRankGET)
 
-		r.Method("/api/v1/discord/callback", v1.DiscordCallbackGET)
+		r.Method("/api/v1/discord/callback", v1.DiscordCallbackGET, common.PrivilegeReadConfidential)
 
 		// ReadConfidential privilege required
 		r.Method("/api/v1/friends", v1.FriendsGET, common.PrivilegeReadConfidential)

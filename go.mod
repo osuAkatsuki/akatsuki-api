@@ -18,6 +18,8 @@ require (
 	zxq.co/x/rs v0.0.0-20160912144010-8b39b068a155
 )
 
+require github.com/go-resty/resty/v2 v2.16.2 // indirect
+
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
@@ -27,5 +29,5 @@ require (
 	github.com/onsi/gomega v1.13.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/net v0.27.0 // indirect
 )

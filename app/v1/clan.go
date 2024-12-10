@@ -449,7 +449,7 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 
 	tagRunes := []rune(u.Tag)
-	if len(tagRunes) > 6 || len(tagRunes) < 1 {
+	if len(tagRunes) > 8 || len(tagRunes) < 1 {
 		return common.SimpleResponse(400, "The given tag is too short or too long")
 	} else if md.DB.QueryRow("SELECT 1 FROM clans WHERE tag = ? AND id != ?", u.Tag, c.ID).Scan(new(int)) != sql.ErrNoRows {
 		return common.SimpleResponse(403, "Another Clan has already taken this Tag")

@@ -102,7 +102,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		key = "ripple:autoboard:" + m
 	}
 	if md.Query("country") != "" {
-		key += ":" + md.Query("country")
+		key += ":" + strings.ToLower(md.Query("country"))
 	}
 
 	results, err := md.R.ZRevRange(key, int64(p*l), int64(p*l+l-1)).Result()

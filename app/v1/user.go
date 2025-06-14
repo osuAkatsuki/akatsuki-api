@@ -469,12 +469,14 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+	r.Code = 200
 	if r.Userpage == nil {
 		r.Userpage = new(string)
 		r.UserpageCompiled = ""
+		return r
 	}
+	*r.Userpage = strings.ReplaceAll(strings.ReplaceAll(*r.Userpage, "<", "&lt;"), ">", "&gt;")
 	r.UserpageCompiled = externals.ConvertBBCodeToHTML(*r.Userpage)
-	r.Code = 200
 	return r
 }
 

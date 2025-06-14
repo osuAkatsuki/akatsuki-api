@@ -491,7 +491,7 @@ func UserSelfUserpagePOST(md common.MethodData) common.CodeMessager {
 		return ErrMissingField("data")
 	}
 	if len(*d.Data) > 65535 {
-		return common.SimpleResponse(400, "Userpage content is too long, maximum is 65536 characters")
+		return common.SimpleResponse(400, "Userpage content is too long, maximum is 65535 characters")
 	}
 	cont := common.SanitiseString(*d.Data)
 	_, err := md.DB.Exec("UPDATE users SET userpage_content = ? WHERE id = ?", cont, md.ID())

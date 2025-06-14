@@ -4,6 +4,7 @@ package v1
 import (
 	"database/sql"
 	"fmt"
+	"html"
 	"strconv"
 	"strings"
 	"unicode"
@@ -475,7 +476,7 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		r.UserpageCompiled = ""
 		return r
 	}
-	*r.Userpage = strings.ReplaceAll(strings.ReplaceAll(*r.Userpage, "<", "&lt;"), ">", "&gt;")
+	*r.Userpage = html.EscapeString(*r.Userpage)
 	r.UserpageCompiled = externals.ConvertBBCodeToHTML(*r.Userpage)
 	return r
 }

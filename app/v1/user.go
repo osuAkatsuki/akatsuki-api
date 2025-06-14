@@ -475,7 +475,7 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		r.UserpageCompiled = ""
 		return r
 	}
-	r.Userpage = strings.ReplaceAll(strings.ReplaceAll(r.Userpage, "<", "&lt;"), ">", "&gt;")
+	*r.Userpage = strings.ReplaceAll(strings.ReplaceAll(*r.Userpage, "<", "&lt;"), ">", "&gt;")
 	r.UserpageCompiled = externals.ConvertBBCodeToHTML(*r.Userpage)
 	return r
 }

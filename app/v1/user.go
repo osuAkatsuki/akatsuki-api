@@ -457,6 +457,7 @@ type userpageResponse struct {
 
 // UserUserpageGET gets an user's userpage, as in the customisable thing.
 func UserUserpageGET(md common.MethodData) common.CodeMessager {
+	dontEscape := md.Query("de") == "1"
 	shouldRet, whereClause, param := whereClauseUser(md, "users")
 	if shouldRet != nil {
 		return *shouldRet
@@ -476,7 +477,9 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		r.UserpageCompiled = ""
 		return r
 	}
-	*r.Userpage = html.EscapeString(*r.Userpage)
+	if !dontEscape {
+		*r.Userpage = html.EscapeString(*r.Userpage)
+	}
 	r.UserpageCompiled = externals.ConvertBBCodeToHTML(*r.Userpage)
 	return r
 }

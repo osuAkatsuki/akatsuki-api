@@ -57,6 +57,7 @@ type userSettingsData struct {
 	PlayStyle             *int  `json:"play_style"`
 	VanillaPPLeaderboards *bool `json:"vanilla_pp_leaderboards"`
 	LeaderboardSize       *int  `json:"leaderboard_size"`
+	UserTitle             *string `json:"user_title"`
 }
 
 // UsersSelfSettingsPOST allows to modify information about the current user.
@@ -74,6 +75,39 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
+	// Validate user title if provided
+	if d.UserTitle != nil {
+		// Get eligible titles to validate
+		var privileges uint64
+		err := md.DB.QueryRow("SELECT privileges FROM users WHERE id = ?", md.ID()).Scan(&privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		eligibleTitles, err := getEligibleTitles(md, privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		// Check if the provided title is in the eligible titles
+		titleValid := false
+		for _, title := range eligibleTitles {
+			if title.Title == *d.UserTitle {
+				titleValid = true
+				break
+			}
+		}
+
+		if !titleValid {
+			return common.SimpleResponse(400, "Invalid title selected")
+		}
+
+		// Sanitize the title
+		*d.UserTitle = common.SanitiseString(*d.UserTitle)
+	}
+
 	q := new(common.UpdateQuery).
 		Add("favourite_mode", d.FavouriteMode).
 		Add("custom_badge_name", d.CustomBadge.Name).
@@ -81,7 +115,8 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 		Add("show_custom_badge", d.CustomBadge.Show).
 		Add("play_style", d.PlayStyle).
 		Add("vanilla_pp_leaderboards", d.VanillaPPLeaderboards).
-		Add("leaderboard_size", d.LeaderboardSize)
+		Add("leaderboard_size", d.LeaderboardSize).
+		Add("user_title", d.UserTitle)
 	_, err := md.DB.Exec("UPDATE users SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
 	if err != nil {
 		md.Err(err)
@@ -90,18 +125,125 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	return UsersSelfSettingsGET(md)
 }
 
+type eligibleTitle struct {
+	Title string `json:"title"`
+}
+
 type userSettingsResponse struct {
 	common.ResponseBase
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	ID             int            `json:"id"`
+	Username       string         `json:"username"`
+	Email          string         `json:"email"`
+	UserTitle      string         `json:"user_title"`
+	EligibleTitles []eligibleTitle `json:"eligible_titles"`
 	userSettingsData
+}
+
+// getEligibleTitles determines which titles a user is eligible for based on their privileges and badges.
+// The rules are based on the provided template logic:
+// - Privilege-based titles: Check if user has specific privilege combinations
+// - Badge-based titles: Check if user has specific badges by ID
+func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle, error) {
+	var titles []eligibleTitle
+
+	// Check privileges
+	userPrivs := common.UserPrivileges(privileges)
+
+	// Privilege values are based on the template rules provided
+	// Donor (privilege 7 = 2^3 = 8)
+	if userPrivs&common.UserPrivilegeDonor > 0 {
+		titles = append(titles, eligibleTitle{Title: "Donor"})
+	}
+
+	// Premium (privilege 8388615 = 2^23 = 8388608 + 2^3 + 2^2 + 2^1 + 2^0)
+	if userPrivs&common.UserPrivilegePremium > 0 {
+		titles = append(titles, eligibleTitle{Title: "Premium"})
+	}
+
+	// Product (privilege 9437183)
+	if userPrivs&9437183 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Product"})
+	}
+
+	// Community (privilege 9425151)
+	if userPrivs&9425151 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Community"})
+	}
+
+	// Accounts (privilege 9212159)
+	if userPrivs&9212159 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Accounts"})
+	}
+
+	// Support (privilege 9175111)
+	if userPrivs&9175111 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Support"})
+	}
+
+	// Dev (privilege 10743327)
+	if userPrivs&10743327 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Developer"})
+	}
+
+	// NQA (privilege 33554432)
+	if userPrivs&33554432 > 0 {
+		titles = append(titles, eligibleTitle{Title: "NQA"})
+	}
+
+	// Nominator (privilege 8388871)
+	if userPrivs&8388871 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Nominator"})
+	}
+
+	// Event (privilege 10485767)
+	if userPrivs&10485767 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Event"})
+	}
+
+	// Check badges
+	rows, err := md.DB.Query("SELECT b.id FROM user_badges ub "+
+		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", md.ID())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var badgeID int
+		err := rows.Scan(&badgeID)
+		if err != nil {
+			continue
+		}
+
+		// Bot badge (ID 34)
+		if badgeID == 34 {
+			titles = append(titles, eligibleTitle{Title: "Bot"})
+		}
+
+		// Design badge (ID 101)
+		if badgeID == 101 {
+			titles = append(titles, eligibleTitle{Title: "Design"})
+		}
+
+		// Scorewatcher badge (ID 86)
+		if badgeID == 86 {
+			titles = append(titles, eligibleTitle{Title: "Scorewatcher"})
+		}
+
+		// Champion badge (ID 67)
+		if badgeID == 67 {
+			titles = append(titles, eligibleTitle{Title: "Champion"})
+		}
+	}
+
+	return titles, nil
 }
 
 // UsersSelfSettingsGET allows to get "sensitive" information about the current user.
 func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	var r userSettingsResponse
 	var ccb bool
+	var privileges uint64
 	r.Code = 200
 	err := md.DB.QueryRow(`
 SELECT
@@ -110,7 +252,8 @@ SELECT
 	show_custom_badge, custom_badge_icon,
 	custom_badge_name, can_custom_badge,
 	play_style, vanilla_pp_leaderboards,
-	leaderboard_size
+	leaderboard_size, privileges,
+	user_title
 FROM users
 WHERE id = ?`, md.ID()).Scan(
 		&r.ID, &r.Username,
@@ -118,7 +261,8 @@ WHERE id = ?`, md.ID()).Scan(
 		&r.CustomBadge.Show, &r.CustomBadge.Icon,
 		&r.CustomBadge.Name, &ccb,
 		&r.PlayStyle, &r.VanillaPPLeaderboards,
-		&r.LeaderboardSize,
+		&r.LeaderboardSize, &privileges,
+		&r.UserTitle,
 	)
 	if err != nil {
 		md.Err(err)
@@ -130,6 +274,21 @@ WHERE id = ?`, md.ID()).Scan(
 			Show *bool `json:"show"`
 		}{}
 	}
+
+	// Get eligible titles
+	eligibleTitles, err := getEligibleTitles(md, privileges)
+	if err != nil {
+		md.Err(err)
+		// Don't return error, just continue without titles
+	} else {
+		r.EligibleTitles = eligibleTitles
+	}
+
+	// If user_title is empty or null, set it to the first eligible title if available
+	if r.UserTitle == "" && len(r.EligibleTitles) > 0 {
+		r.UserTitle = r.EligibleTitles[0].Title
+	}
+
 	return r
 }
 

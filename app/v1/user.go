@@ -63,6 +63,11 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 		return Err500
 	}
 
+	// Convert stored machine-readable ID to human-readable title for API response
+	if user.UserTitle != "" {
+		user.UserTitle = getUserTitleFromID(user.UserTitle)
+	}
+
 	user.Code = 200
 	return user
 }
@@ -122,6 +127,10 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		if err != nil {
 			md.Err(err)
 			continue
+		}
+		// Convert stored machine-readable ID to human-readable title for API response
+		if u.UserTitle != "" {
+			u.UserTitle = getUserTitleFromID(u.UserTitle)
 		}
 		r.Users = append(r.Users, u)
 	}
@@ -447,8 +456,37 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 	}
 
+	// Convert stored machine-readable ID to human-readable title for API response
+	if r.UserTitle != "" {
+		r.UserTitle = getUserTitleFromID(r.UserTitle)
+	}
+
 	r.Code = 200
 	return r
+}
+
+// getUserTitleFromID converts a machine-readable title ID to human-readable title
+func getUserTitleFromID(titleID string) string {
+	titleMap := map[string]string{
+		"bot":               "CHAT BOT",
+		"product_manager":   "PRODUCT MANAGER",
+		"developer":         "PRODUCT DEVELOPER",
+		"designer":          "PRODUCT DESIGNER",
+		"community_manager": "COMMUNITY MANAGER",
+		"community_support": "COMMUNITY SUPPORT",
+		"event_manager":     "EVENT MANAGER",
+		"nqa":               "NOMINATION QUALITY ASSURANCE",
+		"nominator":         "BEATMAP NOMINATOR",
+		"scorewatcher":      "SOCIAL MEDIA MANAGER",
+		"champion":          "AKATSUKI CHAMPION",
+		"premium":           "AKATSUKI+",
+		"donor":             "SUPPORTER",
+	}
+
+	if title, exists := titleMap[titleID]; exists {
+		return title
+	}
+	return titleID // Return ID if not found (fallback)
 }
 
 type userpageResponse struct {

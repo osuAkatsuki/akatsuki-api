@@ -93,9 +93,11 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 
 		// Check if the provided title is in the eligible titles
 		titleValid := false
+		var selectedTitleID string
 		for _, title := range eligibleTitles {
-			if title.Title == *d.UserTitle {
+			if title.ID == *d.UserTitle {
 				titleValid = true
+				selectedTitleID = title.ID // Always use the machine-readable ID for storage
 				break
 			}
 		}
@@ -104,8 +106,8 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 			return common.SimpleResponse(400, "Invalid title selected")
 		}
 
-		// Sanitize the title
-		*d.UserTitle = common.SanitiseString(*d.UserTitle)
+		// Use the normalized title ID (machine-readable)
+		*d.UserTitle = selectedTitleID
 	}
 
 	q := new(common.UpdateQuery).
@@ -126,7 +128,8 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 }
 
 type eligibleTitle struct {
-	Title string `json:"title"`
+	ID    string `json:"id"`    // Machine-readable identifier
+	Title string `json:"title"` // Human-readable name
 }
 
 type userSettingsResponse struct {
@@ -195,75 +198,99 @@ func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle
 	// Return titles in priority order as specified in the HTML template
 	// 1. Bot (highest priority)
 	if hasBot {
-		titles = append(titles, eligibleTitle{Title: "Bot"})
+		titles = append(titles, eligibleTitle{ID: "bot", Title: "CHAT BOT"})
 	}
 
 	// 2. Product Manager
 	if userPrivs&9437183 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Product Manager"})
+		titles = append(titles, eligibleTitle{ID: "product_manager", Title: "PRODUCT MANAGER"})
 	}
 
 	// 3. Developer
 	if userPrivs&10743327 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Developer"})
+		titles = append(titles, eligibleTitle{ID: "developer", Title: "PRODUCT DEVELOPER"})
 	}
 
 	// 4. Designer
 	if hasDesign {
-		titles = append(titles, eligibleTitle{Title: "Designer"})
+		titles = append(titles, eligibleTitle{ID: "designer", Title: "PRODUCT DESIGNER"})
 	}
 
 	// 5. Community Manager
 	if userPrivs&9425151 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Community Manager"})
+		titles = append(titles, eligibleTitle{ID: "community_manager", Title: "COMMUNITY MANAGER"})
 	}
 
 	// 6. Community Support (Accounts)
 	if userPrivs&9212159 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Community Support"})
+		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
 	}
 
 	// 7. Community Support (Support)
 	if userPrivs&9175111 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Community Support"})
+		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
 	}
 
 	// 8. Event Manager
 	if userPrivs&10485767 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Event Manager"})
+		titles = append(titles, eligibleTitle{ID: "event_manager", Title: "EVENT MANAGER"})
 	}
 
 	// 9. NQA
 	if userPrivs&33554432 > 0 {
-		titles = append(titles, eligibleTitle{Title: "NQA"})
+		titles = append(titles, eligibleTitle{ID: "nqa", Title: "NOMINATION QUALITY ASSURANCE"})
 	}
 
 	// 10. Nominator
 	if userPrivs&8388871 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Nominator"})
+		titles = append(titles, eligibleTitle{ID: "nominator", Title: "BEATMAP NOMINATOR"})
 	}
 
 	// 11. Scorewatcher
 	if hasScorewatcher {
-		titles = append(titles, eligibleTitle{Title: "Scorewatcher"})
+		titles = append(titles, eligibleTitle{ID: "scorewatcher", Title: "SOCIAL MEDIA MANAGER"})
 	}
 
 	// 12. Champion
 	if hasChampion {
-		titles = append(titles, eligibleTitle{Title: "Champion"})
+		titles = append(titles, eligibleTitle{ID: "champion", Title: "AKATSUKI CHAMPION"})
 	}
 
 	// 13. Premium
 	if userPrivs&common.UserPrivilegePremium > 0 {
-		titles = append(titles, eligibleTitle{Title: "Premium"})
+		titles = append(titles, eligibleTitle{ID: "premium", Title: "AKATSUKI+"})
 	}
 
 	// 14. Donor (lowest priority)
 	if userPrivs&common.UserPrivilegeDonor > 0 {
-		titles = append(titles, eligibleTitle{Title: "Donor"})
+		titles = append(titles, eligibleTitle{ID: "donor", Title: "SUPPORTER"})
 	}
 
 	return titles, nil
+}
+
+// getTitleFromID converts a machine-readable title ID to human-readable title
+func getTitleFromID(titleID string) string {
+	titleMap := map[string]string{
+		"bot":               "CHAT BOT",
+		"product_manager":   "PRODUCT MANAGER",
+		"developer":         "PRODUCT DEVELOPER",
+		"designer":          "PRODUCT DESIGNER",
+		"community_manager": "COMMUNITY MANAGER",
+		"community_support": "COMMUNITY SUPPORT",
+		"event_manager":     "EVENT MANAGER",
+		"nqa":               "NOMINATION QUALITY ASSURANCE",
+		"nominator":         "BEATMAP NOMINATOR",
+		"scorewatcher":      "SOCIAL MEDIA MANAGER",
+		"champion":          "AKATSUKI CHAMPION",
+		"premium":           "AKATSUKI+",
+		"donor":             "SUPPORTER",
+	}
+
+	if title, exists := titleMap[titleID]; exists {
+		return title
+	}
+	return titleID // Return ID if not found (fallback)
 }
 
 // UsersSelfSettingsGET allows to get "sensitive" information about the current user.
@@ -311,8 +338,11 @@ WHERE id = ?`, md.ID()).Scan(
 		r.EligibleTitles = eligibleTitles
 	}
 
-	// If user_title is empty or null, set it to the first eligible title if available
-	if r.UserTitle == "" && len(r.EligibleTitles) > 0 {
+	// Convert stored machine-readable ID to human-readable title for API response
+	if r.UserTitle != "" {
+		r.UserTitle = getTitleFromID(r.UserTitle)
+	} else if len(r.EligibleTitles) > 0 {
+		// If user_title is empty or null, set it to the first eligible title if available
 		r.UserTitle = r.EligibleTitles[0].Title
 	}
 

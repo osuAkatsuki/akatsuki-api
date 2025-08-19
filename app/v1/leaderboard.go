@@ -68,9 +68,37 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.Met
 			continue
 		}
 		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
+		// Convert stored machine-readable ID to human-readable title for API response
+		if u.UserTitle != "" {
+			u.UserTitle = getTitleFromIDLeaderboard(u.UserTitle)
+		}
 		users = append(users, u)
 	}
 	return users
+}
+
+// getTitleFromIDLeaderboard converts a machine-readable title ID to human-readable title
+func getTitleFromIDLeaderboard(titleID string) string {
+	titleMap := map[string]string{
+		"bot":               "CHAT BOT",
+		"product_manager":   "PRODUCT MANAGER",
+		"developer":         "PRODUCT DEVELOPER",
+		"designer":          "PRODUCT DESIGNER",
+		"community_manager": "COMMUNITY MANAGER",
+		"community_support": "COMMUNITY SUPPORT",
+		"event_manager":     "EVENT MANAGER",
+		"nqa":               "NOMINATION QUALITY ASSURANCE",
+		"nominator":         "BEATMAP NOMINATOR",
+		"scorewatcher":      "SOCIAL MEDIA MANAGER",
+		"champion":          "AKATSUKI CHAMPION",
+		"premium":           "AKATSUKI+",
+		"donor":             "SUPPORTER",
+	}
+
+	if title, exists := titleMap[titleID]; exists {
+		return title
+	}
+	return titleID // Return ID if not found (fallback)
 }
 
 // LeaderboardGET gets the leaderboard.

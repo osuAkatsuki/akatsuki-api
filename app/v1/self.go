@@ -143,70 +143,26 @@ type userSettingsResponse struct {
 // The rules are based on the provided template logic:
 // - Privilege-based titles: Check if user has specific privilege combinations
 // - Badge-based titles: Check if user has specific badges by ID
+// Titles are returned in a specific priority order (to accomodate default title selection)
 func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle, error) {
 	var titles []eligibleTitle
 
 	// Check privileges
 	userPrivs := common.UserPrivileges(privileges)
 
-	// Privilege values are based on the template rules provided
-	// Donor (privilege 7 = 2^3 = 8)
-	if userPrivs&common.UserPrivilegeDonor > 0 {
-		titles = append(titles, eligibleTitle{Title: "Donor"})
-	}
-
-	// Premium (privilege 8388615 = 2^23 = 8388608 + 2^3 + 2^2 + 2^1 + 2^0)
-	if userPrivs&common.UserPrivilegePremium > 0 {
-		titles = append(titles, eligibleTitle{Title: "Premium"})
-	}
-
-	// Product (privilege 9437183)
-	if userPrivs&9437183 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Product"})
-	}
-
-	// Community (privilege 9425151)
-	if userPrivs&9425151 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Community"})
-	}
-
-	// Accounts (privilege 9212159)
-	if userPrivs&9212159 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Accounts"})
-	}
-
-	// Support (privilege 9175111)
-	if userPrivs&9175111 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Support"})
-	}
-
-	// Dev (privilege 10743327)
-	if userPrivs&10743327 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Developer"})
-	}
-
-	// NQA (privilege 33554432)
-	if userPrivs&33554432 > 0 {
-		titles = append(titles, eligibleTitle{Title: "NQA"})
-	}
-
-	// Nominator (privilege 8388871)
-	if userPrivs&8388871 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Nominator"})
-	}
-
-	// Event (privilege 10485767)
-	if userPrivs&10485767 > 0 {
-		titles = append(titles, eligibleTitle{Title: "Event"})
-	}
-
-	// Check badges
+	// Check badges first (they have higher priority)
 	rows, err := md.DB.Query("SELECT b.id FROM user_badges ub "+
 		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", md.ID())
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
+	// Track which badges the user has
+	hasBot := false
+	hasDesign := false
+	hasScorewatcher := false
+	hasChampion := false
 
 	for rows.Next() {
 		var badgeID int
@@ -217,23 +173,94 @@ func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle
 
 		// Bot badge (ID 34)
 		if badgeID == 34 {
-			titles = append(titles, eligibleTitle{Title: "Bot"})
+			hasBot = true
 		}
 
 		// Design badge (ID 101)
 		if badgeID == 101 {
-			titles = append(titles, eligibleTitle{Title: "Design"})
+			hasDesign = true
 		}
 
 		// Scorewatcher badge (ID 86)
 		if badgeID == 86 {
-			titles = append(titles, eligibleTitle{Title: "Scorewatcher"})
+			hasScorewatcher = true
 		}
 
 		// Champion badge (ID 67)
 		if badgeID == 67 {
-			titles = append(titles, eligibleTitle{Title: "Champion"})
+			hasChampion = true
 		}
+	}
+
+	// Return titles in priority order as specified in the HTML template
+	// 1. Bot (highest priority)
+	if hasBot {
+		titles = append(titles, eligibleTitle{Title: "Bot"})
+	}
+
+	// 2. Product Manager
+	if userPrivs&9437183 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Product Manager"})
+	}
+
+	// 3. Developer
+	if userPrivs&10743327 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Developer"})
+	}
+
+	// 4. Designer
+	if hasDesign {
+		titles = append(titles, eligibleTitle{Title: "Designer"})
+	}
+
+	// 5. Community Manager
+	if userPrivs&9425151 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Community Manager"})
+	}
+
+	// 6. Community Support (Accounts)
+	if userPrivs&9212159 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Community Support"})
+	}
+
+	// 7. Community Support (Support)
+	if userPrivs&9175111 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Community Support"})
+	}
+
+	// 8. Event Manager
+	if userPrivs&10485767 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Event Manager"})
+	}
+
+	// 9. NQA
+	if userPrivs&33554432 > 0 {
+		titles = append(titles, eligibleTitle{Title: "NQA"})
+	}
+
+	// 10. Nominator
+	if userPrivs&8388871 > 0 {
+		titles = append(titles, eligibleTitle{Title: "Nominator"})
+	}
+
+	// 11. Scorewatcher
+	if hasScorewatcher {
+		titles = append(titles, eligibleTitle{Title: "Scorewatcher"})
+	}
+
+	// 12. Champion
+	if hasChampion {
+		titles = append(titles, eligibleTitle{Title: "Champion"})
+	}
+
+	// 13. Premium
+	if userPrivs&common.UserPrivilegePremium > 0 {
+		titles = append(titles, eligibleTitle{Title: "Premium"})
+	}
+
+	// 14. Donor (lowest priority)
+	if userPrivs&common.UserPrivilegeDonor > 0 {
+		titles = append(titles, eligibleTitle{Title: "Donor"})
 	}
 
 	return titles, nil

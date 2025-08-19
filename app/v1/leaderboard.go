@@ -28,7 +28,7 @@ type leaderboardResponse struct {
 const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-			users.username_aka, users.country, users.play_style, users.favourite_mode,
+			users.username_aka, users.country, users.user_title, users.play_style, users.favourite_mode,
 
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
@@ -57,7 +57,7 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.Met
 		err := rows.Scan(
 			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity,
 
-			&u.UsernameAKA, &u.Country, &u.PlayStyle, &u.FavouriteMode,
+			&u.UsernameAKA, &u.Country, &u.UserTitle, &u.PlayStyle, &u.FavouriteMode,
 
 			&u.ChosenMode.RankedScore, &u.ChosenMode.TotalScore, &u.ChosenMode.PlayCount,
 			&u.ChosenMode.ReplaysWatched, &u.ChosenMode.TotalHits,

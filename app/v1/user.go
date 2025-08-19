@@ -23,11 +23,12 @@ type userData struct {
 	Privileges     uint64               `json:"privileges"`
 	LatestActivity common.UnixTimestamp `json:"latest_activity"`
 	Country        string               `json:"country"`
+	UserTitle      string               `json:"user_title"`
 }
 
 const userFields = `
 SELECT users.id, users.username, users.register_datetime, users.privileges,
-users.latest_activity, users.username_aka, users.country
+users.latest_activity, users.username_aka, users.country, users.user_title
 FROM users
 `
 
@@ -203,6 +204,7 @@ type userFullResponse struct {
 	Stats         [3]userStats          `json:"stats"`
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
+	UserTitle     string                `json:"user_title"`
 	Badges        []singleBadge         `json:"badges"`
 	Clan          Clan                  `json:"clan"`
 	Followers     int                   `json:"followers"`
@@ -238,7 +240,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			id, username, register_datetime, privileges, latest_activity,
 			username_aka, country, play_style, favourite_mode, custom_badge_icon,
 			custom_badge_name, can_custom_badge, show_custom_badge, silence_reason,
-			silence_end, notes, ban_datetime, email, clan_id
+			silence_end, notes, ban_datetime, email, clan_id, user_title
 		FROM users
 		WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true),
 		userIdParam,
@@ -246,7 +248,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		&r.ID, &r.Username, &r.RegisteredOn, &r.Privileges, &r.LatestActivity,
 		&r.UsernameAKA, &r.Country, &r.PlayStyle, &r.FavouriteMode, &b.Icon,
 		&b.Name, &can, &show, &r.SilenceInfo.Reason,
-		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID,
+		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID, &r.UserTitle,
 	)
 	switch {
 	case err == sql.ErrNoRows:

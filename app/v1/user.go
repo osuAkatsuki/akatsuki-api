@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"html"
+	"log/slog"
 	"strconv"
 	"strings"
 	"unicode"
@@ -329,6 +330,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
+	slog.Info("userDB", "userDB", userDB)
 
 	// Convert userDB to userData and set it in the response
 	r.userData = userDB.toUserData(eligibleTitles)

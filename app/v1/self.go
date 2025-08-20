@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"database/sql"
+
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
@@ -57,6 +59,7 @@ type userSettingsData struct {
 	PlayStyle             *int  `json:"play_style"`
 	VanillaPPLeaderboards *bool `json:"vanilla_pp_leaderboards"`
 	LeaderboardSize       *int  `json:"leaderboard_size"`
+	UserTitle             *string `json:"user_title"`
 }
 
 // UsersSelfSettingsPOST allows to modify information about the current user.
@@ -74,6 +77,41 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
+	// Validate user title if provided
+	if d.UserTitle != nil {
+		// Get eligible titles to validate
+		var privileges uint64
+		err := md.DB.QueryRow("SELECT privileges FROM users WHERE id = ?", md.ID()).Scan(&privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		eligibleTitles, err := getEligibleTitles(md, privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		// Check if the provided title is in the eligible titles
+		titleValid := false
+		var selectedTitleID string
+		for _, title := range eligibleTitles {
+			if title.ID == *d.UserTitle {
+				titleValid = true
+				selectedTitleID = title.ID // Always use the machine-readable ID for storage
+				break
+			}
+		}
+
+		if !titleValid {
+			return common.SimpleResponse(400, "Invalid title selected")
+		}
+
+		// Use the normalized title ID (machine-readable)
+		*d.UserTitle = selectedTitleID
+	}
+
 	q := new(common.UpdateQuery).
 		Add("favourite_mode", d.FavouriteMode).
 		Add("custom_badge_name", d.CustomBadge.Name).
@@ -81,7 +119,8 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 		Add("show_custom_badge", d.CustomBadge.Show).
 		Add("play_style", d.PlayStyle).
 		Add("vanilla_pp_leaderboards", d.VanillaPPLeaderboards).
-		Add("leaderboard_size", d.LeaderboardSize)
+		Add("leaderboard_size", d.LeaderboardSize).
+		Add("user_title", d.UserTitle)
 	_, err := md.DB.Exec("UPDATE users SET "+q.Fields()+" WHERE id = ?", append(q.Parameters, md.ID())...)
 	if err != nil {
 		md.Err(err)
@@ -90,18 +129,159 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	return UsersSelfSettingsGET(md)
 }
 
+type eligibleTitle struct {
+	ID    string `json:"id"`    // Machine-readable identifier
+	Title string `json:"title"` // Human-readable name
+}
+
+type userTitleResponse struct {
+	ID    string `json:"id"`    // Machine-readable identifier
+	Title string `json:"title"` // Human-readable name
+}
+
 type userSettingsResponse struct {
 	common.ResponseBase
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	ID             int                `json:"id"`
+	Username       string             `json:"username"`
+	Email          string             `json:"email"`
+	UserTitle      userTitleResponse  `json:"user_title"`
+	EligibleTitles []eligibleTitle    `json:"eligible_titles"`
 	userSettingsData
+}
+
+// getEligibleTitles determines which titles a user is eligible for based on their privileges and badges.
+// The rules are based on the provided template logic:
+// - Privilege-based titles: Check if user has specific privilege combinations
+// - Badge-based titles: Check if user has specific badges by ID
+// - Titles are returned in a specific priority order (to accomodate default title selection)
+func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle, error) {
+	titles := make([]eligibleTitle, 0)
+
+	userPrivs := common.UserPrivileges(privileges)
+
+	// Check badges first (they have higher priority)
+	rows, err := md.DB.Query("SELECT b.id FROM user_badges ub "+
+		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", md.ID())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	hasBot := false
+	hasDesign := false
+	hasScorewatcher := false
+	hasChampion := false
+
+	for rows.Next() {
+		var badgeID int
+		err := rows.Scan(&badgeID)
+		if err != nil {
+			continue
+		}
+
+		if badgeID == 34 {
+			hasBot = true
+		}
+
+		if badgeID == 101 {
+			hasDesign = true
+		}
+
+		if badgeID == 86 {
+			hasScorewatcher = true
+		}
+
+		if badgeID == 67 {
+			hasChampion = true
+		}
+	}
+
+	// Return titles in priority order as specified in the HTML template
+	if hasBot {
+		titles = append(titles, eligibleTitle{ID: "bot", Title: "CHAT BOT"})
+	}
+
+	if userPrivs&9437183 > 0 {
+		titles = append(titles, eligibleTitle{ID: "product_manager", Title: "PRODUCT MANAGER"})
+	}
+
+	if userPrivs&10743327 > 0 {
+		titles = append(titles, eligibleTitle{ID: "developer", Title: "PRODUCT DEVELOPER"})
+	}
+
+	if hasDesign {
+		titles = append(titles, eligibleTitle{ID: "designer", Title: "PRODUCT DESIGNER"})
+	}
+
+	if userPrivs&9425151 > 0 {
+		titles = append(titles, eligibleTitle{ID: "community_manager", Title: "COMMUNITY MANAGER"})
+	}
+
+	if userPrivs&9212159 > 0 || userPrivs&9175111 > 0 {
+		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
+	}
+
+	if userPrivs&10485767 > 0 {
+		titles = append(titles, eligibleTitle{ID: "event_manager", Title: "EVENT MANAGER"})
+	}
+
+	if userPrivs&33554432 > 0 {
+		titles = append(titles, eligibleTitle{ID: "nqa", Title: "NOMINATION QUALITY ASSURANCE"})
+	}
+
+	if userPrivs&8388871 > 0 {
+		titles = append(titles, eligibleTitle{ID: "nominator", Title: "BEATMAP NOMINATOR"})
+	}
+
+	if hasScorewatcher {
+		titles = append(titles, eligibleTitle{ID: "scorewatcher", Title: "SOCIAL MEDIA MANAGER"})
+	}
+
+	if hasChampion {
+		titles = append(titles, eligibleTitle{ID: "champion", Title: "AKATSUKI CHAMPION"})
+	}
+
+	if userPrivs&common.UserPrivilegePremium > 0 {
+		titles = append(titles, eligibleTitle{ID: "premium", Title: "AKATSUKI+"})
+	}
+
+	if userPrivs&common.UserPrivilegeDonor > 0 {
+		titles = append(titles, eligibleTitle{ID: "donor", Title: "SUPPORTER"})
+	}
+
+	return titles, nil
+}
+
+// getTitleFromID converts a machine-readable title ID to human-readable title
+func getTitleFromID(titleID string) string {
+	titleMap := map[string]string{
+		"bot":               "CHAT BOT",
+		"product_manager":   "PRODUCT MANAGER",
+		"developer":         "PRODUCT DEVELOPER",
+		"designer":          "PRODUCT DESIGNER",
+		"community_manager": "COMMUNITY MANAGER",
+		"community_support": "COMMUNITY SUPPORT",
+		"event_manager":     "EVENT MANAGER",
+		"nqa":               "NOMINATION QUALITY ASSURANCE",
+		"nominator":         "BEATMAP NOMINATOR",
+		"scorewatcher":      "SOCIAL MEDIA MANAGER",
+		"champion":          "AKATSUKI CHAMPION",
+		"premium":           "AKATSUKI+",
+		"donor":             "SUPPORTER",
+	}
+
+	if title, exists := titleMap[titleID]; exists {
+		return title
+	}
+	return titleID // Return ID if not found (fallback)
 }
 
 // UsersSelfSettingsGET allows to get "sensitive" information about the current user.
 func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	var r userSettingsResponse
 	var ccb bool
+	var privileges uint64
+	var userTitleID sql.NullString
 	r.Code = 200
 	err := md.DB.QueryRow(`
 SELECT
@@ -110,7 +290,8 @@ SELECT
 	show_custom_badge, custom_badge_icon,
 	custom_badge_name, can_custom_badge,
 	play_style, vanilla_pp_leaderboards,
-	leaderboard_size
+	leaderboard_size, privileges,
+	user_title
 FROM users
 WHERE id = ?`, md.ID()).Scan(
 		&r.ID, &r.Username,
@@ -118,7 +299,8 @@ WHERE id = ?`, md.ID()).Scan(
 		&r.CustomBadge.Show, &r.CustomBadge.Icon,
 		&r.CustomBadge.Name, &ccb,
 		&r.PlayStyle, &r.VanillaPPLeaderboards,
-		&r.LeaderboardSize,
+		&r.LeaderboardSize, &privileges,
+		&userTitleID,
 	)
 	if err != nil {
 		md.Err(err)
@@ -130,6 +312,29 @@ WHERE id = ?`, md.ID()).Scan(
 			Show *bool `json:"show"`
 		}{}
 	}
+
+	eligibleTitles, err := getEligibleTitles(md, privileges)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	} else {
+		r.EligibleTitles = eligibleTitles
+	}
+
+	// Set the UserTitle struct from the stored ID
+	if userTitleID.Valid && userTitleID.String != "" {
+		r.UserTitle = userTitleResponse{
+			ID:    userTitleID.String,
+			Title: getTitleFromID(userTitleID.String),
+		}
+	} else if len(r.EligibleTitles) > 0 {
+		// If user_title is empty or null, set it to the first eligible title if available
+		r.UserTitle = userTitleResponse{
+			ID:    r.EligibleTitles[0].ID,
+			Title: r.EligibleTitles[0].Title,
+		}
+	}
+
 	return r
 }
 

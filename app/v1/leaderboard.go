@@ -13,11 +13,28 @@ import (
 	"zxq.co/ripple/ocl"
 )
 
+// leaderboardUserDB is used for scanning from database
+type leaderboardUserDB struct {
+	userDataDB
+	PlayStyle     int `db:"play_style"`
+	FavouriteMode int `db:"favourite_mode"`
+}
+
+// leaderboardUser is used for API responses
 type leaderboardUser struct {
 	userData
 	ChosenMode    modeData `json:"chosen_mode"`
 	PlayStyle     int      `json:"play_style"`
 	FavouriteMode int      `json:"favourite_mode"`
+}
+
+// toLeaderboardUser converts leaderboardUserDB to leaderboardUser
+func (lub *leaderboardUserDB) toLeaderboardUser(eligibleTitles []eligibleTitle) leaderboardUser {
+	return leaderboardUser{
+		userData:      lub.userDataDB.toUserData(eligibleTitles),
+		PlayStyle:     lub.PlayStyle,
+		FavouriteMode: lub.FavouriteMode,
+	}
 }
 
 type leaderboardResponse struct {
@@ -28,7 +45,7 @@ type leaderboardResponse struct {
 const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-			users.username_aka, users.country, users.play_style, users.favourite_mode,
+			users.username_aka, users.country, users.user_title, users.play_style, users.favourite_mode,
 
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
@@ -37,7 +54,7 @@ const lbUserQuery = `
 		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
 // previously done horrible hardcoding makes this the spaghetti it is
-func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.MethodData) []leaderboardUser {
+func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.MethodData) []leaderboardUser {
 	var query, order string
 	if sort == "score" {
 		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
@@ -53,21 +70,36 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.Met
 	defer rows.Close()
 	var users []leaderboardUser
 	for i := 1; rows.Next(); i++ {
-		u := leaderboardUser{}
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
+
 		err := rows.Scan(
-			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity,
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 
-			&u.UsernameAKA, &u.Country, &u.PlayStyle, &u.FavouriteMode,
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
 
-			&u.ChosenMode.RankedScore, &u.ChosenMode.TotalScore, &u.ChosenMode.PlayCount,
-			&u.ChosenMode.ReplaysWatched, &u.ChosenMode.TotalHits,
-			&u.ChosenMode.Accuracy, &u.ChosenMode.PP,
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP,
 		)
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return make([]leaderboardUser, 0)
+		}
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser(eligibleTitles)
+		u.ChosenMode = chosenMode
+
 		users = append(users, u)
 	}
 	return users
@@ -91,7 +123,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 
 	if sort != "pp" {
-		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, modeInt, sort, &md)}
+		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, modeInt, sort, md)}
 		resp.Code = 200
 		return resp
 	}
@@ -126,21 +158,35 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var u leaderboardUser
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
+
 		err := rows.Scan(
-			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity,
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 
-			&u.UsernameAKA, &u.Country, &u.PlayStyle, &u.FavouriteMode,
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
 
-			&u.ChosenMode.RankedScore, &u.ChosenMode.TotalScore, &u.ChosenMode.PlayCount,
-			&u.ChosenMode.ReplaysWatched, &u.ChosenMode.TotalHits,
-			&u.ChosenMode.Accuracy, &u.ChosenMode.PP,
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP,
 		)
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser(eligibleTitles)
+		u.ChosenMode = chosenMode
 		if rx == 1 {
 			if i := relaxboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i

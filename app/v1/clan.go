@@ -613,7 +613,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 		}
 
 		var eligibleTitles []eligibleTitle
-		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
 		if err != nil {
 			md.Err(err)
 			return Err500

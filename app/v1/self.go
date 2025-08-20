@@ -87,7 +87,7 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 			return Err500
 		}
 
-		eligibleTitles, err := getEligibleTitles(md, privileges)
+		eligibleTitles, err := getEligibleTitles(md, md.ID(), privileges)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -154,14 +154,14 @@ type userSettingsResponse struct {
 // - Privilege-based titles: Check if user has specific privilege combinations
 // - Badge-based titles: Check if user has specific badges by ID
 // - Titles are returned in a specific priority order (to accomodate default title selection)
-func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle, error) {
+func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]eligibleTitle, error) {
 	titles := make([]eligibleTitle, 0)
 
 	userPrivs := common.UserPrivileges(privileges)
 
 	// Check badges first (they have higher priority)
 	rows, err := md.DB.Query("SELECT b.id FROM user_badges ub "+
-		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", md.ID())
+		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ WHERE id = ?`, md.ID()).Scan(
 		}{}
 	}
 
-	eligibleTitles, err := getEligibleTitles(md, privileges)
+	eligibleTitles, err := getEligibleTitles(md, r.ID, privileges)
 	if err != nil {
 		md.Err(err)
 		return Err500

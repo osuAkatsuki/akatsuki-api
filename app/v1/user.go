@@ -315,6 +315,13 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		&b.Name, &can, &show, &r.SilenceInfo.Reason,
 		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID, &userDB.UserTitle,
 	)
+	switch {
+	case err == sql.ErrNoRows:
+		return common.SimpleResponse(404, "That user could not be found!")
+	case err != nil:
+		md.Err(err)
+		return Err500
+	}
 
 	// Get eligible titles
 	eligibleTitles, err := getEligibleTitles(md, userDB.Privileges)
@@ -325,14 +332,6 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 
 	// Convert userDB to userData and set it in the response
 	r.userData = userDB.toUserData(eligibleTitles)
-
-	switch {
-	case err == sql.ErrNoRows:
-		return common.SimpleResponse(404, "That user could not be found!")
-	case err != nil:
-		md.Err(err)
-		return Err500
-	}
 
 	// Scan stats into response for all gamemodes, across vn/rx/ap
 	query := `

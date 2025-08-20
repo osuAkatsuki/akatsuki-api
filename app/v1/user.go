@@ -108,7 +108,7 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 	}
 
 	var eligibleTitles []eligibleTitle
-	eligibleTitles, err = getEligibleTitles(md, userDataDB.Privileges)
+	eligibleTitles, err = getEligibleTitles(md, userDataDB.ID, userDataDB.Privileges)
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -179,7 +179,7 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		}
 
 		var eligibleTitles []eligibleTitle
-		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
 		if err != nil {
 			md.Err(err)
 			return Err500
@@ -322,7 +322,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	eligibleTitles, err := getEligibleTitles(md, userDB.Privileges)
+	eligibleTitles, err := getEligibleTitles(md, userDB.ID, userDB.Privileges)
 	if err != nil {
 		md.Err(err)
 		return Err500

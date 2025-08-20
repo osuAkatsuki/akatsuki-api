@@ -151,21 +151,28 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var u leaderboardUser
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
+
 		err := rows.Scan(
-			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity,
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 
-			&u.UsernameAKA, &u.Country, &u.PlayStyle, &u.FavouriteMode,
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
 
-			&u.ChosenMode.RankedScore, &u.ChosenMode.TotalScore, &u.ChosenMode.PlayCount,
-			&u.ChosenMode.ReplaysWatched, &u.ChosenMode.TotalHits,
-			&u.ChosenMode.Accuracy, &u.ChosenMode.PP,
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP,
 		)
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser()
+		u.ChosenMode = chosenMode
 		if rx == 1 {
 			if i := relaxboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i

@@ -8,6 +8,24 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
+func DiscordUnlinkPOST(md common.MethodData) common.CodeMessager {
+	err := md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND discord_account_id IS NOT NULL", md.ID()).Scan(new(int))
+	switch {
+	case err == sql.ErrNoRows:
+		var r common.ResponseBase
+		r.Code = 400
+		r.Message = "You do not have a Discord account linked!"
+		return r
+	case err != nil:
+		md.Err(err)
+		return Err500
+	}
+
+	md.DB.Exec("UPDATE users SET discord_account_id = NULL WHERE id = ?", md.ID())
+
+	return common.SimpleResponse(200, "Discord unlinked successfully")
+}
+
 func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 	code := md.Query("code")
 	if code == "" {

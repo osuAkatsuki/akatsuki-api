@@ -119,6 +119,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/friends/del", v1.FriendsDelPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/scores/pin", v1.ScoresPinAddPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/scores/unpin", v1.ScoresPinDelPOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/users/self/connections/unlink-discord", v1.DiscordUnlinkPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/settings", v1.UsersSelfSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/userpage", v1.UserSelfUserpagePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/join", v1.ClanJoinPOST, common.PrivilegeWrite)

@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/osuAkatsuki/akatsuki-api/externals"
+	"golang.org/x/exp/slog"
 	"zxq.co/ripple/ocl"
 )
 
@@ -517,8 +518,12 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+	slog.Info("Global std rank before", "rank", r.Stats[0].STD.GlobalLeaderboardRank)
+	slog.Info("Followers before", "followers", follower)
 
 	// Convert userDB to userData and set it in the response
+	slog.Info("Global std rank after", "rank", r.Stats[0].STD.GlobalLeaderboardRank)
+	slog.Info("Followers after", "followers", follower)
 	r.userData = userDB.toUserData(eligibleTitles)
 
 	r.Code = 200

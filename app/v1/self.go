@@ -153,11 +153,10 @@ type userSettingsResponse struct {
 // The rules are based on the provided template logic:
 // - Privilege-based titles: Check if user has specific privilege combinations
 // - Badge-based titles: Check if user has specific badges by ID
-// Titles are returned in a specific priority order (to accomodate default title selection)
+// - Titles are returned in a specific priority order (to accomodate default title selection)
 func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle, error) {
 	var titles []eligibleTitle
 
-	// Check privileges
 	userPrivs := common.UserPrivileges(privileges)
 
 	// Check badges first (they have higher priority)
@@ -168,7 +167,6 @@ func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle
 	}
 	defer rows.Close()
 
-	// Track which badges the user has
 	hasBot := false
 	hasDesign := false
 	hasScorewatcher := false
@@ -181,94 +179,72 @@ func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle
 			continue
 		}
 
-		// Bot badge (ID 34)
 		if badgeID == 34 {
 			hasBot = true
 		}
 
-		// Design badge (ID 101)
 		if badgeID == 101 {
 			hasDesign = true
 		}
 
-		// Scorewatcher badge (ID 86)
 		if badgeID == 86 {
 			hasScorewatcher = true
 		}
 
-		// Champion badge (ID 67)
 		if badgeID == 67 {
 			hasChampion = true
 		}
 	}
 
 	// Return titles in priority order as specified in the HTML template
-	// 1. Bot (highest priority)
 	if hasBot {
 		titles = append(titles, eligibleTitle{ID: "bot", Title: "CHAT BOT"})
 	}
 
-	// 2. Product Manager
 	if userPrivs&9437183 > 0 {
 		titles = append(titles, eligibleTitle{ID: "product_manager", Title: "PRODUCT MANAGER"})
 	}
 
-	// 3. Developer
 	if userPrivs&10743327 > 0 {
 		titles = append(titles, eligibleTitle{ID: "developer", Title: "PRODUCT DEVELOPER"})
 	}
 
-	// 4. Designer
 	if hasDesign {
 		titles = append(titles, eligibleTitle{ID: "designer", Title: "PRODUCT DESIGNER"})
 	}
 
-	// 5. Community Manager
 	if userPrivs&9425151 > 0 {
 		titles = append(titles, eligibleTitle{ID: "community_manager", Title: "COMMUNITY MANAGER"})
 	}
 
-	// 6. Community Support (Accounts)
-	if userPrivs&9212159 > 0 {
+	if userPrivs&9212159 > 0 || userPrivs&9175111 > 0 {
 		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
 	}
 
-	// 7. Community Support (Support)
-	if userPrivs&9175111 > 0 {
-		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
-	}
-
-	// 8. Event Manager
 	if userPrivs&10485767 > 0 {
 		titles = append(titles, eligibleTitle{ID: "event_manager", Title: "EVENT MANAGER"})
 	}
 
-	// 9. NQA
 	if userPrivs&33554432 > 0 {
 		titles = append(titles, eligibleTitle{ID: "nqa", Title: "NOMINATION QUALITY ASSURANCE"})
 	}
 
-	// 10. Nominator
 	if userPrivs&8388871 > 0 {
 		titles = append(titles, eligibleTitle{ID: "nominator", Title: "BEATMAP NOMINATOR"})
 	}
 
-	// 11. Scorewatcher
 	if hasScorewatcher {
 		titles = append(titles, eligibleTitle{ID: "scorewatcher", Title: "SOCIAL MEDIA MANAGER"})
 	}
 
-	// 12. Champion
 	if hasChampion {
 		titles = append(titles, eligibleTitle{ID: "champion", Title: "AKATSUKI CHAMPION"})
 	}
 
-	// 13. Premium
 	if userPrivs&common.UserPrivilegePremium > 0 {
 		titles = append(titles, eligibleTitle{ID: "premium", Title: "AKATSUKI+"})
 	}
 
-	// 14. Donor (lowest priority)
 	if userPrivs&common.UserPrivilegeDonor > 0 {
 		titles = append(titles, eligibleTitle{ID: "donor", Title: "SUPPORTER"})
 	}

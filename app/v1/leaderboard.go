@@ -90,7 +90,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
 
 		var eligibleTitles []eligibleTitle
-		// Get eligible titles
 		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
 		if err != nil {
 			md.Err(err)
@@ -179,7 +178,6 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
 
 		var eligibleTitles []eligibleTitle
-		// Get eligible titles
 		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
 		if err != nil {
 			md.Err(err)

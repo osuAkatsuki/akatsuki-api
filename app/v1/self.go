@@ -313,7 +313,6 @@ WHERE id = ?`, md.ID()).Scan(
 		}{}
 	}
 
-	// Get eligible titles
 	eligibleTitles, err := getEligibleTitles(md, privileges)
 	if err != nil {
 		md.Err(err)

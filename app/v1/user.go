@@ -322,14 +322,12 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	// Get eligible titles
 	eligibleTitles, err := getEligibleTitles(md, userDB.Privileges)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
 
-	// Convert userDB to userData and set it in the response
 	r.userData = userDB.toUserData(eligibleTitles)
 
 	// Scan stats into response for all gamemodes, across vn/rx/ap

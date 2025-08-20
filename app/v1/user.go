@@ -97,18 +97,18 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 	var user userPutsSingleUserData
 	var userDataDB userDataDB
 
-	var eligibleTitles []eligibleTitle
-	eligibleTitles, err = getEligibleTitles(md, userDataDB.Privileges)
-	if err != nil {
-		md.Err(err)
-		return Err500
-	}
-
 	err = row.StructScan(&userDataDB)
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user was found!")
 	case err != nil:
+		md.Err(err)
+		return Err500
+	}
+
+	var eligibleTitles []eligibleTitle
+	eligibleTitles, err = getEligibleTitles(md, userDataDB.Privileges)
+	if err != nil {
 		md.Err(err)
 		return Err500
 	}
@@ -171,17 +171,17 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 	for rows.Next() {
 		var userDB userDataDB
 
+		err := rows.StructScan(&userDB)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+
 		var eligibleTitles []eligibleTitle
 		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
 		if err != nil {
 			md.Err(err)
 			return Err500
-		}
-
-		err := rows.StructScan(&userDB)
-		if err != nil {
-			md.Err(err)
-			continue
 		}
 
 		// Convert to API response format

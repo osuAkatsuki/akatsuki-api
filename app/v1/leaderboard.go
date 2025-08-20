@@ -73,13 +73,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
 
-		var eligibleTitles []eligibleTitle
-		// Get eligible titles
-		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
-		if err != nil {
-			md.Err(err)
-			return make([]leaderboardUser, 0)
-		}
 
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
@@ -96,6 +89,14 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 		}
 
 		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		// Get eligible titles
+		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return make([]leaderboardUser, 0)
+		}
 
 		// Convert to API response format
 		u := userDB.toLeaderboardUser(eligibleTitles)
@@ -162,14 +163,6 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
 
-		var eligibleTitles []eligibleTitle
-		// Get eligible titles
-		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
-		if err != nil {
-			md.Err(err)
-			return Err500
-		}
-
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 
@@ -185,6 +178,14 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		}
 
 		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		// Get eligible titles
+		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
 
 		// Convert to API response format
 		u := userDB.toLeaderboardUser(eligibleTitles)

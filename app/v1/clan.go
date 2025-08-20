@@ -636,7 +636,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 				ID:    userDB.UserTitle.String,
 				Title: getUserTitleFromID(userDB.UserTitle.String),
 			}
-		} else {
+		} else if len(eligibleTitles) > 0 {
 			a.UserTitle = userTitleResponse{
 				ID:    eligibleTitles[0].ID,
 				Title: eligibleTitles[0].Title,

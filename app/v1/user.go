@@ -59,7 +59,7 @@ func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 			ID:    udb.UserTitle.String,
 			Title: getUserTitleFromID(udb.UserTitle.String),
 		}
-	} else {
+	} else if len(eligibleTitles) > 0{
 		u.UserTitle = userTitleResponse{
 			ID:    eligibleTitles[0].ID,
 			Title: eligibleTitles[0].Title,

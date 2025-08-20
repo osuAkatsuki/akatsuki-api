@@ -9,8 +9,6 @@ import (
 	"strings"
 	"unicode"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/osuAkatsuki/akatsuki-api/externals"
@@ -330,8 +328,6 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
-
-	slog.Info("userDB", "userDB", userDB)
 
 	// Convert userDB to userData and set it in the response
 	r.userData = userDB.toUserData(eligibleTitles)

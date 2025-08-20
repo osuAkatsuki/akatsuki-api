@@ -604,13 +604,45 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		a := userData{}
+		userDB := userDataDB{}
 
-		err = rows.Scan(&a.ID, &a.Username, &a.RegisteredOn, &a.Privileges, &a.LatestActivity, &a.UsernameAKA, &a.Country)
+		err = rows.Scan(&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity, &userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		// Convert to API response format
+		a := userData{
+			ID:             userDB.ID,
+			Username:       userDB.Username,
+			UsernameAKA:    userDB.UsernameAKA,
+			RegisteredOn:   userDB.RegisteredOn,
+			Privileges:     userDB.Privileges,
+			LatestActivity: userDB.LatestActivity,
+			Country:        userDB.Country,
+		}
+
+		// Handle user title conversion
+		if userDB.UserTitle.Valid && userDB.UserTitle.String != "" {
+			a.UserTitle = userTitleResponse{
+				ID:    userDB.UserTitle.String,
+				Title: getUserTitleFromID(userDB.UserTitle.String),
+			}
+		} else {
+			a.UserTitle = userTitleResponse{
+				ID:    eligibleTitles[0].ID,
+				Title: eligibleTitles[0].Title,
+			}
+		}
+
 		cmd.Members = append(cmd.Members, a)
 	}
 	res := struct {

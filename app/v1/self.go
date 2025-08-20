@@ -155,7 +155,7 @@ type userSettingsResponse struct {
 // - Badge-based titles: Check if user has specific badges by ID
 // - Titles are returned in a specific priority order (to accomodate default title selection)
 func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle, error) {
-	var titles []eligibleTitle
+	titles := make([]eligibleTitle, 0)
 
 	userPrivs := common.UserPrivileges(privileges)
 

@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/osuAkatsuki/akatsuki-api/externals"
-	"golang.org/x/exp/slog"
+
 	"zxq.co/ripple/ocl"
 )
 
@@ -315,6 +315,17 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		&b.Name, &can, &show, &r.SilenceInfo.Reason,
 		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID, &userDB.UserTitle,
 	)
+
+	// Get eligible titles
+	eligibleTitles, err := getEligibleTitles(md, userDB.Privileges)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	// Convert userDB to userData and set it in the response
+	r.userData = userDB.toUserData(eligibleTitles)
+
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "That user could not be found!")
@@ -511,20 +522,6 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		md.Err(err)
 	}
-
-	// Get eligible titles
-	eligibleTitles, err := getEligibleTitles(md, userDB.Privileges)
-	if err != nil {
-		md.Err(err)
-		return Err500
-	}
-	slog.Info("Global std rank before", "rank", r.Stats[0].STD.GlobalLeaderboardRank)
-	slog.Info("Followers before", "followers", follower)
-
-	// Convert userDB to userData and set it in the response
-	slog.Info("Global std rank after", "rank", r.Stats[0].STD.GlobalLeaderboardRank)
-	slog.Info("Followers after", "followers", follower)
-	r.userData = userDB.toUserData(eligibleTitles)
 
 	r.Code = 200
 	return r

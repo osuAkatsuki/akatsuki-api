@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - true-vibing-consequences
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

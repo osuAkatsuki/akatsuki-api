@@ -15,7 +15,7 @@ import (
 	"zxq.co/ripple/ocl"
 )
 
-// userDataDB is used for scanning from database (contains string UserTitle)
+// userDataDB is used for scanning from database
 type userDataDB struct {
 	ID             int                  `db:"id"`
 	Username       string               `db:"username"`
@@ -24,7 +24,7 @@ type userDataDB struct {
 	Privileges     uint64               `db:"privileges"`
 	LatestActivity common.UnixTimestamp `db:"latest_activity"`
 	Country        string               `db:"country"`
-	UserTitle      string               `db:"user_title"`
+	UserTitle      sql.NullString       `db:"user_title"`
 }
 
 // userData is used for API responses (contains userTitleResponse)
@@ -52,10 +52,10 @@ func (udb *userDataDB) toUserData() userData {
 	}
 
 	// Convert UserTitle ID to structured response
-	if udb.UserTitle != "" {
+	if udb.UserTitle.Valid && udb.UserTitle.String != "" {
 		u.UserTitle = userTitleResponse{
-			ID:    udb.UserTitle,
-			Title: getUserTitleFromID(udb.UserTitle),
+			ID:    udb.UserTitle.String,
+			Title: getUserTitleFromID(udb.UserTitle.String),
 		}
 	}
 

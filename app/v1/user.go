@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"html"
-	"log/slog"
 	"strconv"
 	"strings"
 	"unicode"
+
+	"golang.org/x/exp/slog"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"

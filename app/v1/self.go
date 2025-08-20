@@ -201,11 +201,11 @@ func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle
 		titles = append(titles, eligibleTitle{ID: "bot", Title: "CHAT BOT"})
 	}
 
-	if userPrivs&9437183 > 0 {
+	if userPrivs&9437183 == 9437183 {
 		titles = append(titles, eligibleTitle{ID: "product_manager", Title: "PRODUCT MANAGER"})
 	}
 
-	if userPrivs&10743327 > 0 {
+	if userPrivs&10743327 == 10743327 {
 		titles = append(titles, eligibleTitle{ID: "developer", Title: "PRODUCT DEVELOPER"})
 	}
 
@@ -213,23 +213,23 @@ func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle
 		titles = append(titles, eligibleTitle{ID: "designer", Title: "PRODUCT DESIGNER"})
 	}
 
-	if userPrivs&9425151 > 0 {
+	if userPrivs&9425151 == 9425151 {
 		titles = append(titles, eligibleTitle{ID: "community_manager", Title: "COMMUNITY MANAGER"})
 	}
 
-	if userPrivs&9212159 > 0 || userPrivs&9175111 > 0 {
+	if userPrivs&9212159 == 9212159 || userPrivs&9175111 == 9175111 {
 		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
 	}
 
-	if userPrivs&10485767 > 0 {
+	if userPrivs&10485767 == 10485767 {
 		titles = append(titles, eligibleTitle{ID: "event_manager", Title: "EVENT MANAGER"})
 	}
 
-	if userPrivs&33554432 > 0 {
+	if userPrivs&33554432 == 33554432 {
 		titles = append(titles, eligibleTitle{ID: "nqa", Title: "NOMINATION QUALITY ASSURANCE"})
 	}
 
-	if userPrivs&8388871 > 0 {
+	if userPrivs&8388871 == 8388871 {
 		titles = append(titles, eligibleTitle{ID: "nominator", Title: "BEATMAP NOMINATOR"})
 	}
 
@@ -241,11 +241,11 @@ func getEligibleTitles(md common.MethodData, privileges uint64) ([]eligibleTitle
 		titles = append(titles, eligibleTitle{ID: "champion", Title: "AKATSUKI CHAMPION"})
 	}
 
-	if userPrivs&common.UserPrivilegePremium > 0 {
+	if userPrivs&common.UserPrivilegePremium == common.UserPrivilegePremium {
 		titles = append(titles, eligibleTitle{ID: "premium", Title: "AKATSUKI+"})
 	}
 
-	if userPrivs&common.UserPrivilegeDonor > 0 {
+	if userPrivs&common.UserPrivilegeDonor == common.UserPrivilegeDonor {
 		titles = append(titles, eligibleTitle{ID: "donor", Title: "SUPPORTER"})
 	}
 

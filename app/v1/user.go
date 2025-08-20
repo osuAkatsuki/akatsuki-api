@@ -15,6 +15,19 @@ import (
 	"zxq.co/ripple/ocl"
 )
 
+// userDataDB is used for scanning from database (contains string UserTitle)
+type userDataDB struct {
+	ID             int                  `db:"id"`
+	Username       string               `db:"username"`
+	UsernameAKA    string               `db:"username_aka"`
+	RegisteredOn   common.UnixTimestamp `db:"register_datetime"`
+	Privileges     uint64               `db:"privileges"`
+	LatestActivity common.UnixTimestamp `db:"latest_activity"`
+	Country        string               `db:"country"`
+	UserTitle      string               `db:"user_title"`
+}
+
+// userData is used for API responses (contains userTitleResponse)
 type userData struct {
 	ID             int                  `json:"id"`
 	Username       string               `json:"username"`
@@ -23,7 +36,30 @@ type userData struct {
 	Privileges     uint64               `json:"privileges"`
 	LatestActivity common.UnixTimestamp `json:"latest_activity"`
 	Country        string               `json:"country"`
-	UserTitle      string               `json:"user_title"`
+	UserTitle      userTitleResponse    `json:"user_title"`
+}
+
+// toUserData converts userDataDB to userData with proper title conversion
+func (udb *userDataDB) toUserData() userData {
+	u := userData{
+		ID:             udb.ID,
+		Username:       udb.Username,
+		UsernameAKA:    udb.UsernameAKA,
+		RegisteredOn:   udb.RegisteredOn,
+		Privileges:     udb.Privileges,
+		LatestActivity: udb.LatestActivity,
+		Country:        udb.Country,
+	}
+
+	// Convert UserTitle ID to structured response
+	if udb.UserTitle != "" {
+		u.UserTitle = userTitleResponse{
+			ID:    udb.UserTitle,
+			Title: getUserTitleFromID(udb.UserTitle),
+		}
+	}
+
+	return u
 }
 
 const userFields = `
@@ -53,8 +89,9 @@ type userPutsSingleUserData struct {
 func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 	var err error
 	var user userPutsSingleUserData
+	var userDataDB userDataDB
 
-	err = row.StructScan(&user.userData)
+	err = row.StructScan(&userDataDB)
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user was found!")
@@ -63,11 +100,8 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 		return Err500
 	}
 
-	// Convert stored machine-readable ID to human-readable title for API response
-	if user.UserTitle != "" {
-		user.UserTitle = getUserTitleFromID(user.UserTitle)
-	}
-
+	// Convert to API response format
+	user.userData = userDataDB.toUserData()
 	user.Code = 200
 	return user
 }
@@ -120,18 +154,17 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
-	var r userPutsMultiUserData
+		var r userPutsMultiUserData
 	for rows.Next() {
-		var u userData
-		err := rows.StructScan(&u)
+		var userDB userDataDB
+		err := rows.StructScan(&userDB)
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-		// Convert stored machine-readable ID to human-readable title for API response
-		if u.UserTitle != "" {
-			u.UserTitle = getUserTitleFromID(u.UserTitle)
-		}
+
+		// Convert to API response format
+		u := userDB.toUserData()
 		r.Users = append(r.Users, u)
 	}
 	r.Code = 200
@@ -213,7 +246,7 @@ type userFullResponse struct {
 	Stats         [3]userStats          `json:"stats"`
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
-	UserTitle     string                `json:"user_title"`
+	UserTitle     userTitleResponse     `json:"user_title"`
 	Badges        []singleBadge         `json:"badges"`
 	Clan          Clan                  `json:"clan"`
 	Followers     int                   `json:"followers"`
@@ -242,6 +275,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 
 		can  bool
 		show bool
+		userDB userDataDB
 	)
 	// Scan user information into response
 	err := md.DB.QueryRow(`
@@ -254,10 +288,10 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true),
 		userIdParam,
 	).Scan(
-		&r.ID, &r.Username, &r.RegisteredOn, &r.Privileges, &r.LatestActivity,
-		&r.UsernameAKA, &r.Country, &r.PlayStyle, &r.FavouriteMode, &b.Icon,
+		&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
+		&userDB.UsernameAKA, &userDB.Country, &r.PlayStyle, &r.FavouriteMode, &b.Icon,
 		&b.Name, &can, &show, &r.SilenceInfo.Reason,
-		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID, &r.UserTitle,
+		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID, &userDB.UserTitle,
 	)
 	switch {
 	case err == sql.ErrNoRows:
@@ -456,10 +490,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 	}
 
-	// Convert stored machine-readable ID to human-readable title for API response
-	if r.UserTitle != "" {
-		r.UserTitle = getUserTitleFromID(r.UserTitle)
-	}
+	// Convert userDB to userData and set it in the response
+	r.userData = userDB.toUserData()
 
 	r.Code = 200
 	return r

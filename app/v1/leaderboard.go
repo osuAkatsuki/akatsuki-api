@@ -13,11 +13,28 @@ import (
 	"zxq.co/ripple/ocl"
 )
 
+// leaderboardUserDB is used for scanning from database
+type leaderboardUserDB struct {
+	userDataDB
+	PlayStyle     int `db:"play_style"`
+	FavouriteMode int `db:"favourite_mode"`
+}
+
+// leaderboardUser is used for API responses
 type leaderboardUser struct {
 	userData
 	ChosenMode    modeData `json:"chosen_mode"`
 	PlayStyle     int      `json:"play_style"`
 	FavouriteMode int      `json:"favourite_mode"`
+}
+
+// toLeaderboardUser converts leaderboardUserDB to leaderboardUser
+func (lub *leaderboardUserDB) toLeaderboardUser() leaderboardUser {
+	return leaderboardUser{
+		userData:      lub.userDataDB.toUserData(),
+		PlayStyle:     lub.PlayStyle,
+		FavouriteMode: lub.FavouriteMode,
+	}
 }
 
 type leaderboardResponse struct {
@@ -53,53 +70,35 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.Met
 	defer rows.Close()
 	var users []leaderboardUser
 	for i := 1; rows.Next(); i++ {
-		u := leaderboardUser{}
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
+
 		err := rows.Scan(
-			&u.ID, &u.Username, &u.RegisteredOn, &u.Privileges, &u.LatestActivity,
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 
-			&u.UsernameAKA, &u.Country, &u.UserTitle, &u.PlayStyle, &u.FavouriteMode,
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
 
-			&u.ChosenMode.RankedScore, &u.ChosenMode.TotalScore, &u.ChosenMode.PlayCount,
-			&u.ChosenMode.ReplaysWatched, &u.ChosenMode.TotalHits,
-			&u.ChosenMode.Accuracy, &u.ChosenMode.PP,
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP,
 		)
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-		u.ChosenMode.Level = ocl.GetLevelPrecise(int64(u.ChosenMode.TotalScore))
-		// Convert stored machine-readable ID to human-readable title for API response
-		if u.UserTitle != "" {
-			u.UserTitle = getTitleFromIDLeaderboard(u.UserTitle)
-		}
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser()
+		u.ChosenMode = chosenMode
+
 		users = append(users, u)
 	}
 	return users
 }
 
-// getTitleFromIDLeaderboard converts a machine-readable title ID to human-readable title
-func getTitleFromIDLeaderboard(titleID string) string {
-	titleMap := map[string]string{
-		"bot":               "CHAT BOT",
-		"product_manager":   "PRODUCT MANAGER",
-		"developer":         "PRODUCT DEVELOPER",
-		"designer":          "PRODUCT DESIGNER",
-		"community_manager": "COMMUNITY MANAGER",
-		"community_support": "COMMUNITY SUPPORT",
-		"event_manager":     "EVENT MANAGER",
-		"nqa":               "NOMINATION QUALITY ASSURANCE",
-		"nominator":         "BEATMAP NOMINATOR",
-		"scorewatcher":      "SOCIAL MEDIA MANAGER",
-		"champion":          "AKATSUKI CHAMPION",
-		"premium":           "AKATSUKI+",
-		"donor":             "SUPPORTER",
-	}
 
-	if title, exists := titleMap[titleID]; exists {
-		return title
-	}
-	return titleID // Return ID if not found (fallback)
-}
 
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {

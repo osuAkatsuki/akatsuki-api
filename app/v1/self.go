@@ -132,13 +132,18 @@ type eligibleTitle struct {
 	Title string `json:"title"` // Human-readable name
 }
 
+type userTitleResponse struct {
+	ID    string `json:"id"`    // Machine-readable identifier
+	Title string `json:"title"` // Human-readable name
+}
+
 type userSettingsResponse struct {
 	common.ResponseBase
-	ID             int            `json:"id"`
-	Username       string         `json:"username"`
-	Email          string         `json:"email"`
-	UserTitle      string         `json:"user_title"`
-	EligibleTitles []eligibleTitle `json:"eligible_titles"`
+	ID             int                `json:"id"`
+	Username       string             `json:"username"`
+	Email          string             `json:"email"`
+	UserTitle      userTitleResponse  `json:"user_title"`
+	EligibleTitles []eligibleTitle    `json:"eligible_titles"`
 	userSettingsData
 }
 
@@ -298,6 +303,7 @@ func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	var r userSettingsResponse
 	var ccb bool
 	var privileges uint64
+	var userTitleID string
 	r.Code = 200
 	err := md.DB.QueryRow(`
 SELECT
@@ -316,7 +322,7 @@ WHERE id = ?`, md.ID()).Scan(
 		&r.CustomBadge.Name, &ccb,
 		&r.PlayStyle, &r.VanillaPPLeaderboards,
 		&r.LeaderboardSize, &privileges,
-		&r.UserTitle,
+		&userTitleID,
 	)
 	if err != nil {
 		md.Err(err)
@@ -338,12 +344,18 @@ WHERE id = ?`, md.ID()).Scan(
 		r.EligibleTitles = eligibleTitles
 	}
 
-	// Convert stored machine-readable ID to human-readable title for API response
-	if r.UserTitle != "" {
-		r.UserTitle = getTitleFromID(r.UserTitle)
+	// Set the UserTitle struct from the stored ID
+	if userTitleID != "" {
+		r.UserTitle = userTitleResponse{
+			ID:    userTitleID,
+			Title: getTitleFromID(userTitleID),
+		}
 	} else if len(r.EligibleTitles) > 0 {
 		// If user_title is empty or null, set it to the first eligible title if available
-		r.UserTitle = r.EligibleTitles[0].Title
+		r.UserTitle = userTitleResponse{
+			ID:    r.EligibleTitles[0].ID,
+			Title: r.EligibleTitles[0].Title,
+		}
 	}
 
 	return r

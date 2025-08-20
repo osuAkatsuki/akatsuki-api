@@ -40,7 +40,7 @@ type userData struct {
 }
 
 // toUserData converts userDataDB to userData with proper title conversion
-func (udb *userDataDB) toUserData() userData {
+func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 	u := userData{
 		ID:             udb.ID,
 		Username:       udb.Username,
@@ -57,6 +57,12 @@ func (udb *userDataDB) toUserData() userData {
 			ID:    udb.UserTitle.String,
 			Title: getUserTitleFromID(udb.UserTitle.String),
 		}
+	} else {
+		u.UserTitle = userTitleResponse{
+			ID:    eligibleTitles[0].ID,
+			Title: eligibleTitles[0].Title,
+		}
+
 	}
 
 	return u
@@ -91,6 +97,13 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 	var user userPutsSingleUserData
 	var userDataDB userDataDB
 
+	var eligibleTitles []eligibleTitle
+	eligibleTitles, err = getEligibleTitles(md, userDataDB.Privileges)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
 	err = row.StructScan(&userDataDB)
 	switch {
 	case err == sql.ErrNoRows:
@@ -101,7 +114,7 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 	}
 
 	// Convert to API response format
-	user.userData = userDataDB.toUserData()
+	user.userData = userDataDB.toUserData(eligibleTitles)
 	user.Code = 200
 	return user
 }
@@ -157,6 +170,14 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 	var r userPutsMultiUserData
 	for rows.Next() {
 		var userDB userDataDB
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
 		err := rows.StructScan(&userDB)
 		if err != nil {
 			md.Err(err)
@@ -164,7 +185,7 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		}
 
 		// Convert to API response format
-		u := userDB.toUserData()
+		u := userDB.toUserData(eligibleTitles)
 		r.Users = append(r.Users, u)
 	}
 	r.Code = 200
@@ -490,8 +511,15 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 	}
 
+	// Get eligible titles
+	eligibleTitles, err := getEligibleTitles(md, userDB.Privileges)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
 	// Convert userDB to userData and set it in the response
-	r.userData = userDB.toUserData()
+	r.userData = userDB.toUserData(eligibleTitles)
 
 	r.Code = 200
 	return r

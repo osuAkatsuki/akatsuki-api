@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"database/sql"
+
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
@@ -303,7 +305,7 @@ func UsersSelfSettingsGET(md common.MethodData) common.CodeMessager {
 	var r userSettingsResponse
 	var ccb bool
 	var privileges uint64
-	var userTitleID string
+	var userTitleID sql.NullString
 	r.Code = 200
 	err := md.DB.QueryRow(`
 SELECT
@@ -339,16 +341,16 @@ WHERE id = ?`, md.ID()).Scan(
 	eligibleTitles, err := getEligibleTitles(md, privileges)
 	if err != nil {
 		md.Err(err)
-		// Don't return error, just continue without titles
+		return Err500
 	} else {
 		r.EligibleTitles = eligibleTitles
 	}
 
 	// Set the UserTitle struct from the stored ID
-	if userTitleID != "" {
+	if userTitleID.Valid && userTitleID.String != "" {
 		r.UserTitle = userTitleResponse{
-			ID:    userTitleID,
-			Title: getTitleFromID(userTitleID),
+			ID:    userTitleID.String,
+			Title: getTitleFromID(userTitleID.String),
 		}
 	} else if len(r.EligibleTitles) > 0 {
 		// If user_title is empty or null, set it to the first eligible title if available

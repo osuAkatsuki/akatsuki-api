@@ -270,7 +270,6 @@ type userFullResponse struct {
 	Stats         [3]userStats          `json:"stats"`
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
-	UserTitle     userTitleResponse     `json:"user_title"`
 	Badges        []singleBadge         `json:"badges"`
 	Clan          Clan                  `json:"clan"`
 	Followers     int                   `json:"followers"`

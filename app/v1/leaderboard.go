@@ -73,7 +73,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
 
-
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 

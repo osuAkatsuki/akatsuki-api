@@ -154,7 +154,7 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
-		var r userPutsMultiUserData
+	var r userPutsMultiUserData
 	for rows.Next() {
 		var userDB userDataDB
 		err := rows.StructScan(&userDB)

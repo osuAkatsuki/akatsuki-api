@@ -97,6 +97,7 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md *common.Met
 	}
 	return users
 }
+
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))

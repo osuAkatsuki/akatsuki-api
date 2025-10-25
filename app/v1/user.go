@@ -1,5 +1,83 @@
-	query := userFields + `
-WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
+package v1
+
+import (
+	"database/sql"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	"gopkg.in/thehowl/go-osuapi.v1"
+
+	"github.com/osuAkatsuki/akatsuki-api/common"
+	"zxq.co/ripple/ocl"
+)
+
+// userDataDB is the structure used to scan users from the database
+type userDataDB struct {
+	ID                 int                  `db:"id" json:"id"`
+	Username           string               `db:"username" json:"username"`
+	UsernameAKA        string               `db:"username_aka" json:"username_aka"`
+	RegisteredOn       common.UnixTimestamp `db:"register_datetime" json:"registered_on"`
+	Privileges         uint64               `db:"privileges" json:"privileges"`
+	LatestActivity     common.UnixTimestamp `db:"latest_activity" json:"latest_activity"`
+	Country            string               `db:"country" json:"country"`
+	UserTitle          string               `db:"user_title" json:"user_title"`
+}
+
+// userData is the user data meant for API responses
+type userData struct {
+	ID             int                  `json:"id"`
+	Username       string               `json:"username"`
+	UsernameAKA    string               `json:"username_aka"`
+	RegisteredOn   common.UnixTimestamp `json:"registered_on"`
+	Privileges     uint64               `json:"privileges"`
+	LatestActivity common.UnixTimestamp `json:"latest_activity"`
+	Country        string               `json:"country"`
+	UserTitle      string               `json:"user_title"`
+}
+
+// toUserData converts userDataDB to userData with eligibility check
+func (u *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
+	userTitle := u.UserTitle
+	if !titleIsEligible(u.ID, u.Privileges, eligibleTitles) {
+		userTitle = ""
+	}
+
+	return userData{
+		ID:             u.ID,
+		Username:       u.Username,
+		UsernameAKA:    u.UsernameAKA,
+		RegisteredOn:   u.RegisteredOn,
+		Privileges:     u.Privileges,
+		LatestActivity: u.LatestActivity,
+		Country:        u.Country,
+		UserTitle:      userTitle,
+	}
+}
+
+const userFields = `SELECT users.id, users.username, users.register_datetime, users.privileges,
+		users.latest_activity, users.username_aka, users.country, users.user_title
+		FROM users `
+
+func userByID(md common.MethodData, id int) common.CodeMessager {
+	return userPutsSingle(md, md.DB.QueryRowx(userFields+"WHERE users.id = ? AND "+md.User.OnlyUserPublic(true)+" LIMIT 1", id))
+}
+
+func userByName(md common.MethodData, name string) common.CodeMessager {
+	var whereClause string
+	var param string
+
+	if strings.Contains(name, " ") {
+		whereClause = "users.username = ?"
+		param = name
+	} else {
+		whereClause = "users.username_safe = ?"
+		param = common.SafeUsername(name)
+	}
+
+	query := userFields + `WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
 LIMIT 1`
 	return userPutsSingle(md, md.DB.QueryRowx(query, param))
 }
@@ -21,12 +99,14 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
 	var eligibleTitles []eligibleTitle
 	eligibleTitles, err = getEligibleTitles(md, userDataDB.ID, userDataDB.Privileges)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
+
 	// Convert to API response format
 	user.userData = userDataDB.toUserData(eligibleTitles)
 	user.Code = 200
@@ -40,6 +120,7 @@ type userPutsMultiUserData struct {
 
 func userPutsMulti(md common.MethodData) common.CodeMessager {
 	pm := md.Ctx.Request.URI().QueryArgs().PeekMulti
+
 	// query composition
 	wh := common.
 		Where("users.username_safe = ?", common.SafeUsername(md.Query("nname")).
@@ -54,16 +135,24 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		In("users.username_safe", safeUsernameBulk(pm("names"))...).
 		In("users.username_aka", pm("names_aka")...).
 		In("users.country", pm("countries")...)
+
 	var extraJoin string
 	if md.Query("privilege_group") != "" {
 		extraJoin = " LEFT JOIN privileges_groups ON users.privileges & privileges_groups.privileges = privileges_groups.privileges "
 	}
+
 	query := userFields + extraJoin + wh.ClauseSafe() + " AND " + md.User.OnlyUserPublic(true) +
-		" " + common.Sort(md, common.SortConfiguration{Allowed: []string{"id","username","privileges","donor_expire","latest_activity","silence_end",},Default: "id ASC",Table:   "users",}) +
+		" " + common.Sort(md, common.SortConfiguration{
+		Allowed: []string{"id", "username", "privileges", "donor_expire", "latest_activity", "silence_end"},
+		Default: "id ASC",
+		Table:   "users",
+	}) +
 		" " + common.Paginate(md.Query("p"), md.Query("l"), 100)
+
 	// query execution
 	rows, err := md.DB.Queryx(query, wh.Params...)
 	if err != nil { md.Err(err); return Err500 }
+
 	var r userPutsMultiUserData
 	for rows.Next() {
 		var userDB userDataDB
@@ -77,36 +166,3 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 }
 
 // UserSelfGET is a shortcut for /users/id/self. (/users/self)
-func UserSelfGET(md common.MethodData) common.CodeMessager {
-	md.Ctx.Request.URI().SetQueryString("id=self")
-	return UsersGET(md)
-}
-
-func safeUsernameBulk(us [][]byte) [][]byte {
-	for _, u := range us {
-		for idx, v := range u {
-			if v == ' ' { u[idx] = '_'; continue }
-			u[idx] = byte(unicode.ToLower(rune(v)))
-		}
-	}
-	return us
-}
-
-type whatIDResponse struct {
-	common.ResponseBase
-	ID int `json:"id"`
-}
-
-// UserWhatsTheIDGET is an API request that only returns an user's ID.
-func UserWhatsTheIDGET(md common.MethodData) common.CodeMessager {
-	var (
-		r          whatIDResponse
-		privileges uint64
-	)
-	err := md.DB.QueryRow("SELECT id, privileges FROM users WHERE username_safe = ? LIMIT 1", common.SafeUsername(md.Query("name"))).Scan(&r.ID, &privileges)
-	if err != nil || ((privileges&uint64(common.UserPrivilegePublic)) == 0 && (md.User.UserPrivileges&common.AdminPrivilegeManageUsers == 0)) {
-		return common.SimpleResponse(404, "That user could not be found!")
-	}
-	r.Code = 200
-	return r
-}

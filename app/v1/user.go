@@ -296,7 +296,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	r := userFullResponse{}
 	var (
 		b singleBadge
-		
+
 		can  bool
 		show bool
 		userDB userDataDB

@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/osuAkatsuki/akatsuki-api/externals"
-	"gopkg.in/thehowl/go-osuapi.v1"
+
 	"zxq.co/ripple/ocl"
 )
 
@@ -63,6 +63,7 @@ func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 			ID:    eligibleTitles[0].ID,
 			Title: eligibleTitles[0].Title,
 		}
+
 	}
 
 	return u
@@ -112,6 +113,7 @@ func userPutsSingle(md common.MethodData, row *sqlx.Row) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
 	// Convert to API response format
 	user.userData = userDataDB.toUserData(eligibleTitles)
 	user.Code = 200
@@ -128,7 +130,7 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 	// query composition
 	wh := common.
 		Where("users.username_safe = ?", common.SafeUsername(md.Query("nname"))).
-		Where("users.id = ?", md.Query("iid"))).
+		Where("users.id = ?", md.Query("iid")).
 		Where("users.privileges = ?", md.Query("privileges")).
 		Where("users.privileges & ? > 0", md.Query("has_privileges")).
 		Where("users.privileges & ? = 0", md.Query("has_not_privileges")).
@@ -139,6 +141,7 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 		In("users.username_safe", safeUsernameBulk(pm("names"))...).
 		In("users.username_aka", pm("names_aka")...).
 		In("users.country", pm("countries")...)
+
 	var extraJoin string
 	if md.Query("privilege_group") != "" {
 		extraJoin = " LEFT JOIN privileges_groups ON users.privileges & privileges_groups.privileges = privileges_groups.privileges "
@@ -174,12 +177,14 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 			md.Err(err)
 			continue
 		}
+
 		var eligibleTitles []eligibleTitle
 		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
+
 		// Convert to API response format
 		u := userDB.toUserData(eligibleTitles)
 		r.Users = append(r.Users, u)
@@ -287,6 +292,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	if shouldRet != nil {
 		return *shouldRet
 	}
+
 	r := userFullResponse{}
 	var (
 		b   singleBadge
@@ -317,12 +323,15 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
 	eligibleTitles, err := getEligibleTitles(md, userDB.ID, userDB.Privileges)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
+
 	r.userData = userDB.toUserData(eligibleTitles)
+
 	// Scan stats into response for all gamemodes, across vn/rx/ap
 	query := `
 		SELECT
@@ -354,10 +363,12 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			md.Err(err)
 			return Err500
 		}
+
 		if relaxMode == 2 {
 			// AP only has osu! standard
 			continue
 		}
+
 		// Scan taiko gamemode information into response
 		err = md.DB.QueryRow(query, userIdParam, 1+modeOffset).Scan(
 			&r.Stats[relaxMode].Taiko.RankedScore, &r.Stats[relaxMode].Taiko.TotalScore, &r.Stats[relaxMode].Taiko.PlayCount, &r.Stats[relaxMode].Taiko.PlayTime,
@@ -374,6 +385,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			md.Err(err)
 			return Err500
 		}
+
 		// Scan ctb gamemode information into response
 		err = md.DB.QueryRow(query, userIdParam, 2+modeOffset).Scan(
 			&r.Stats[relaxMode].CTB.RankedScore, &r.Stats[relaxMode].CTB.TotalScore, &r.Stats[relaxMode].CTB.PlayCount, &r.Stats[relaxMode].CTB.PlayTime,
@@ -390,10 +402,12 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			md.Err(err)
 			return Err500
 		}
+
 		if relaxMode == 1 {
 			// RX does not have mania
 			continue
 		}
+
 		// Scan mania gamemode information into response
 		err = md.DB.QueryRow(query, userIdParam, 3+modeOffset).Scan(
 			&r.Stats[relaxMode].Mania.RankedScore, &r.Stats[relaxMode].Mania.TotalScore, &r.Stats[relaxMode].Mania.PlayCount, &r.Stats[relaxMode].Mania.PlayTime,
@@ -411,12 +425,15 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			return Err500
 		}
 	}
+
 	can = can && show && common.UserPrivileges(r.Privileges)&common.UserPrivilegeDonor > 0
 	if can && (b.Name != "" || b.Icon != "") {
 		r.CustomBadge = &b
 	}
+
 	for modeID, m := range [...]*modeData{&r.Stats[0].STD, &r.Stats[0].Taiko, &r.Stats[0].CTB, &r.Stats[0].Mania} {
 		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+
 		if i := leaderboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
 			m.GlobalLeaderboardRank = i
 		}
@@ -427,6 +444,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	// I'm sorry for this horribleness but ripple and past mistakes have forced my hand
 	for modeID, m := range [...]*modeData{&r.Stats[1].STD, &r.Stats[1].Taiko, &r.Stats[1].CTB, &r.Stats[1].Mania} {
 		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+
 		if i := relaxboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
 			m.GlobalLeaderboardRank = i
 		}
@@ -434,8 +452,10 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			m.CountryLeaderboardRank = i
 		}
 	}
+
 	for modeID, m := range [...]*modeData{&r.Stats[2].STD} {
 		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+
 		if i := autoboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
 			m.GlobalLeaderboardRank = i
 		}
@@ -443,6 +463,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 			m.CountryLeaderboardRank = i
 		}
 	}
+
 	var follower int
 	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user2 = ?", r.ID)
 	if err != nil {
@@ -456,11 +477,13 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		}
 	}
 	r.Followers = follower
+
 	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon, b.colour FROM user_badges ub "+
 		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}
+
 	for rows.Next() {
 		var badge singleBadge
 		err := rows.Scan(&badge.ID, &badge.Name, &badge.Icon, &badge.Colour)
@@ -470,16 +493,19 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		}
 		r.Badges = append(r.Badges, badge)
 	}
+
 	if md.User.TokenPrivileges&common.PrivilegeManageUser == 0 {
 		r.CMNotes = nil
 		r.BanDate = nil
 		r.Email = ""
 	}
+
 	rows, err = md.DB.Query("SELECT tb.id, tb.name, tb.icon FROM user_tourmnt_badges tub "+
 		"INNER JOIN tourmnt_badges tb ON tub.badge = tb.id WHERE user = ?", r.ID)
 	if err != nil {
 		md.Err(err)
 	}
+
 	for rows.Next() {
 		var Tbadge TsingleBadge
 		err := rows.Scan(&Tbadge.ID, &Tbadge.Name, &Tbadge.Icon)
@@ -489,10 +515,12 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		}
 		r.TBadges = append(r.TBadges, Tbadge)
 	}
+
 	r.Clan, err = getClan(r.Clan.ID, md)
 	if err != nil {
 		md.Err(err)
 	}
+
 	r.Code = 200
 	return r
 }
@@ -514,6 +542,7 @@ func getUserTitleFromID(titleID string) string {
 		"premium":           "AKATSUKI+",
 		"donor":             "SUPPORTER",
 	}
+
 	if title, exists := titleMap[titleID]; exists {
 		return title
 	}
@@ -598,7 +627,6 @@ type userLookupResponse struct {
 	common.ResponseBase
 	Users []lookupUser `json:"users"`
 }
-
 type lookupUser struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
@@ -617,11 +645,13 @@ func UserLookupGET(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(400, "please provide an username to start searching")
 	}
 	name = "%" + name + "%"
+
 	var email string
 	if md.User.TokenPrivileges&common.PrivilegeManageUser != 0 &&
 		strings.Contains(md.Query("name"), "@") {
 		email = md.Query("name")
 	}
+
 	rows, err := md.DB.Query("SELECT users.id, users.username FROM users WHERE "+
 		"(username_safe LIKE ? OR email = ?) AND "+
 		md.User.OnlyUserPublic(true)+" LIMIT 25", name, email)
@@ -629,6 +659,7 @@ func UserLookupGET(md common.MethodData) common.CodeMessager {
 		md.Err(err)
 		return Err500
 	}
+
 	var r userLookupResponse
 	for rows.Next() {
 		var l lookupUser
@@ -638,6 +669,7 @@ func UserLookupGET(md common.MethodData) common.CodeMessager {
 		}
 		r.Users = append(r.Users, l)
 	}
+
 	r.Code = 200
 	return r
 }
@@ -647,16 +679,20 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 	if user == 0 {
 		return common.SimpleResponse(401, "Invalid user id!")
 	}
+
 	relax := common.Int(md.Query("rx"))
 	mode := common.Int(md.Query("mode"))
+
 	type BeatmapPlaycount struct {
 		Count   int     `json:"playcount"`
 		Beatmap beatmap `json:"beatmap"`
 	}
+
 	type MostPlayedBeatmaps struct {
 		common.ResponseBase
 		BeatmapsPlaycount []BeatmapPlaycount `json:"most_played_beatmaps"`
 	}
+
 	// i will query some additional info about the beatmap for later?
 	rows, err := md.DB.Query(
 		fmt.Sprintf(
@@ -666,22 +702,28 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = user_beatmaps.map
 		WHERE userid = ? AND rx = ? AND user_beatmaps.mode = ? ORDER BY count DESC %s`, common.Paginate(md.Query("p"), md.Query("l"), 100)),
 		user, relax, mode)
+
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
 	defer rows.Close()
+
 	r := MostPlayedBeatmaps{}
+
 	for rows.Next() {
 		bmc := BeatmapPlaycount{}
+
 		err = rows.Scan(&bmc.Count, &bmc.Beatmap.BeatmapID, &bmc.Beatmap.BeatmapsetID,
 			&bmc.Beatmap.BeatmapMD5, &bmc.Beatmap.SongName, &bmc.Beatmap.Ranked)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
+
 		r.BeatmapsPlaycount = append(r.BeatmapsPlaycount, bmc)
 	}
+
 	r.Code = 200
 	return r
 }

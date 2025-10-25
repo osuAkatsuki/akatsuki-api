@@ -1,5 +1,4 @@
 package v1
-
 import (
 	"fmt"
 	"strconv"
@@ -153,56 +152,109 @@ func _position(md common.MethodData, key string, user int) int {
 	return int(val) + 1
 }
 
-// LeaderboardGET retrieves leaderboard
+// LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
-	m := genModeClauseBoardGET(md)
-	if m == nil {
-		return *m
-	}
+	m := getMode(md.Query("mode"))
+	modeInt := getModeInt(m)
 
-	var resp leaderboardResponse
-	resp.Code = 200
-
-	p := md.Query("p")
-	if p == "" {
-		p = "0"
+	// md.Query.Country
+	p := common.Int(md.Query("p")) - 1
+	if p < 0 {
+		p = 0
 	}
-	page, err := strconv.Atoi(p)
-	if err != nil {
-		return ErrBadJSON
-	}
-
-	l := md.Query("l")
-	if l == "" {
-		l = "50"
-	}
-	limit, err := strconv.Atoi(l)
-	if err != nil {
-		return ErrBadJSON
-	}
-	if limit < 1 || limit > 100 {
-		limit = 50
-	}
-
-	rx := 0
-	if md.Query("rx") == "1" {
-		rx = 1
-	} else if md.Query("ap") == "1" {
-		rx = 2
-	}
-
+	l := common.InString(1, md.Query("l"), 500, 50)
+	rx := common.Int(md.Query("rx"))
 	sort := md.Query("sort")
 	if sort == "" {
 		sort = "pp"
 	}
 
-	modeInt := 0
-	mode := md.Query("mode")
-	if mode != "" {
-		modeInt, _ = strconv.Atoi(mode)
+	if sort != "pp" {
+		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, modeInt, sort, md)}
+		resp.Code = 200
+		return resp
+	}
+	key := "ripple:leaderboard:" + m
+	if rx == 1 {
+		key = "ripple:relaxboard:" + m
+	} else if rx == 2 {
+		key = "ripple:autoboard:" + m
+	}
+	if md.Query("country") != "" {
+		key += ":" + strings.ToLower(md.Query("country"))
 	}
 
-	resp.Users = getLbUsersDb(page, limit, rx, modeInt, sort, md)
+	results, err := md.R.ZRevRange(key, int64(p*l), int64(p*l+l-1)).Result()
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
 
+	var resp leaderboardResponse
+	resp.Code = 200
+	if len(results) == 0 {
+		return resp
+	}
+
+	var query = lbUserQuery + `WHERE users.id IN (?) AND user_stats.mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
+	query, params, _ := sqlx.In(query, results, modeInt+(rx*4))
+	rows, err := md.DB.Query(query, params...)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	defer rows.Close()
+	for rows.Next() {
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
+
+		err := rows.Scan(
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP, &chosenMode.PPTotal, &chosenMode.PPStdDev,
+		)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser(eligibleTitles)
+		u.ChosenMode = chosenMode
+		if rx == 1 {
+			if i := relaxboardPosition(md, m, u.ID); i != 0 {
+				u.ChosenMode.GlobalLeaderboardRank = &i
+			}
+			if i := rxcountryPosition(md, m, u.ID, u.Country); i != 0 {
+				u.ChosenMode.CountryLeaderboardRank = &i
+			}
+		} else if rx == 2 {
+			if i := autoboardPosition(md, m, u.ID); i != 0 {
+				u.ChosenMode.GlobalLeaderboardRank = &i
+			}
+			if i := apcountryPosition(md, m, u.ID, u.Country); i != 0 {
+				u.ChosenMode.CountryLeaderboardRank = &i
+			}
+		} else {
+			if i := leaderboardPosition(md, m, u.ID); i != 0 {
+				u.ChosenMode.GlobalLeaderboardRank = &i
+			}
+			if i := countryPosition(md, m, u.ID, u.Country); i != 0 {
+				u.ChosenMode.CountryLeaderboardRank = &i
+			}
+		}
+		resp.Users = append(resp.Users, u)
+	}
 	return resp
 }

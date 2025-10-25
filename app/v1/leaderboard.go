@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+
 	redis "gopkg.in/redis.v5"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
@@ -45,6 +46,7 @@ const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 			users.username_aka, users.country, users.user_title, users.play_style, users.favourite_mode,
+
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
 			user_stats.avg_accuracy, user_stats.pp, user_stats.pp_total, user_stats.pp_stddev
@@ -54,6 +56,7 @@ const lbUserQuery = `
 // previously done horrible hardcoding makes this the spaghetti it is
 func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.MethodData) []leaderboardUser {
 	var query, order string
+
 	if sort == "score" {
 		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
 	} else if sort == "pp_total" {
@@ -63,130 +66,79 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	} else {
 		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
 	}
+
 	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND user_stats.mode = ? "+order+" LIMIT %d, %d", p*l, l)
+
 	rows, err := md.DB.Query(query, modeInt+(rx*4))
 	if err != nil {
 		md.Err(err)
 		return make([]leaderboardUser, 0)
 	}
+
 	defer rows.Close()
 
 	var users []leaderboardUser
 	for i := 1; rows.Next(); i++ {
 		userDB := leaderboardUserDB{}
+
 		var chosenMode modeData
+
 		var country string
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
-			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
-			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&userDB.UsernameAKA, &country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount, &chosenMode.ReplaysWatched, &chosenMode.TotalHits,
 			&chosenMode.Accuracy, &chosenMode.PP, &chosenMode.PPTotal, &chosenMode.PPStddev,
 		)
+
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-		country = userDB.Country
-		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
-		if sort != "pp" && sort != "pp_total" && sort != "pp_stddev" {
-			chosenMode.GlobalLeaderboardRank = &i
-		} else {
-			chosenMode.GlobalLeaderboardRank = getRankCountry(modeInt+(rx*4), userDB.ID, country, sort, md)
+
+		userDB.Country = strings.ToLower(country)
+
+		eligibleTitles, err := getEligibleTitles(md, userDB.ID)
+		if err != nil {
+			md.Err(err)
+			continue
 		}
-		eligibleTitles, e := getEligibleTitles(md)
-		if e != nil {
-			md.Err(e)
-		}
+
 		user := userDB.toLeaderboardUser(eligibleTitles)
 		user.ChosenMode = chosenMode
 		users = append(users, user)
 	}
+
 	return users
 }
 
-// LeaderboardGET returns a list of users for a leaderboard
+// LeaderboardGET retrieves user leaderboard data
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
-	if _, ok := md.R.URL.Query()["p"]; !ok {
-		return common.SimpleResponse(400, "Parameter 'p' not found")
-	}
-	if _, ok := md.R.URL.Query()["l"]; !ok {
-		return common.SimpleResponse(400, "Parameter 'l' not found")
-	}
-	p, _ := strconv.Atoi(md.R.URL.Query().Get("p"))
-	l, _ := strconv.Atoi(md.R.URL.Query().Get("l"))
-	mode := "vn"
-	rx := 0
-	modeInt := 0
-	if _, ok := md.R.URL.Query()["rx"]; ok {
-		rx, _ = strconv.Atoi(md.R.URL.Query().Get("rx"))
-		if rx == 1 {
-			mode = "rx"
-		}
-	}
-	if _, ok := md.R.URL.Query()["mode"]; ok {
-		modeInt, _ = strconv.Atoi(md.R.URL.Query().Get("mode"))
-	}
-	sort := md.R.URL.Query().Get("sort")
-	if sort == "" {
+	m := genmodei(md.Query("mode"))
+
+	rx := common.Int(md.Query("rx"))
+
+	var sort string
+	if md.Query("sort") == "score" {
+		sort = "score"
+	} else if md.Query("sort") == "pp_total" {
+		sort = "pp_total"
+	} else if md.Query("sort") == "pp_stddev" {
+		sort = "pp_stddev"
+	} else {
 		sort = "pp"
 	}
-	allowedSorts := map[string]bool{"pp": true, "score": true, "pp_total": true, "pp_stddev": true}
-	if !allowedSorts[sort] {
-		return common.SimpleResponse(400, "Invalid sort")
+
+	p := common.Int(md.Query("p")) - 1
+	if p < 0 {
+		p = 0
 	}
-	users := getLbUsersDb(p, l, rx, modeInt, sort, md)
-	return common.Response{Code: 200, Message: "ok", Json: leaderboardResponse{Users: users}}
-}
+	l := common.InString(1, md.Query("l"), 500, 50)
 
-func getRankCountry(mode int, user int, country string, sort string, md common.MethodData) *int {
-	var rank int
-	var sortField string
-	if sort == "pp_total" {
-		sortField = "pp_total"
-	} else if sort == "pp_stddev" {
-		sortField = "pp_stddev"
-	} else {
-		sortField = "pp"
-	}
-	query := fmt.Sprintf(`SELECT COUNT(*) AS rank FROM user_stats INNER JOIN users ON users.id = user_stats.user_id WHERE user_stats.mode = ? AND user_stats.%s > (SELECT %s FROM user_stats WHERE user_id = ? AND mode = ?) AND users.country = ? AND (users.privileges & 3) >= 3`, sortField, sortField)
-	if err := md.DB.QueryRow(query, mode, user, mode, country).Scan(&rank); err != nil {
-		md.Err(err)
-		return nil
-	}
-	rank++
-	return &rank
-}
+	users := getLbUsersDb(p, l, rx, m, sort, md)
 
-func leaderboardPosition(r *redis.Client, mode string, user int) *int {
-	return _position(r, "ripple:leaderboard:"+mode, user)
-}
-
-func countryPosition(r *redis.Client, mode string, user int, country string) *int {
-	return _position(r, "ripple:leaderboard:"+mode+":"+strings.ToLower(country), user)
-}
-
-func relaxboardPosition(r *redis.Client, mode string, user int) *int {
-	return _position(r, "ripple:relaxboard:"+mode, user)
-}
-
-func rxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
-	return _position(r, "ripple:relaxboard:"+mode+":"+strings.ToLower(country), user)
-}
-
-func autoboardPosition(r *redis.Client, mode string, user int) *int {
-	return _position(r, "ripple:autoboard:"+mode, user)
-}
-
-func apcountryPosition(r *redis.Client, mode string, user int, country string) *int {
-	return _position(r, "ripple:autoboard:"+mode+":"+strings.ToLower(country), user)
-}
-
-func _position(r *redis.Client, key string, user int) *int {
-	res := r.ZRevRank(key, strconv.Itoa(user))
-	if res.Err() == redis.Nil {
-		return nil
-	}
-	x := int(res.Val()) + 1
-	return &x
+	r := leaderboardResponse{}
+	r.Code = 200
+	r.Users = users
+	return r
 }

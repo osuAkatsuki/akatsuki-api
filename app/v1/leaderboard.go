@@ -49,9 +49,8 @@ const lbUserQuery = `
 
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
+			user_stats.pp_total, user_stats.pp_stddev
 			user_stats.avg_accuracy, user_stats.pp
-			,user_stats.pp_total, user_stats.pp_stddev
-			
 		FROM users
 		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
@@ -86,8 +85,8 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-			&chosenMode.Accuracy, &chosenMode.PP,
 			&chosenMode.PPTotal, &chosenMode.PPStdDev,
+			&chosenMode.Accuracy, &chosenMode.PP,
 		)
 		if err != nil {
 			md.Err(err)
@@ -175,8 +174,8 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-			&chosenMode.Accuracy, &chosenMode.PP,
 			&chosenMode.PPTotal, &chosenMode.PPStdDev,
+			&chosenMode.Accuracy, &chosenMode.PP,
 		)
 		if err != nil {
 			md.Err(err)

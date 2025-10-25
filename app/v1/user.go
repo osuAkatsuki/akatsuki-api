@@ -247,10 +247,10 @@ type modeData struct {
 	ReplaysWatched         int        `json:"replays_watched"`
 	TotalHits              int        `json:"total_hits"`
 	Level                  float64    `json:"level"`
-	Accuracy               float64    `json:"accuracy"`
-	PP                     int        `json:"pp"`
 	PPTotal                int        `json:"pp_total"`
 	PPStdDev               float64    `json:"pp_stddev"`
+	Accuracy               float64    `json:"accuracy"`
+	PP                     int        `json:"pp"`
 	GlobalLeaderboardRank  *int       `json:"global_leaderboard_rank"`
 	CountryLeaderboardRank *int       `json:"country_leaderboard_rank"`
 	MaxCombo               int        `json:"max_combo"`

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-
 	redis "gopkg.in/redis.v5"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
@@ -46,10 +45,9 @@ const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 			users.username_aka, users.country, users.user_title, users.play_style, users.favourite_mode,
-
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
-			user_stats.avg_accuracy, user_stats.pp
+			user_stats.avg_accuracy, user_stats.pp, user_stats.pp_total, user_stats.pp_stddev
 		FROM users
 		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
@@ -58,29 +56,31 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	var query, order string
 	if sort == "score" {
 		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
+	} else if sort == "pp_total" {
+		order = "ORDER BY user_stats.pp_total DESC, user_stats.ranked_score DESC"
 	} else {
 		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
 	}
+
 	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND user_stats.mode = ? "+order+" LIMIT %d, %d", p*l, l)
+
 	rows, err := md.DB.Query(query, modeInt+(rx*4))
 	if err != nil {
 		md.Err(err)
 		return make([]leaderboardUser, 0)
 	}
 	defer rows.Close()
+
 	var users []leaderboardUser
 	for i := 1; rows.Next(); i++ {
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
-
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
-
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-			&chosenMode.Accuracy, &chosenMode.PP,
+			&chosenMode.Accuracy, &chosenMode.PP, &chosenMode.PPTotal, &chosenMode.PPStddev,
 		)
 		if err != nil {
 			md.Err(err)
@@ -99,7 +99,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 		// Convert to API response format
 		u := userDB.toLeaderboardUser(eligibleTitles)
 		u.ChosenMode = chosenMode
-
 		users = append(users, u)
 	}
 	return users
@@ -116,7 +115,9 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		p = 0
 	}
 	l := common.InString(1, md.Query("l"), 500, 50)
+
 	rx := common.Int(md.Query("rx"))
+
 	sort := md.Query("sort")
 	if sort == "" {
 		sort = "pp"
@@ -127,12 +128,14 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		resp.Code = 200
 		return resp
 	}
+
 	key := "ripple:leaderboard:" + m
 	if rx == 1 {
 		key = "ripple:relaxboard:" + m
 	} else if rx == 2 {
 		key = "ripple:autoboard:" + m
 	}
+
 	if md.Query("country") != "" {
 		key += ":" + strings.ToLower(md.Query("country"))
 	}
@@ -145,30 +148,31 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 
 	var resp leaderboardResponse
 	resp.Code = 200
+
 	if len(results) == 0 {
 		return resp
 	}
 
 	var query = lbUserQuery + `WHERE users.id IN (?) AND user_stats.mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
+
 	query, params, _ := sqlx.In(query, results, modeInt+(rx*4))
+
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
-
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
-
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-			&chosenMode.Accuracy, &chosenMode.PP,
+			&chosenMode.Accuracy, &chosenMode.PP, &chosenMode.PPTotal, &chosenMode.PPStddev,
 		)
 		if err != nil {
 			md.Err(err)
@@ -187,6 +191,7 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		// Convert to API response format
 		u := userDB.toLeaderboardUser(eligibleTitles)
 		u.ChosenMode = chosenMode
+
 		if rx == 1 {
 			if i := relaxboardPosition(md.R, m, u.ID); i != nil {
 				u.ChosenMode.GlobalLeaderboardRank = i
@@ -209,8 +214,10 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 				u.ChosenMode.CountryLeaderboardRank = i
 			}
 		}
+
 		resp.Users = append(resp.Users, u)
 	}
+
 	return resp
 }
 

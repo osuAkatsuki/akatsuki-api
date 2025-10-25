@@ -96,7 +96,7 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 		if sort != "pp" && sort != "pp_total" && sort != "pp_stddev" {
 			chosenMode.GlobalLeaderboardRank = &i
 		} else {
-			chosenMode.GlobalLeaderboardRank = getRank(modeInt+(rx*4), userDB.ID, md)
+			chosenMode.GlobalLeaderboardRank = getRank(modeInt+(rx*4), userDB.ID, sort, md)
 		}
 
 		user := userDB.toLeaderboardUser(getEligibleTitles(md))
@@ -106,9 +106,20 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	return users
 }
 
-func getRank(mode int, user int, md common.MethodData) *int {
+func getRank(mode int, user int, sort string, md common.MethodData) *int {
 	var rank int
-	if err := md.DB.QueryRow(`SELECT COUNT(*) AS rank FROM user_stats WHERE mode = ? AND pp > (SELECT pp FROM user_stats WHERE user_id = ? AND mode = ?) AND (SELECT privileges FROM users WHERE id = user_id) & 3 >= 3`, mode, user, mode).Scan(&rank); err != nil {
+	var sortField string
+
+	if sort == "pp_total" {
+		sortField = "pp_total"
+	} else if sort == "pp_stddev" {
+		sortField = "pp_stddev"
+	} else {
+		sortField = "pp"
+	}
+
+	query := fmt.Sprintf(`SELECT COUNT(*) AS rank FROM user_stats WHERE mode = ? AND %s > (SELECT %s FROM user_stats WHERE user_id = ? AND mode = ?) AND (SELECT privileges FROM users WHERE id = user_id) & 3 >= 3`, sortField, sortField)
+	if err := md.DB.QueryRow(query, mode, user, mode).Scan(&rank); err != nil {
 		md.Err(err)
 		return nil
 	}
@@ -212,7 +223,7 @@ func getLbUsersCountry(p int, l int, rx int, modeInt int, country string, sort s
 		if sort != "pp" && sort != "pp_total" && sort != "pp_stddev" {
 			chosenMode.GlobalLeaderboardRank = &i
 		} else {
-			chosenMode.GlobalLeaderboardRank = getRankCountry(modeInt+(rx*4), userDB.ID, country, md)
+			chosenMode.GlobalLeaderboardRank = getRankCountry(modeInt+(rx*4), userDB.ID, country, sort, md)
 		}
 
 		user := userDB.toLeaderboardUser(getEligibleTitles(md))
@@ -222,9 +233,20 @@ func getLbUsersCountry(p int, l int, rx int, modeInt int, country string, sort s
 	return users
 }
 
-func getRankCountry(mode int, user int, country string, md common.MethodData) *int {
+func getRankCountry(mode int, user int, country string, sort string, md common.MethodData) *int {
 	var rank int
-	if err := md.DB.QueryRow(`SELECT COUNT(*) AS rank FROM user_stats INNER JOIN users ON users.id = user_stats.user_id WHERE user_stats.mode = ? AND user_stats.pp > (SELECT pp FROM user_stats WHERE user_id = ? AND mode = ?) AND users.country = ? AND (users.privileges & 3) >= 3`, mode, user, mode, country).Scan(&rank); err != nil {
+	var sortField string
+
+	if sort == "pp_total" {
+		sortField = "pp_total"
+	} else if sort == "pp_stddev" {
+		sortField = "pp_stddev"
+	} else {
+		sortField = "pp"
+	}
+
+	query := fmt.Sprintf(`SELECT COUNT(*) AS rank FROM user_stats INNER JOIN users ON users.id = user_stats.user_id WHERE user_stats.mode = ? AND user_stats.%s > (SELECT %s FROM user_stats WHERE user_id = ? AND mode = ?) AND users.country = ? AND (users.privileges & 3) >= 3`, sortField, sortField)
+	if err := md.DB.QueryRow(query, mode, user, mode, country).Scan(&rank); err != nil {
 		md.Err(err)
 		return nil
 	}

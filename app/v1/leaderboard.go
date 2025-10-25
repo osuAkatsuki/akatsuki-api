@@ -63,9 +63,7 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	} else {
 		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
 	}
-
 	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND user_stats.mode = ? "+order+" LIMIT %d, %d", p*l, l)
-
 	rows, err := md.DB.Query(query, modeInt+(rx*4))
 	if err != nil {
 		md.Err(err)
@@ -77,6 +75,7 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	for i := 1; rows.Next(); i++ {
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
+		var country string
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
@@ -88,20 +87,56 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 			md.Err(err)
 			continue
 		}
-
+		country = userDB.Country
 		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
-
 		if sort != "pp" && sort != "pp_total" && sort != "pp_stddev" {
 			chosenMode.GlobalLeaderboardRank = &i
 		} else {
 			chosenMode.GlobalLeaderboardRank = getRankCountry(modeInt+(rx*4), userDB.ID, country, sort, md)
 		}
-
-		user := userDB.toLeaderboardUser(getEligibleTitles(md))
+		eligibleTitles, e := getEligibleTitles(md)
+		if e != nil {
+			md.Err(e)
+		}
+		user := userDB.toLeaderboardUser(eligibleTitles)
 		user.ChosenMode = chosenMode
 		users = append(users, user)
 	}
 	return users
+}
+
+// LeaderboardGET returns a list of users for a leaderboard
+func LeaderboardGET(md common.MethodData) common.CodeMessager {
+	if _, ok := md.R.URL.Query()["p"]; !ok {
+		return common.SimpleResponse(400, "Parameter 'p' not found")
+	}
+	if _, ok := md.R.URL.Query()["l"]; !ok {
+		return common.SimpleResponse(400, "Parameter 'l' not found")
+	}
+	p, _ := strconv.Atoi(md.R.URL.Query().Get("p"))
+	l, _ := strconv.Atoi(md.R.URL.Query().Get("l"))
+	mode := "vn"
+	rx := 0
+	modeInt := 0
+	if _, ok := md.R.URL.Query()["rx"]; ok {
+		rx, _ = strconv.Atoi(md.R.URL.Query().Get("rx"))
+		if rx == 1 {
+			mode = "rx"
+		}
+	}
+	if _, ok := md.R.URL.Query()["mode"]; ok {
+		modeInt, _ = strconv.Atoi(md.R.URL.Query().Get("mode"))
+	}
+	sort := md.R.URL.Query().Get("sort")
+	if sort == "" {
+		sort = "pp"
+	}
+	allowedSorts := map[string]bool{"pp": true, "score": true, "pp_total": true, "pp_stddev": true}
+	if !allowedSorts[sort] {
+		return common.SimpleResponse(400, "Invalid sort")
+	}
+	users := getLbUsersDb(p, l, rx, modeInt, sort, md)
+	return common.Response{Code: 200, Message: "ok", Json: leaderboardResponse{Users: users}}
 }
 
 func getRankCountry(mode int, user int, country string, sort string, md common.MethodData) *int {
@@ -114,7 +149,6 @@ func getRankCountry(mode int, user int, country string, sort string, md common.M
 	} else {
 		sortField = "pp"
 	}
-
 	query := fmt.Sprintf(`SELECT COUNT(*) AS rank FROM user_stats INNER JOIN users ON users.id = user_stats.user_id WHERE user_stats.mode = ? AND user_stats.%s > (SELECT %s FROM user_stats WHERE user_id = ? AND mode = ?) AND users.country = ? AND (users.privileges & 3) >= 3`, sortField, sortField)
 	if err := md.DB.QueryRow(query, mode, user, mode, country).Scan(&rank); err != nil {
 		md.Err(err)

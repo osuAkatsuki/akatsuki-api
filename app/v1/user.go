@@ -58,7 +58,7 @@ func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 			ID:    udb.UserTitle.String,
 			Title: getUserTitleFromID(udb.UserTitle.String),
 		}
-	} else if len(eligibleTitles) > 0 {
+	} else if len(eligibleTitles) > 0{
 		u.UserTitle = userTitleResponse{
 			ID:    eligibleTitles[0].ID,
 			Title: eligibleTitles[0].Title,
@@ -296,6 +296,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	r := userFullResponse{}
 	var (
 		b   singleBadge
+		
 		can bool
 		show bool
 		userDB userDataDB
@@ -337,7 +338,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		SELECT
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount, user_stats.playtime,
 			user_stats.replays_watched, user_stats.total_hits,
-			user_stats.avg_accuracy, user_stats.pp, user_stats.pp_total, user_stats.pp_stddev, user_stats.max_combo,
+			user_stats.pp_total, user_stats.pp_stddev,
+			user_stats.avg_accuracy, user_stats.pp, user_stats.max_combo,
 			user_stats.xh_count, user_stats.x_count, user_stats.sh_count,
 			user_stats.s_count, user_stats.a_count, user_stats.b_count,
 			user_stats.c_count, user_stats.d_count
@@ -351,7 +353,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		err = md.DB.QueryRow(query, userIdParam, 0+modeOffset).Scan(
 			&r.Stats[relaxMode].STD.RankedScore, &r.Stats[relaxMode].STD.TotalScore, &r.Stats[relaxMode].STD.PlayCount, &r.Stats[relaxMode].STD.PlayTime,
 			&r.Stats[relaxMode].STD.ReplaysWatched, &r.Stats[relaxMode].STD.TotalHits,
-			&r.Stats[relaxMode].STD.Accuracy, &r.Stats[relaxMode].STD.PP, &r.Stats[relaxMode].STD.PPTotal, &r.Stats[relaxMode].STD.PPStdDev, &r.Stats[relaxMode].STD.MaxCombo,
+			&r.Stats[relaxMode].STD.PPTotal, &r.Stats[relaxMode].STD.PPStdDev,
+			&r.Stats[relaxMode].STD.Accuracy, &r.Stats[relaxMode].STD.PP, &r.Stats[relaxMode].STD.MaxCombo,
 			&r.Stats[relaxMode].STD.Grades.XHCount, &r.Stats[relaxMode].STD.Grades.XCount, &r.Stats[relaxMode].STD.Grades.SHCount,
 			&r.Stats[relaxMode].STD.Grades.SCount, &r.Stats[relaxMode].STD.Grades.ACount, &r.Stats[relaxMode].STD.Grades.BCount,
 			&r.Stats[relaxMode].STD.Grades.CCount, &r.Stats[relaxMode].STD.Grades.DCount,
@@ -373,7 +376,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		err = md.DB.QueryRow(query, userIdParam, 1+modeOffset).Scan(
 			&r.Stats[relaxMode].Taiko.RankedScore, &r.Stats[relaxMode].Taiko.TotalScore, &r.Stats[relaxMode].Taiko.PlayCount, &r.Stats[relaxMode].Taiko.PlayTime,
 			&r.Stats[relaxMode].Taiko.ReplaysWatched, &r.Stats[relaxMode].Taiko.TotalHits,
-			&r.Stats[relaxMode].Taiko.Accuracy, &r.Stats[relaxMode].Taiko.PP, &r.Stats[relaxMode].Taiko.PPTotal, &r.Stats[relaxMode].Taiko.PPStdDev, &r.Stats[relaxMode].Taiko.MaxCombo,
+			&r.Stats[relaxMode].Taiko.PPTotal, &r.Stats[relaxMode].Taiko.PPStdDev,
+			&r.Stats[relaxMode].Taiko.Accuracy, &r.Stats[relaxMode].Taiko.PP, &r.Stats[relaxMode].Taiko.MaxCombo,
 			&r.Stats[relaxMode].Taiko.Grades.XHCount, &r.Stats[relaxMode].Taiko.Grades.XCount, &r.Stats[relaxMode].Taiko.Grades.SHCount,
 			&r.Stats[relaxMode].Taiko.Grades.SCount, &r.Stats[relaxMode].Taiko.Grades.ACount, &r.Stats[relaxMode].Taiko.Grades.BCount,
 			&r.Stats[relaxMode].Taiko.Grades.CCount, &r.Stats[relaxMode].Taiko.Grades.DCount,
@@ -390,7 +394,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		err = md.DB.QueryRow(query, userIdParam, 2+modeOffset).Scan(
 			&r.Stats[relaxMode].CTB.RankedScore, &r.Stats[relaxMode].CTB.TotalScore, &r.Stats[relaxMode].CTB.PlayCount, &r.Stats[relaxMode].CTB.PlayTime,
 			&r.Stats[relaxMode].CTB.ReplaysWatched, &r.Stats[relaxMode].CTB.TotalHits,
-			&r.Stats[relaxMode].CTB.Accuracy, &r.Stats[relaxMode].CTB.PP, &r.Stats[relaxMode].CTB.PPTotal, &r.Stats[relaxMode].CTB.PPStdDev, &r.Stats[relaxMode].CTB.MaxCombo,
+			&r.Stats[relaxMode].CTB.PPTotal, &r.Stats[relaxMode].CTB.PPStdDev,
+			&r.Stats[relaxMode].CTB.Accuracy, &r.Stats[relaxMode].CTB.PP, &r.Stats[relaxMode].CTB.MaxCombo,
 			&r.Stats[relaxMode].CTB.Grades.XHCount, &r.Stats[relaxMode].CTB.Grades.XCount, &r.Stats[relaxMode].CTB.Grades.SHCount,
 			&r.Stats[relaxMode].CTB.Grades.SCount, &r.Stats[relaxMode].CTB.Grades.ACount, &r.Stats[relaxMode].CTB.Grades.BCount,
 			&r.Stats[relaxMode].CTB.Grades.CCount, &r.Stats[relaxMode].CTB.Grades.DCount,
@@ -412,7 +417,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		err = md.DB.QueryRow(query, userIdParam, 3+modeOffset).Scan(
 			&r.Stats[relaxMode].Mania.RankedScore, &r.Stats[relaxMode].Mania.TotalScore, &r.Stats[relaxMode].Mania.PlayCount, &r.Stats[relaxMode].Mania.PlayTime,
 			&r.Stats[relaxMode].Mania.ReplaysWatched, &r.Stats[relaxMode].Mania.TotalHits,
-			&r.Stats[relaxMode].Mania.Accuracy, &r.Stats[relaxMode].Mania.PP, &r.Stats[relaxMode].Mania.PPTotal, &r.Stats[relaxMode].Mania.PPStdDev, &r.Stats[relaxMode].Mania.MaxCombo,
+			&r.Stats[relaxMode].Mania.PPTotal, &r.Stats[relaxMode].Mania.PPStdDev,
+			&r.Stats[relaxMode].Mania.Accuracy, &r.Stats[relaxMode].Mania.PP, &r.Stats[relaxMode].Mania.MaxCombo,
 			&r.Stats[relaxMode].Mania.Grades.XHCount, &r.Stats[relaxMode].Mania.Grades.XCount, &r.Stats[relaxMode].Mania.Grades.SHCount,
 			&r.Stats[relaxMode].Mania.Grades.SCount, &r.Stats[relaxMode].Mania.Grades.ACount, &r.Stats[relaxMode].Mania.Grades.BCount,
 			&r.Stats[relaxMode].Mania.Grades.CCount, &r.Stats[relaxMode].Mania.Grades.DCount,

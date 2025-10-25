@@ -54,7 +54,6 @@ const lbUserQuery = `
 // previously done horrible hardcoding makes this the spaghetti it is
 func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.MethodData) []leaderboardUser {
 	var query, order string
-
 	if sort == "score" {
 		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
 	} else if sort == "pp_total" {
@@ -78,134 +77,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	for i := 1; rows.Next(); i++ {
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
-
-		err := rows.Scan(
-			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
-			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
-			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-			&chosenMode.Accuracy, &chosenMode.PP, &chosenMode.PPTotal, &chosenMode.PPStddev,
-		)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-
-		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
-
-		if sort != "pp" && sort != "pp_total" && sort != "pp_stddev" {
-			chosenMode.GlobalLeaderboardRank = &i
-		} else {
-			chosenMode.GlobalLeaderboardRank = getRank(modeInt+(rx*4), userDB.ID, sort, md)
-		}
-
-		user := userDB.toLeaderboardUser(getEligibleTitles(md))
-		user.ChosenMode = chosenMode
-		users = append(users, user)
-	}
-	return users
-}
-
-func getRank(mode int, user int, sort string, md common.MethodData) *int {
-	var rank int
-	var sortField string
-
-	if sort == "pp_total" {
-		sortField = "pp_total"
-	} else if sort == "pp_stddev" {
-		sortField = "pp_stddev"
-	} else {
-		sortField = "pp"
-	}
-
-	query := fmt.Sprintf(`SELECT COUNT(*) AS rank FROM user_stats WHERE mode = ? AND %s > (SELECT %s FROM user_stats WHERE user_id = ? AND mode = ?) AND (SELECT privileges FROM users WHERE id = user_id) & 3 >= 3`, sortField, sortField)
-	if err := md.DB.QueryRow(query, mode, user, mode).Scan(&rank); err != nil {
-		md.Err(err)
-		return nil
-	}
-	rank++
-	return &rank
-}
-
-const userQueryBase = `
-SELECT
-	users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
-	users.username_aka, users.country, users.user_title
-FROM users
-WHERE users.id = ?
-	AND (users.privileges & 3) >= 3
-LIMIT 1
-`
-
-type leaderboardRequest struct {
-	Mode      int
-	Page      int
-	Length    int
-	Country   string
-	Relax     int
-	Sort      string
-}
-
-// LeaderboardGET retrieves the global leaderboard
-func LeaderboardGET(md common.MethodData) common.CodeMessager {
-	r := leaderboardRequest{}
-
-	md.Unmarshal(&r)
-
-	if r.Mode < 0 || r.Mode > 3 {
-		r.Mode = 0
-	}
-	if r.Page < 0 {
-		r.Page = 0
-	}
-	if r.Length < 1 || r.Length > 100 {
-		r.Length = 50
-	}
-	if r.Sort == "" {
-		r.Sort = "pp"
-	}
-
-	var users []leaderboardUser
-
-	if r.Country != "" {
-		users = getLbUsersCountry(r.Page, r.Length, r.Relax, r.Mode, strings.ToUpper(r.Country), r.Sort, md)
-	} else {
-		users = getLbUsersDb(r.Page, r.Length, r.Relax, r.Mode, r.Sort, md)
-	}
-
-	return leaderboardResponse{
-		ResponseBase: common.ResponseBase{Code: 200},
-		Users:        users,
-	}
-}
-
-func getLbUsersCountry(p int, l int, rx int, modeInt int, country string, sort string, md common.MethodData) []leaderboardUser {
-	var query, order string
-
-	if sort == "score" {
-		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
-	} else if sort == "pp_total" {
-		order = "ORDER BY user_stats.pp_total DESC, user_stats.ranked_score DESC"
-	} else if sort == "pp_stddev" {
-		order = "ORDER BY user_stats.pp_stddev DESC, user_stats.ranked_score DESC"
-	} else {
-		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
-	}
-
-	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND user_stats.mode = ? AND users.country = ? "+order+" LIMIT %d, %d", p*l, l)
-
-	rows, err := md.DB.Query(query, modeInt+(rx*4), country)
-	if err != nil {
-		md.Err(err)
-		return make([]leaderboardUser, 0)
-	}
-	defer rows.Close()
-
-	var users []leaderboardUser
-	for i := 1; rows.Next(); i++ {
-		userDB := leaderboardUserDB{}
-		var chosenMode modeData
-
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
@@ -236,7 +107,6 @@ func getLbUsersCountry(p int, l int, rx int, modeInt int, country string, sort s
 func getRankCountry(mode int, user int, country string, sort string, md common.MethodData) *int {
 	var rank int
 	var sortField string
-
 	if sort == "pp_total" {
 		sortField = "pp_total"
 	} else if sort == "pp_stddev" {
@@ -252,4 +122,37 @@ func getRankCountry(mode int, user int, country string, sort string, md common.M
 	}
 	rank++
 	return &rank
+}
+
+func leaderboardPosition(r *redis.Client, mode string, user int) *int {
+	return _position(r, "ripple:leaderboard:"+mode, user)
+}
+
+func countryPosition(r *redis.Client, mode string, user int, country string) *int {
+	return _position(r, "ripple:leaderboard:"+mode+":"+strings.ToLower(country), user)
+}
+
+func relaxboardPosition(r *redis.Client, mode string, user int) *int {
+	return _position(r, "ripple:relaxboard:"+mode, user)
+}
+
+func rxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
+	return _position(r, "ripple:relaxboard:"+mode+":"+strings.ToLower(country), user)
+}
+
+func autoboardPosition(r *redis.Client, mode string, user int) *int {
+	return _position(r, "ripple:autoboard:"+mode, user)
+}
+
+func apcountryPosition(r *redis.Client, mode string, user int, country string) *int {
+	return _position(r, "ripple:autoboard:"+mode+":"+strings.ToLower(country), user)
+}
+
+func _position(r *redis.Client, key string, user int) *int {
+	res := r.ZRevRank(key, strconv.Itoa(user))
+	if res.Err() == redis.Nil {
+		return nil
+	}
+	x := int(res.Val()) + 1
+	return &x
 }

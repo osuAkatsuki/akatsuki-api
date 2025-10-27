@@ -1,5 +1,4 @@
 package v1
-
 import (
 	"fmt"
 	"strconv"
@@ -9,14 +8,12 @@ import (
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"zxq.co/ripple/ocl"
 )
-
 // leaderboardUserDB is used for scanning from database
 type leaderboardUserDB struct {
 	userDataDB
 	PlayStyle     int `db:"play_style"`
 	FavouriteMode int `db:"favourite_mode"`
 }
-
 // leaderboardUser is used for API responses
 type leaderboardUser struct {
 	userData
@@ -24,7 +21,6 @@ type leaderboardUser struct {
 	PlayStyle     int      `json:"play_style"`
 	FavouriteMode int      `json:"favourite_mode"`
 }
-
 // toLeaderboardUser converts leaderboardUserDB to leaderboardUser
 func (lub *leaderboardUserDB) toLeaderboardUser(eligibleTitles []eligibleTitle) leaderboardUser {
 	return leaderboardUser{
@@ -33,61 +29,54 @@ func (lub *leaderboardUserDB) toLeaderboardUser(eligibleTitles []eligibleTitle) 
 		FavouriteMode: lub.FavouriteMode,
 	}
 }
-
 type leaderboardResponse struct {
 	common.ResponseBase
 	Users []leaderboardUser `json:"users"`
 }
-
 const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 			users.username_aka, users.country, users.user_title, users.play_style, users.favourite_mode,
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
-			user_stats.pp_total, user_stats.pp_stddev,
 			user_stats.avg_accuracy, user_stats.pp,
-			user_stats.pp_total_all_modes, user_stats.pp_stddev_all_modes,
-			user_stats.pp_total_classic, user_stats.pp_stddev_classic,
-			user_stats.pp_total_relax, user_stats.pp_stddev_relax,
-			user_stats.pp_total_std, user_stats.pp_total_taiko, user_stats.pp_total_catch,
-			user_stats.pp_stddev_std, user_stats.pp_stddev_taiko, user_stats.pp_stddev_catch
+			la.pp_total_all_modes, la.pp_stddev_all_modes,
+			la.pp_total_classic, la.pp_stddev_classic,
+			la.pp_total_relax, la.pp_stddev_relax,
+			la.pp_total_std, la.pp_total_taiko, la.pp_total_catch,
+			la.pp_stddev_std, la.pp_stddev_taiko, la.pp_stddev_catch
 		FROM users
-		INNER JOIN user_stats ON user_stats.user_id = users.id `
-
+		INNER JOIN user_stats ON user_stats.user_id = users.id 
+		LEFT JOIN leaderboard_aggregates la ON la.user_id = users.id AND la.mode = user_stats.mode`
 // previously done horrible hardcoding makes this the spaghetti it is
 func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.MethodData) []leaderboardUser {
 	var query, order string
 	if sort == "score" {
 		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
-	} else if sort == "pp_total" {
-		order = "ORDER BY user_stats.pp_total DESC, user_stats.ranked_score DESC"
-	} else if sort == "pp_stddev" {
-		order = "ORDER BY user_stats.pp_stddev DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_total_all_modes" {
-		order = "ORDER BY user_stats.pp_total_all_modes DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_total_all_modes DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_stddev_all_modes" {
-		order = "ORDER BY user_stats.pp_stddev_all_modes DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_stddev_all_modes DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_total_classic" {
-		order = "ORDER BY user_stats.pp_total_classic DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_total_classic DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_stddev_classic" {
-		order = "ORDER BY user_stats.pp_stddev_classic DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_stddev_classic DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_total_relax" {
-		order = "ORDER BY user_stats.pp_total_relax DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_total_relax DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_stddev_relax" {
-		order = "ORDER BY user_stats.pp_stddev_relax DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_stddev_relax DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_total_std" {
-		order = "ORDER BY user_stats.pp_total_std DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_total_std DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_total_taiko" {
-		order = "ORDER BY user_stats.pp_total_taiko DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_total_taiko DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_total_catch" {
-		order = "ORDER BY user_stats.pp_total_catch DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_total_catch DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_stddev_std" {
-		order = "ORDER BY user_stats.pp_stddev_std DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_stddev_std DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_stddev_taiko" {
-		order = "ORDER BY user_stats.pp_stddev_taiko DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_stddev_taiko DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_stddev_catch" {
-		order = "ORDER BY user_stats.pp_stddev_catch DESC, user_stats.ranked_score DESC"
+		order = "ORDER BY la.pp_stddev_catch DESC, user_stats.ranked_score DESC"
 	} else {
 		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
 	}
@@ -107,7 +96,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-			&chosenMode.PPTotal, &chosenMode.PPStdDev,
 			&chosenMode.Accuracy, &chosenMode.PP,
 			&chosenMode.PPTotalAllModes, &chosenMode.PPStdDevAllModes,
 			&chosenMode.PPTotalClassic, &chosenMode.PPStdDevClassic,
@@ -133,7 +121,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	}
 	return users
 }
-
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))
@@ -189,7 +176,6 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-			&chosenMode.PPTotal, &chosenMode.PPStdDev,
 			&chosenMode.Accuracy, &chosenMode.PP,
 			&chosenMode.PPTotalAllModes, &chosenMode.PPStdDevAllModes,
 			&chosenMode.PPTotalClassic, &chosenMode.PPStdDevClassic,
@@ -237,31 +223,24 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	}
 	return resp
 }
-
 func leaderboardPosition(r *redis.Client, mode string, user int) *int {
 	return _position(r, "ripple:leaderboard:"+mode, user)
 }
-
 func countryPosition(r *redis.Client, mode string, user int, country string) *int {
 	return _position(r, "ripple:leaderboard:"+mode+":"+strings.ToLower(country), user)
 }
-
 func relaxboardPosition(r *redis.Client, mode string, user int) *int {
 	return _position(r, "ripple:relaxboard:"+mode, user)
 }
-
 func rxcountryPosition(r *redis.Client, mode string, user int, country string) *int {
 	return _position(r, "ripple:relaxboard:"+mode+":"+strings.ToLower(country), user)
 }
-
 func autoboardPosition(r *redis.Client, mode string, user int) *int {
 	return _position(r, "ripple:autoboard:"+mode, user)
 }
-
 func apcountryPosition(r *redis.Client, mode string, user int, country string) *int {
 	return _position(r, "ripple:autoboard:"+mode+":"+strings.ToLower(country), user)
 }
-
 func _position(r *redis.Client, key string, user int) *int {
 	res := r.ZRevRank(key, strconv.Itoa(user))
 	if res.Err() == redis.Nil {

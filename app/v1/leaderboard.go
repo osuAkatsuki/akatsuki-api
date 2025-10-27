@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
 	"github.com/jmoiron/sqlx"
-
 	redis "gopkg.in/redis.v5"
-
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"zxq.co/ripple/ocl"
 )
@@ -46,11 +43,15 @@ const lbUserQuery = `
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
 			users.username_aka, users.country, users.user_title, users.play_style, users.favourite_mode,
-
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
-			user_stats.pp_total, user_stats.pp_stddev
-			user_stats.avg_accuracy, user_stats.pp
+			user_stats.pp_total, user_stats.pp_stddev,
+			user_stats.avg_accuracy, user_stats.pp,
+			user_stats.pp_total_all_modes, user_stats.pp_stddev_all_modes,
+			user_stats.pp_total_classic, user_stats.pp_stddev_classic,
+			user_stats.pp_total_relax, user_stats.pp_stddev_relax,
+			user_stats.pp_total_std, user_stats.pp_total_taiko, user_stats.pp_total_catch,
+			user_stats.pp_stddev_std, user_stats.pp_stddev_taiko, user_stats.pp_stddev_catch
 		FROM users
 		INNER JOIN user_stats ON user_stats.user_id = users.id `
 
@@ -63,6 +64,30 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 		order = "ORDER BY user_stats.pp_total DESC, user_stats.ranked_score DESC"
 	} else if sort == "pp_stddev" {
 		order = "ORDER BY user_stats.pp_stddev DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_total_all_modes" {
+		order = "ORDER BY user_stats.pp_total_all_modes DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_stddev_all_modes" {
+		order = "ORDER BY user_stats.pp_stddev_all_modes DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_total_classic" {
+		order = "ORDER BY user_stats.pp_total_classic DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_stddev_classic" {
+		order = "ORDER BY user_stats.pp_stddev_classic DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_total_relax" {
+		order = "ORDER BY user_stats.pp_total_relax DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_stddev_relax" {
+		order = "ORDER BY user_stats.pp_stddev_relax DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_total_std" {
+		order = "ORDER BY user_stats.pp_total_std DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_total_taiko" {
+		order = "ORDER BY user_stats.pp_total_taiko DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_total_catch" {
+		order = "ORDER BY user_stats.pp_total_catch DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_stddev_std" {
+		order = "ORDER BY user_stats.pp_stddev_std DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_stddev_taiko" {
+		order = "ORDER BY user_stats.pp_stddev_taiko DESC, user_stats.ranked_score DESC"
+	} else if sort == "pp_stddev_catch" {
+		order = "ORDER BY user_stats.pp_stddev_catch DESC, user_stats.ranked_score DESC"
 	} else {
 		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
 	}
@@ -77,35 +102,33 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 	for i := 1; rows.Next(); i++ {
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
-
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
-
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
 			&chosenMode.PPTotal, &chosenMode.PPStdDev,
 			&chosenMode.Accuracy, &chosenMode.PP,
+			&chosenMode.PPTotalAllModes, &chosenMode.PPStdDevAllModes,
+			&chosenMode.PPTotalClassic, &chosenMode.PPStdDevClassic,
+			&chosenMode.PPTotalRelax, &chosenMode.PPStdDevRelax,
+			&chosenMode.PPTotalSTD, &chosenMode.PPTotalTaiko, &chosenMode.PPTotalCatch,
+			&chosenMode.PPStdDevSTD, &chosenMode.PPStdDevTaiko, &chosenMode.PPStdDevCatch,
 		)
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-
 		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
-
 		var eligibleTitles []eligibleTitle
 		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
 		if err != nil {
 			md.Err(err)
 			return make([]leaderboardUser, 0)
 		}
-
 		// Convert to API response format
 		u := userDB.toLeaderboardUser(eligibleTitles)
 		u.ChosenMode = chosenMode
-
 		users = append(users, u)
 	}
 	return users
@@ -115,7 +138,6 @@ func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.Meth
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))
 	modeInt := getModeInt(m)
-
 	// md.Query.Country
 	p := common.Int(md.Query("p")) - 1
 	if p < 0 {
@@ -127,7 +149,6 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	if sort == "" {
 		sort = "pp"
 	}
-
 	if sort != "pp" {
 		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, modeInt, sort, md)}
 		resp.Code = 200
@@ -142,19 +163,16 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	if md.Query("country") != "" {
 		key += ":" + strings.ToLower(md.Query("country"))
 	}
-
 	results, err := md.R.ZRevRange(key, int64(p*l), int64(p*l+l-1)).Result()
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
-
 	var resp leaderboardResponse
 	resp.Code = 200
 	if len(results) == 0 {
 		return resp
 	}
-
 	var query = lbUserQuery + `WHERE users.id IN (?) AND user_stats.mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
 	query, params, _ := sqlx.In(query, results, modeInt+(rx*4))
 	rows, err := md.DB.Query(query, params...)
@@ -166,31 +184,30 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	for rows.Next() {
 		userDB := leaderboardUserDB{}
 		var chosenMode modeData
-
 		err := rows.Scan(
 			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-
 			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
-
 			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
 			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
 			&chosenMode.PPTotal, &chosenMode.PPStdDev,
 			&chosenMode.Accuracy, &chosenMode.PP,
+			&chosenMode.PPTotalAllModes, &chosenMode.PPStdDevAllModes,
+			&chosenMode.PPTotalClassic, &chosenMode.PPStdDevClassic,
+			&chosenMode.PPTotalRelax, &chosenMode.PPStdDevRelax,
+			&chosenMode.PPTotalSTD, &chosenMode.PPTotalTaiko, &chosenMode.PPTotalCatch,
+			&chosenMode.PPStdDevSTD, &chosenMode.PPStdDevTaiko, &chosenMode.PPStdDevCatch,
 		)
 		if err != nil {
 			md.Err(err)
 			continue
 		}
-
 		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
-
 		var eligibleTitles []eligibleTitle
 		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
-
 		// Convert to API response format
 		u := userDB.toLeaderboardUser(eligibleTitles)
 		u.ChosenMode = chosenMode

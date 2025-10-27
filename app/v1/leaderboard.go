@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"database/sql"
-
 	"github.com/jmoiron/sqlx"
 
 	redis "gopkg.in/redis.v5"
@@ -51,6 +49,17 @@ const lbUserQuery = `
 
 			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
 			user_stats.replays_watched, user_stats.total_hits,
+			user_stats.avg_accuracy, user_stats.pp
+		FROM users
+		INNER JOIN user_stats ON user_stats.user_id = users.id `
+
+const lbUserQueryWithAggregates = `
+		SELECT
+			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+			users.username_aka, users.country, users.user_title, users.play_style, users.favourite_mode,
+
+			user_stats.ranked_score, user_stats.total_score, user_stats.playcount,
+			user_stats.replays_watched, user_stats.total_hits,
 			user_stats.avg_accuracy, user_stats.pp,
 
 			agg.pp_total_all_modes, agg.pp_stddev_all_modes,
@@ -63,11 +72,64 @@ const lbUserQuery = `
 		INNER JOIN user_stats ON user_stats.user_id = users.id 
 		LEFT JOIN player_pp_aggregates agg ON agg.player_id = users.id`
 
+// previously done horrible hardcoding makes this the spaghetti it is
+func getLbUsersDb(p int, l int, rx int, modeInt int, sort string, md common.MethodData) []leaderboardUser {
+	var query, order string
+	if sort == "score" {
+		order = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
+	} else {
+		order = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
+	}
+	query = fmt.Sprintf(lbUserQuery+"WHERE (users.privileges & 3) >= 3 AND user_stats.mode = ? "+order+" LIMIT %d, %d", p*l, l)
+	rows, err := md.DB.Query(query, modeInt+(rx*4))
+	if err != nil {
+		md.Err(err)
+		return make([]leaderboardUser, 0)
+	}
+	defer rows.Close()
+	var users []leaderboardUser
+	for i := 1; rows.Next(); i++ {
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
+
+		err := rows.Scan(
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
+
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
+
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP,
+		)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return make([]leaderboardUser, 0)
+		}
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser(eligibleTitles)
+		u.ChosenMode = chosenMode
+
+		users = append(users, u)
+	}
+	return users
+}
+
 // LeaderboardGET gets the leaderboard.
 func LeaderboardGET(md common.MethodData) common.CodeMessager {
 	m := getMode(md.Query("mode"))
 	modeInt := getModeInt(m)
 
+	// md.Query.Country
 	p := common.Int(md.Query("p")) - 1
 	if p < 0 {
 		p = 0
@@ -79,16 +141,21 @@ func LeaderboardGET(md common.MethodData) common.CodeMessager {
 		sort = "pp"
 	}
 
-	// Для стандартных сортировок (pp/score) используем Redis + точные позиции
+	// Для стандартных сортировок (pp/score) используем старую логику
 	if sort == "pp" || sort == "score" {
 		return getStandardLeaderboard(m, modeInt, p, l, rx, sort, md)
 	}
 
-	// Для clean сортировок (total/spp) - прямой SQL запрос с пагинацией
+	// Для новых сортировок (total/spp) используем новую логику с агрегатами
 	return getAggregateLeaderboard(m, modeInt, p, l, rx, sort, md)
 }
 
 func getStandardLeaderboard(m string, modeInt, p, l, rx int, sort string, md common.MethodData) common.CodeMessager {
+	if sort != "pp" {
+		resp := leaderboardResponse{Users: getLbUsersDb(p, l, rx, modeInt, sort, md)}
+		resp.Code = 200
+		return resp
+	}
 	key := "ripple:leaderboard:" + m
 	if rx == 1 {
 		key = "ripple:relaxboard:" + m
@@ -111,14 +178,7 @@ func getStandardLeaderboard(m string, modeInt, p, l, rx int, sort string, md com
 		return resp
 	}
 
-	var sqlOrder string
-	if sort == "score" {
-		sqlOrder = "ORDER BY user_stats.ranked_score DESC, user_stats.pp DESC"
-	} else {
-		sqlOrder = "ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC"
-	}
-
-	var query = lbUserQuery + ` WHERE users.id IN (?) AND user_stats.mode = ? ` + sqlOrder
+	var query = lbUserQuery + `WHERE users.id IN (?) AND user_stats.mode = ? ORDER BY user_stats.pp DESC, user_stats.ranked_score DESC`
 	query, params, _ := sqlx.In(query, results, modeInt+(rx*4))
 	rows, err := md.DB.Query(query, params...)
 	if err != nil {
@@ -126,8 +186,61 @@ func getStandardLeaderboard(m string, modeInt, p, l, rx int, sort string, md com
 		return Err500
 	}
 	defer rows.Close()
+	for rows.Next() {
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
 
-	return scanLeaderboardRows(rows, m, rx, md, &resp)
+		err := rows.Scan(
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
+
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
+
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP,
+		)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser(eligibleTitles)
+		u.ChosenMode = chosenMode
+		if rx == 1 {
+			if i := relaxboardPosition(md.R, m, u.ID); i != nil {
+				u.ChosenMode.GlobalLeaderboardRank = i
+			}
+			if i := rxcountryPosition(md.R, m, u.ID, u.Country); i != nil {
+				u.ChosenMode.CountryLeaderboardRank = i
+			}
+		} else if rx == 2 {
+			if i := autoboardPosition(md.R, m, u.ID); i != nil {
+				u.ChosenMode.GlobalLeaderboardRank = i
+			}
+			if i := apcountryPosition(md.R, m, u.ID, u.Country); i != nil {
+				u.ChosenMode.CountryLeaderboardRank = i
+			}
+		} else {
+			if i := leaderboardPosition(md.R, m, u.ID); i != nil {
+				u.ChosenMode.GlobalLeaderboardRank = i
+			}
+			if i := countryPosition(md.R, m, u.ID, u.Country); i != nil {
+				u.ChosenMode.CountryLeaderboardRank = i
+			}
+		}
+		resp.Users = append(resp.Users, u)
+	}
+	return resp
 }
 
 func getAggregateLeaderboard(m string, modeInt, p, l, rx int, sort string, md common.MethodData) common.CodeMessager {
@@ -140,11 +253,11 @@ func getAggregateLeaderboard(m string, modeInt, p, l, rx int, sort string, md co
 	case "spp":
 		order = getStdDevOrder(modeInt, rx)
 	default:
-		// Fallback на стандартную сортировку
+		// Для обратной совместимости можно добавить старые форматы если нужно
 		order = "ORDER BY user_stats.pp DESC, users.id ASC"
 	}
 
-	query := fmt.Sprintf(lbUserQuery+` 
+	query := fmt.Sprintf(lbUserQueryWithAggregates+` 
 		WHERE (users.privileges & 3) >= 3 
 		AND user_stats.mode = ? 
 		%s 
@@ -160,9 +273,62 @@ func getAggregateLeaderboard(m string, modeInt, p, l, rx int, sort string, md co
 	var resp leaderboardResponse
 	resp.Code = 200
 
-	// Для aggregate сортировок позиции = номер строки + смещение страницы
-	globalRank := p*l + 1
-	return scanLeaderboardRowsWithOffset(rows, m, rx, md, &resp, globalRank)
+	// Сканируем строки с агрегатами
+	for rows.Next() {
+		userDB := leaderboardUserDB{}
+		var chosenMode modeData
+		var ppTotalAll, ppStddevAll int
+		var ppTotalClassic, ppStddevClassic int
+		var ppTotalRelax, ppStddevRelax int
+		var ppTotalStd, ppTotalTaiko, ppTotalCatch int
+		var ppStddevStd, ppStddevTaiko, ppStddevCatch int
+		var ppStd, ppStdRx, ppStdAp, ppTaiko, ppTaikoRx, ppCatch, ppCatchRx, ppMania int
+
+		err := rows.Scan(
+			&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
+
+			&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
+
+			&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
+			&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
+			&chosenMode.Accuracy, &chosenMode.PP,
+
+			&ppTotalAll, &ppStddevAll,
+			&ppTotalClassic, &ppStddevClassic,
+			&ppTotalRelax, &ppStddevRelax,
+			&ppTotalStd, &ppTotalTaiko, &ppTotalCatch,
+			&ppStddevStd, &ppStddevTaiko, &ppStddevCatch,
+			&ppStd, &ppStdRx, &ppStdAp, &ppTaiko, &ppTaikoRx, &ppCatch, &ppCatchRx, &ppMania,
+		)
+		if err != nil {
+			md.Err(err)
+			continue
+		}
+
+		// Применяем PPTotal на основе mode/rx
+		applyPPTotal(&chosenMode, modeInt, rx, ppStd, ppStdRx, ppStdAp, ppTaiko, ppTaikoRx, ppCatch, ppCatchRx, ppMania)
+
+		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
+
+		var eligibleTitles []eligibleTitle
+		eligibleTitles, err = getEligibleTitles(md, userDB.ID, userDB.Privileges)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		// Convert to API response format
+		u := userDB.toLeaderboardUser(eligibleTitles)
+		u.ChosenMode = chosenMode
+
+		// Для aggregate сортировок используем вычисленные позиции
+		globalRank := p*l + 1
+		u.ChosenMode.GlobalLeaderboardRank = &globalRank
+		// Страновые позиции не поддерживаются для aggregate сортировок
+
+		resp.Users = append(resp.Users, u)
+	}
+	return resp
 }
 
 func getTotalOrder(modeInt, rx int) string {
@@ -171,13 +337,18 @@ func getTotalOrder(modeInt, rx int) string {
 		// Конкретный режим + конкретный rx
 		return fmt.Sprintf("ORDER BY %s DESC, users.id ASC", getIndividualPPField(modeInt, rx))
 	} else if modeInt >= 0 {
-		// Конкретный режим, все rx (std+rx+ap для osu!)
+		// Конкретный режим, все rx - суммируем individual поля
 		switch modeInt {
-		case 0: return "ORDER BY agg.pp_total_std DESC, users.id ASC"      // osu! все rx
-		case 1: return "ORDER BY agg.pp_total_taiko DESC, users.id ASC"    // taiko все rx  
-		case 2: return "ORDER BY agg.pp_total_catch DESC, users.id ASC"    // catch все rx
-		case 3: return "ORDER BY agg.pp_mania DESC, users.id ASC"          // mania
-		default: return "ORDER BY agg.pp_total_all_modes DESC, users.id ASC"
+		case 0: // osu! все rx: std + std_rx + std_ap
+			return "ORDER BY (agg.pp_std + agg.pp_std_rx + agg.pp_std_ap) DESC, users.id ASC"
+		case 1: // taiko все rx: taiko + taiko_rx  
+			return "ORDER BY (agg.pp_taiko + agg.pp_taiko_rx) DESC, users.id ASC"
+		case 2: // catch все rx: catch + catch_rx
+			return "ORDER BY (agg.pp_catch + agg.pp_catch_rx) DESC, users.id ASC"
+		case 3: // mania
+			return "ORDER BY agg.pp_mania DESC, users.id ASC"
+		default: 
+			return "ORDER BY agg.pp_total_all_modes DESC, users.id ASC"
 		}
 	} else if rx >= 0 {
 		// Все режимы для конкретного rx
@@ -264,150 +435,35 @@ func getIndividualStdDevField(modeInt, rx int) string {
 	}
 }
 
-func scanLeaderboardRows(rows *sql.Rows, m string, rx int, md common.MethodData, resp *leaderboardResponse) common.CodeMessager {
-	for rows.Next() {
-		userDB, chosenMode, err := scanUserRow(rows)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-
-		applyPPTotal(&chosenMode, userDB.FavouriteMode, rx)
-
-		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
-
-		eligibleTitles, err := getEligibleTitles(md, userDB.ID, userDB.Privileges)
-		if err != nil {
-			md.Err(err)
-			return Err500
-		}
-
-		u := userDB.toLeaderboardUser(eligibleTitles)
-		u.ChosenMode = chosenMode
-
-		setLeaderboardPositions(&u, m, rx, md.R)
-
-		resp.Users = append(resp.Users, u)
-	}
-	return resp
-}
-
-func scanLeaderboardRowsWithOffset(rows *sql.Rows, m string, rx int, md common.MethodData, resp *leaderboardResponse, startRank int) common.CodeMessager {
-	currentRank := startRank
-	for rows.Next() {
-		userDB, chosenMode, err := scanUserRow(rows)
-		if err != nil {
-			md.Err(err)
-			continue
-		}
-
-		applyPPTotal(&chosenMode, userDB.FavouriteMode, rx)
-
-		chosenMode.Level = ocl.GetLevelPrecise(int64(chosenMode.TotalScore))
-
-		eligibleTitles, err := getEligibleTitles(md, userDB.ID, userDB.Privileges)
-		if err != nil {
-			md.Err(err)
-			return Err500
-		}
-
-		u := userDB.toLeaderboardUser(eligibleTitles)
-		u.ChosenMode = chosenMode
-
-		// Для aggregate сортировок используем вычисленные позиции
-		globalRank := currentRank
-		u.ChosenMode.GlobalLeaderboardRank = &globalRank
-		
-		// Страновые позиции не поддерживаются для aggregate сортировок
-		currentRank++
-
-		resp.Users = append(resp.Users, u)
-	}
-	return resp
-}
-
-func scanUserRow(rows *sql.Rows) (leaderboardUserDB, modeData, error) {
-	var userDB leaderboardUserDB
-	var chosenMode modeData
-	var ppTotalAll, ppStddevAll int
-	var ppTotalClassic, ppStddevClassic int
-	var ppTotalRelax, ppStddevRelax int
-	var ppTotalStd, ppTotalTaiko, ppTotalCatch int
-	var ppStddevStd, ppStddevTaiko, ppStddevCatch int
-	var ppStd, ppStdRx, ppStdAp, ppTaiko, ppTaikoRx, ppCatch, ppCatchRx, ppMania int
-
-	err := rows.Scan(
-		&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-		&userDB.UsernameAKA, &userDB.Country, &userDB.UserTitle, &userDB.PlayStyle, &userDB.FavouriteMode,
-		&chosenMode.RankedScore, &chosenMode.TotalScore, &chosenMode.PlayCount,
-		&chosenMode.ReplaysWatched, &chosenMode.TotalHits,
-		&chosenMode.Accuracy, &chosenMode.PP,
-		&ppTotalAll, &ppStddevAll,
-		&ppTotalClassic, &ppStddevClassic,
-		&ppTotalRelax, &ppStddevRelax,
-		&ppTotalStd, &ppTotalTaiko, &ppTotalCatch,
-		&ppStddevStd, &ppStddevTaiko, &ppStddevCatch,
-		&ppStd, &ppStdRx, &ppStdAp, &ppTaiko, &ppTaikoRx, &ppCatch, &ppCatchRx, &ppMania,
-	)
-
-	return userDB, chosenMode, err
-}
-
-func applyPPTotal(chosenMode *modeData, modeInt, rx int) {
+func applyPPTotal(chosenMode *modeData, modeInt, rx int, ppStd, ppStdRx, ppStdAp, ppTaiko, ppTaikoRx, ppCatch, ppCatchRx, ppMania int) {
 	// Apply chosen PP based on mode/rx
 	switch modeInt {
 	case 0: // osu!
 		switch rx {
 		case 1:
-			chosenMode.PPTotal = chosenMode.PP // Используем pp_std_rx если доступно
+			chosenMode.PPTotal = ppStdRx  // relax osu!
 		case 2:
-			chosenMode.PPTotal = chosenMode.PP // Используем pp_std_ap если доступно
+			chosenMode.PPTotal = ppStdAp  // autopilot osu!
 		default:
-			chosenMode.PPTotal = chosenMode.PP // Используем pp_std если доступно
+			chosenMode.PPTotal = ppStd    // vanilla osu!
 		}
 	case 1: // taiko
 		if rx == 1 {
-			chosenMode.PPTotal = chosenMode.PP // Используем pp_taiko_rx если доступно
+			chosenMode.PPTotal = ppTaikoRx // relax taiko
 		} else {
-			chosenMode.PPTotal = chosenMode.PP // Используем pp_taiko если доступно
+			chosenMode.PPTotal = ppTaiko   // vanilla taiko
 		}
 	case 2: // catch
 		if rx == 1 {
-			chosenMode.PPTotal = chosenMode.PP // Используем pp_catch_rx если доступно
+			chosenMode.PPTotal = ppCatchRx // relax catch
 		} else {
-			chosenMode.PPTotal = chosenMode.PP // Используем pp_catch если доступно
+			chosenMode.PPTotal = ppCatch   // vanilla catch
 		}
 	case 3: // mania
-		chosenMode.PPTotal = chosenMode.PP // Используем pp_mania если доступно
+		chosenMode.PPTotal = ppMania      // mania
 	}
 }
 
-func setLeaderboardPositions(u *leaderboardUser, m string, rx int, r *redis.Client) {
-	if rx == 1 {
-		if i := relaxboardPosition(r, m, u.ID); i != nil {
-			u.ChosenMode.GlobalLeaderboardRank = i
-		}
-		if i := rxcountryPosition(r, m, u.ID, u.Country); i != nil {
-			u.ChosenMode.CountryLeaderboardRank = i
-		}
-	} else if rx == 2 {
-		if i := autoboardPosition(r, m, u.ID); i != nil {
-			u.ChosenMode.GlobalLeaderboardRank = i
-		}
-		if i := apcountryPosition(r, m, u.ID, u.Country); i != nil {
-			u.ChosenMode.CountryLeaderboardRank = i
-		}
-	} else {
-		if i := leaderboardPosition(r, m, u.ID); i != nil {
-			u.ChosenMode.GlobalLeaderboardRank = i
-		}
-		if i := countryPosition(r, m, u.ID, u.Country); i != nil {
-			u.ChosenMode.CountryLeaderboardRank = i
-		}
-	}
-}
-
-// Redis position functions
 func leaderboardPosition(r *redis.Client, mode string, user int) *int {
 	return _position(r, "ripple:leaderboard:"+mode, user)
 }

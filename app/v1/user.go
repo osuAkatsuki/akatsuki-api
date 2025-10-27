@@ -129,13 +129,13 @@ func userPutsMulti(md common.MethodData) common.CodeMessager {
 	// query composition
 	wh := common.
 		Where("users.username_safe = ?", common.SafeUsername(md.Query("nname"))).
-		Where("users.id = ?", md.Query("iid")).
-		Where("users.privileges = ?", md.Query("privileges")).
-		Where("users.privileges & ? > 0", md.Query("has_privileges")).
-		Where("users.privileges & ? = 0", md.Query("has_not_privileges")).
-		Where("users.country = ?", md.Query("country")).
-		Where("users.username_aka = ?", md.Query("name_aka")).
-		Where("privileges_groups.name = ?", md.Query("privilege_group")).
+		Where("users.id = ?", md.Query("iid"))).
+		Where("users.privileges = ?", md.Query("privileges"))).
+		Where("users.privileges & ? > 0", md.Query("has_privileges"))).
+		Where("users.privileges & ? = 0", md.Query("has_not_privileges"))).
+		Where("users.country = ?", md.Query("country"))).
+		Where("users.username_aka = ?", md.Query("name_aka"))).
+		Where("privileges_groups.name = ?", md.Query("privilege_group"))).
 		In("users.id", pm("ids")...).
 		In("users.username_safe", safeUsernameBulk(pm("names"))...).
 		In("users.username_aka", pm("names_aka")...).
@@ -264,20 +264,20 @@ type userStats struct {
 type userFullResponse struct {
 	common.ResponseBase
 	userData
-	Stats               [3]userStats          `json:"stats"`
-	PlayStyle           int                   `json:"play_style"`
-	FavouriteMode       int                   `json:"favourite_mode"`
-	PPTotalAllModes     int                   `json:"pp_total_all_modes"`
-	PPStdDevAllModes    int                   `json:"pp_stddev_all_modes"`
-	Badges              []singleBadge         `json:"badges"`
-	Clan                Clan                  `json:"clan"`
-	Followers           int                   `json:"followers"`
-	TBadges             []TsingleBadge        `json:"tbadges"`
-	CustomBadge         *singleBadge          `json:"custom_badge"`
-	SilenceInfo         silenceInfo           `json:"silence_info"`
-	CMNotes             *string               `json:"cm_notes,omitempty"`
-	BanDate             *common.UnixTimestamp `json:"ban_date,omitempty"`
-	Email               string                `json:"email,omitempty"`
+	Stats         [3]userStats          `json:"stats"`
+	PlayStyle     int                   `json:"play_style"`
+	FavouriteMode int                   `json:"favourite_mode"`
+	Badges        []singleBadge         `json:"badges"`
+	Clan          Clan                  `json:"clan"`
+	Followers     int                   `json:"followers"`
+	TBadges       []TsingleBadge        `json:"tbadges"`
+	CustomBadge   *singleBadge          `json:"custom_badge"`
+	SilenceInfo   silenceInfo           `json:"silence_info"`
+	CMNotes       *string               `json:"cm_notes,omitempty"`
+	BanDate       *common.UnixTimestamp `json:"ban_date,omitempty"`
+	Email         string                `json:"email,omitempty"`
+	PPTotalAllModes     int             `json:"pp_total_all_modes"`
+	PPStdDevAllModes    int             `json:"pp_stddev_all_modes"`
 }
 
 type silenceInfo struct {
@@ -300,7 +300,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		show bool
 		userDB userDataDB
 	)
-	// Scan user information into response with aggregate data
+	// Scan user information into response
 	err := md.DB.QueryRow(`
 		SELECT
 			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,

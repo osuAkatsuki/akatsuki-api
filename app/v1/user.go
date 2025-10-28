@@ -63,7 +63,7 @@ func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 			ID:    eligibleTitles[0].ID,
 			Title: eligibleTitles[0].Title,
 		}
-		
+
 	}
 
 	return u

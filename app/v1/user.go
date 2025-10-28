@@ -58,11 +58,12 @@ func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 			ID:    udb.UserTitle.String,
 			Title: getUserTitleFromID(udb.UserTitle.String),
 		}
-	} else if len(eligibleTitles) > 0 {
+	} else if len(eligibleTitles) > 0{
 		u.UserTitle = userTitleResponse{
 			ID:    eligibleTitles[0].ID,
 			Title: eligibleTitles[0].Title,
 		}
+		
 	}
 
 	return u
@@ -279,7 +280,6 @@ type userFullResponse struct {
 	PPTotal       int                   `json:"pp_total"`
 	PPStdDev      int                   `json:"pp_stddev"`
 }
-
 type silenceInfo struct {
 	Reason string               `json:"reason"`
 	End    common.UnixTimestamp `json:"end"`
@@ -294,9 +294,10 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 
 	r := userFullResponse{}
 	var (
-		b      singleBadge
-		can    bool
-		show   bool
+		b singleBadge
+
+		can  bool
+		show bool
 		userDB userDataDB
 	)
 	// Scan user information into response
@@ -332,7 +333,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	r.userData = userDataDB.toUserData(eligibleTitles)
+	r.userData = userDB.toUserData(eligibleTitles)
 
 	// Scan stats into response for all gamemodes, across vn/rx/ap
 	query := `

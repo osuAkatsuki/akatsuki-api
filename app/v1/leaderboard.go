@@ -1,4 +1,3 @@
-// Package v1 implements the first version of the Ripple API.
 package v1
 
 import (

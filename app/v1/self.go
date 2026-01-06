@@ -78,8 +78,12 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
 	// Validate user title if provided
-	if d.UserTitle != nil {
-		// Get eligible titles to validate
+	// Frontend always sends this field, either as "" (no title) or a title ID
+	if d.UserTitle != nil && *d.UserTitle == "" {
+		// Empty string means "no title" - convert to NULL for database
+		d.UserTitle = nil
+	} else if d.UserTitle != nil {
+		// Non-empty title - validate it's in the eligible titles
 		var privileges uint64
 		err := md.DB.QueryRow("SELECT privileges FROM users WHERE id = ?", md.ID()).Scan(&privileges)
 		if err != nil {
@@ -328,12 +332,14 @@ WHERE id = ?`, md.ID()).Scan(
 			Title: getTitleFromID(userTitleID.String),
 		}
 	} else if len(r.EligibleTitles) > 0 {
-		// If user_title is empty or null, set it to the first eligible title if available
+		// If user_title is empty/null but user has eligible titles,
+		// default to the first one (e.g., newly promoted staff)
 		r.UserTitle = userTitleResponse{
 			ID:    r.EligibleTitles[0].ID,
 			Title: r.EligibleTitles[0].Title,
 		}
 	}
+	// Otherwise, leave r.UserTitle as empty struct (no title for users without eligible titles)
 
 	return r
 }

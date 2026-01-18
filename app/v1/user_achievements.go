@@ -52,10 +52,23 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 	if shouldRet != nil {
 		return *shouldRet
 	}
+
+	modeQuery := md.Query("mode")
 	var ids []int
-	err := md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
+	var err error
+
+	if modeQuery != "" {
+		m := getMode(modeQuery)
+		modeInt := getModeInt(m)
+		err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
+INNER JOIN users ON users.id = ua.user_id
+WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, modeInt)
+	} else {
+		err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
 WHERE `+whereClause+` ORDER BY ua.achievement_id ASC`, param)
+	}
+
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user!")

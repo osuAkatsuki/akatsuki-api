@@ -2,6 +2,7 @@ package v1
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"golang.org/x/exp/slog"
@@ -57,15 +58,24 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 	modeQuery := md.Query("mode")
 	var ids []int
 	var err error
-	var modeFilter *int
+	var fullMode *int      // Full mode (0-8) for querying users_achievements
+	var vanillaMode *int   // Vanilla mode (0-3) for filtering less_achievements
 
 	if modeQuery != "" {
-		m := getMode(modeQuery)
-		modeInt := getModeInt(m)
-		modeFilter = &modeInt
-		err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
+		// Parse mode as int directly (supports 0-8 for relax/autopilot)
+		m, parseErr := strconv.Atoi(modeQuery)
+		if parseErr == nil && m >= 0 && m <= 8 {
+			fullMode = &m
+			// Compute vanilla mode: 0,4,8 -> 0 | 1,5 -> 1 | 2,6 -> 2 | 3 -> 3
+			vm := m % 4
+			vanillaMode = &vm
+			err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
-WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, modeInt)
+WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, m)
+		} else {
+			// Invalid mode, return empty
+			err = sql.ErrNoRows
+		}
 	} else {
 		err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
@@ -83,8 +93,8 @@ WHERE `+whereClause+` ORDER BY ua.achievement_id ASC`, param)
 	resp := userAchievementsResponse{Achievements: make([]userAchievement, 0, len(achievs))}
 
 	for _, ach := range achievs {
-		// Skip achievements that don't match the requested mode
-		if modeFilter != nil && ach.Mode != nil && *ach.Mode != *modeFilter {
+		// Skip achievements that don't match the requested vanilla mode
+		if vanillaMode != nil && ach.Mode != nil && *ach.Mode != *vanillaMode {
 			continue
 		}
 

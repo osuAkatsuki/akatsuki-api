@@ -58,18 +58,18 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 	modeQuery := md.Query("mode")
 	var ids []int
 	var err error
-	var vanillaMode *int   // Vanilla mode (0-3) for filtering less_achievements
+	var fullMode int       // Full mode (0-8) for querying users_achievements: vanilla=0-3, relax=4-6, autopilot=8
+	var vanillaMode *int   // Vanilla mode (0-3) for filtering less_achievements: computed via fullMode % 4
 
 	if modeQuery != "" {
-		// Parse mode as int directly (supports 0-8 for relax/autopilot)
-		m, parseErr := strconv.Atoi(modeQuery)
-		if parseErr == nil && m >= 0 && m <= 8 {
-			// Compute vanilla mode: 0,4,8 -> 0 | 1,5 -> 1 | 2,6 -> 2 | 3 -> 3
-			vm := m % 4
+		parsedMode, parseErr := strconv.Atoi(modeQuery)
+		if parseErr == nil && parsedMode >= 0 && parsedMode <= 8 {
+			fullMode = parsedMode
+			vm := fullMode % 4
 			vanillaMode = &vm
 			err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
-WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, m)
+WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, fullMode)
 		} else {
 			// Invalid mode, return empty
 			err = sql.ErrNoRows

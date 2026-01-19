@@ -58,14 +58,12 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 	modeQuery := md.Query("mode")
 	var ids []int
 	var err error
-	var fullMode *int      // Full mode (0-8) for querying users_achievements
 	var vanillaMode *int   // Vanilla mode (0-3) for filtering less_achievements
 
 	if modeQuery != "" {
 		// Parse mode as int directly (supports 0-8 for relax/autopilot)
 		m, parseErr := strconv.Atoi(modeQuery)
 		if parseErr == nil && m >= 0 && m <= 8 {
-			fullMode = &m
 			// Compute vanilla mode: 0,4,8 -> 0 | 1,5 -> 1 | 2,6 -> 2 | 3 -> 3
 			vm := m % 4
 			vanillaMode = &vm

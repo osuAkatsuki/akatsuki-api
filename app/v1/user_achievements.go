@@ -12,10 +12,11 @@ import (
 
 // Achievement represents an achievement in the database.
 type Achievement struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Icon        string `json:"icon"`
+	ID          int     `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Icon        string  `json:"icon"`
+	Mode        *int    `json:"mode"` // Game mode (0=std, 1=taiko, 2=catch, 3=mania, nil=all modes)
 }
 
 // LoadAchievementsEvery reloads the achievements in the database every given
@@ -24,7 +25,7 @@ func LoadAchievementsEvery(db *sqlx.DB, d time.Duration) {
 	for {
 		achievs = nil
 		err := db.Select(&achievs,
-			"SELECT id, name, `desc` AS description, file AS icon FROM less_achievements ORDER BY id ASC")
+			"SELECT id, name, `desc` AS description, file AS icon, mode FROM less_achievements ORDER BY id ASC")
 		if err != nil {
 			slog.Error("LoadAchievements error", "error", err.Error())
 			common.GenericError(err)
@@ -56,10 +57,12 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 	modeQuery := md.Query("mode")
 	var ids []int
 	var err error
+	var modeFilter *int
 
 	if modeQuery != "" {
 		m := getMode(modeQuery)
 		modeInt := getModeInt(m)
+		modeFilter = &modeInt
 		err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
 WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, modeInt)
@@ -78,7 +81,13 @@ WHERE `+whereClause+` ORDER BY ua.achievement_id ASC`, param)
 	}
 	all := md.HasQuery("all")
 	resp := userAchievementsResponse{Achievements: make([]userAchievement, 0, len(achievs))}
+
 	for _, ach := range achievs {
+		// Skip achievements that don't match the requested mode
+		if modeFilter != nil && ach.Mode != nil && *ach.Mode != *modeFilter {
+			continue
+		}
+
 		achieved := inInt(ach.ID, ids)
 		if all || achieved {
 			resp.Achievements = append(resp.Achievements, userAchievement{ach, achieved})

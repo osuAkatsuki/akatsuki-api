@@ -182,7 +182,7 @@ func ScoresPinAddPOST(md common.MethodData) common.CodeMessager {
 
 	id, err := strconv.ParseInt(u.ID, 10, 64)
 	if err != nil {
-		panic(err)
+		return common.SimpleResponse(400, "invalid score id")
 	}
 
 	return pinScore(md, id, u.Relax, md.ID())
@@ -201,7 +201,7 @@ func ScoresPinDelPOST(md common.MethodData) common.CodeMessager {
 
 	id, err := strconv.ParseInt(u.ID, 10, 64)
 	if err != nil {
-		panic(err)
+		return common.SimpleResponse(400, "invalid score id")
 	}
 
 	return unpinScore(md, id, u.Relax, md.ID())

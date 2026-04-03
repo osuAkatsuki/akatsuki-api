@@ -179,7 +179,7 @@ func MatchGET(md common.MethodData) common.CodeMessager {
 	}
 
 	if privateMatch &&
-		(!inList(participantsIds, md.User.ID) ||
+		(!inList(participantsIds, md.User.ID) &&
 			md.User.UserPrivileges&common.UserPrivilegeTournamentStaff == 0) {
 		return common.SimpleResponse(404, "That match could not be found!")
 	}

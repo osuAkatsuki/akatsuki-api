@@ -467,6 +467,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		md.Err(err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&follower)
 		if err != nil {
@@ -481,6 +482,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		md.Err(err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var badge singleBadge
@@ -503,6 +505,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	if err != nil {
 		md.Err(err)
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var Tbadge TsingleBadge

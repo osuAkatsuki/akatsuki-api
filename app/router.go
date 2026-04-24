@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/buaazp/fasthttprouter"
@@ -35,10 +36,8 @@ func (r router) PlainGET(path string, handle fasthttp.RequestHandler) {
 const (
 	// \x1b is escape code for ESC
 	// <ESC>[<n>m is escape sequence for a certain colour
-	// no IP is written out because of the hundreds of possible ways to pass IPs
-	// to a request when using a reverse proxy
 	// this is partly inspired from gin, though made even more simplistic.
-	fmtString = "%s | %15s |\x1b[%sm %3d \x1b[0m %-7s %s\n"
+	fmtString = "%s | %15s | %-15s |\x1b[%sm %3d \x1b[0m %-7s %s\n"
 	// a kind of human readable RFC3339
 	timeFormat = "2006-01-02 15:04:05"
 	// color reference
@@ -46,6 +45,24 @@ const (
 	colorOk    = "42" // green
 	colorError = "41" // red
 )
+
+// clientIP extracts the real client IP from the request, honouring
+// X-Real-IP / X-Forwarded-For set by the reverse proxy.
+func clientIP(c *fasthttp.RequestCtx) string {
+	ip := strings.TrimSpace(string(c.Request.Header.Peek("X-Real-Ip")))
+	if len(ip) > 0 {
+		return ip
+	}
+	ip = string(c.Request.Header.Peek("X-Forwarded-For"))
+	if index := strings.IndexByte(ip, ','); index >= 0 {
+		ip = ip[0:index]
+	}
+	ip = strings.TrimSpace(ip)
+	if len(ip) > 0 {
+		return ip
+	}
+	return c.RemoteIP().String()
+}
 
 // wrap returns a function that wraps around handle, providing middleware
 // functionality to apply to all API calls, which is to say:
@@ -92,6 +109,7 @@ func wrap(handle fasthttp.RequestHandler) fasthttp.RequestHandler {
 				fmtString,
 				time.Now().Format(timeFormat),
 				time.Since(start).String(),
+				clientIP(c),
 				color,
 				statusCode,
 				c.Method(),

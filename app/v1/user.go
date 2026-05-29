@@ -277,6 +277,8 @@ type userFullResponse struct {
 	CMNotes       *string               `json:"cm_notes,omitempty"`
 	BanDate       *common.UnixTimestamp `json:"ban_date,omitempty"`
 	Email         string                `json:"email,omitempty"`
+	PPTotal       int                   `json:"pp_total"`
+	PPStdDev      int                   `json:"pp_stddev"`
 }
 type silenceInfo struct {
 	Reason string               `json:"reason"`
@@ -301,11 +303,13 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	// Scan user information into response
 	err := md.DB.QueryRow(`
 		SELECT
-			id, username, register_datetime, privileges, latest_activity,
-			username_aka, country, play_style, favourite_mode, custom_badge_icon,
-			custom_badge_name, can_custom_badge, show_custom_badge, silence_reason,
-			silence_end, notes, ban_datetime, email, clan_id, user_title
+			users.id, users.username, users.register_datetime, users.privileges, users.latest_activity,
+			users.username_aka, users.country, users.play_style, users.favourite_mode, users.custom_badge_icon,
+			users.custom_badge_name, users.can_custom_badge, users.show_custom_badge, users.silence_reason,
+			users.silence_end, users.notes, users.ban_datetime, users.email, users.clan_id, users.user_title,
+			COALESCE(agg.pp_total, 0), COALESCE(agg.pp_stddev, 0)
 		FROM users
+		LEFT JOIN player_pp_aggregates agg ON agg.player_id = users.id
 		WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true),
 		userIdParam,
 	).Scan(
@@ -313,6 +317,7 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 		&userDB.UsernameAKA, &userDB.Country, &r.PlayStyle, &r.FavouriteMode, &b.Icon,
 		&b.Name, &can, &show, &r.SilenceInfo.Reason,
 		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID, &userDB.UserTitle,
+		&r.PPTotal, &r.PPStdDev,
 	)
 	switch {
 	case err == sql.ErrNoRows:

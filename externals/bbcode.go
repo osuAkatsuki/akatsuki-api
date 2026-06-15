@@ -486,6 +486,7 @@ var policy = func() *bluemonday.Policy {
 }()
 
 func ConvertBBCodeToHTML(bbcode string) string {
+
 	// block
 	bbcode = parseImagemap(bbcode)
 	bbcode = parseBox(bbcode)

@@ -218,14 +218,14 @@ func parseImage(text string) string {
 	regex := regexp.MustCompile(`\[img\]([^[]+)\[\/img\]`)
 	text = ReplaceAllStringSubmatchFunc(regex, text, func(groups []string, _ string) string {
 		decoded, _ := url.QueryUnescape(groups[1])
-		return fmt.Sprintf("<img src='%s' loading='lazy'/>", decoded)
+		return fmt.Sprintf("<img src='%s' loading='lazy'/>", template.HTMLEscapeString(decoded))
 	})
 
 	// there is also a case of our old bbcode parsing [img=url][/img]
 	regex2 := regexp.MustCompile(`\[img=([^[]+)\]\[\/img\]`)
 	text = ReplaceAllStringSubmatchFunc(regex2, text, func(groups []string, _ string) string {
 		decoded, _ := url.QueryUnescape(groups[1])
-		return fmt.Sprintf("<img src='%s' loading='lazy'/>", decoded)
+		return fmt.Sprintf("<img src='%s' loading='lazy'/>", template.HTMLEscapeString(decoded))
 	})
 
 	return text
@@ -486,7 +486,6 @@ var policy = func() *bluemonday.Policy {
 }()
 
 func ConvertBBCodeToHTML(bbcode string) string {
-
 	// block
 	bbcode = parseImagemap(bbcode)
 	bbcode = parseBox(bbcode)

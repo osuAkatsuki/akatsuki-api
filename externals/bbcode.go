@@ -2,6 +2,7 @@ package externals
 
 import (
 	"fmt"
+	"html/template"
 	"math/rand"
 	"net/url"
 	"regexp"

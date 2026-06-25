@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"strings"
+
 	"github.com/osuAkatsuki/akatsuki-api/common"
 )
 
@@ -14,10 +16,8 @@ type MultiCount struct {
 	Countries []Country `json:"countries"`
 }
 
-func CountriesGET(md common.MethodData) common.CodeMessager {
-	var r MultiCount
-
-	r.Countries = []Country{
+func allCountries() []Country {
+	return []Country{
 		{
 			Name: "Andorra",
 			Code: "AD",
@@ -1023,7 +1023,28 @@ func CountriesGET(md common.MethodData) common.CodeMessager {
 			Code: "XX",
 		},
 	}
+}
 
+var countryNames = func() map[string]string {
+	countries := allCountries()
+	names := make(map[string]string, len(countries))
+	for _, country := range countries {
+		names[country.Code] = country.Name
+	}
+	return names
+}()
+
+func countryName(countryCode string) string {
+	if name, ok := countryNames[strings.ToUpper(countryCode)]; ok {
+		return name
+	}
+	return "Unknown country"
+}
+
+func CountriesGET(md common.MethodData) common.CodeMessager {
+	var r MultiCount
+
+	r.Countries = allCountries()
 	r.Code = 200
 	return r
 }

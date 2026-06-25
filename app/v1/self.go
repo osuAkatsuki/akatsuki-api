@@ -56,9 +56,9 @@ type userSettingsData struct {
 		singleBadge
 		Show *bool `json:"show"`
 	} `json:"custom_badge"`
-	PlayStyle             *int  `json:"play_style"`
-	VanillaPPLeaderboards *bool `json:"vanilla_pp_leaderboards"`
-	LeaderboardSize       *int  `json:"leaderboard_size"`
+	PlayStyle             *int    `json:"play_style"`
+	VanillaPPLeaderboards *bool   `json:"vanilla_pp_leaderboards"`
+	LeaderboardSize       *int    `json:"leaderboard_size"`
 	UserTitle             *string `json:"user_title"`
 }
 
@@ -145,11 +145,11 @@ type userTitleResponse struct {
 
 type userSettingsResponse struct {
 	common.ResponseBase
-	ID             int                `json:"id"`
-	Username       string             `json:"username"`
-	Email          string             `json:"email"`
-	UserTitle      userTitleResponse  `json:"user_title"`
-	EligibleTitles []eligibleTitle    `json:"eligible_titles"`
+	ID             int               `json:"id"`
+	Username       string            `json:"username"`
+	Email          string            `json:"email"`
+	UserTitle      userTitleResponse `json:"user_title"`
+	EligibleTitles []eligibleTitle   `json:"eligible_titles"`
 	userSettingsData
 }
 
@@ -159,10 +159,6 @@ type userSettingsResponse struct {
 // - Badge-based titles: Check if user has specific badges by ID
 // - Titles are returned in a specific priority order (to accomodate default title selection)
 func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]eligibleTitle, error) {
-	titles := make([]eligibleTitle, 0)
-
-	userPrivs := common.UserPrivileges(privileges)
-
 	// Check badges first (they have higher priority)
 	rows, err := md.DB.Query("SELECT b.id FROM user_badges ub "+
 		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", userID)
@@ -200,7 +196,19 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		}
 	}
 
-	// Return titles in priority order as specified in the HTML template
+	return getEligibleTitlesFromFlags(privileges, hasBot, hasDesign, hasScorewatcher, hasChampion), nil
+}
+
+func getEligibleTitlesFromFlags(
+	privileges uint64,
+	hasBot bool,
+	hasDesign bool,
+	hasScorewatcher bool,
+	hasChampion bool,
+) []eligibleTitle {
+	titles := make([]eligibleTitle, 0)
+	userPrivs := common.UserPrivileges(privileges)
+
 	if hasBot {
 		titles = append(titles, eligibleTitle{ID: "bot", Title: "CHAT BOT"})
 	}
@@ -253,7 +261,7 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "donor", Title: "SUPPORTER"})
 	}
 
-	return titles, nil
+	return titles
 }
 
 // getTitleFromID converts a machine-readable title ID to human-readable title

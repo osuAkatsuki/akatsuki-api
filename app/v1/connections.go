@@ -91,3 +91,140 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 	md.Ctx.Redirect("https://akatsuki.gg", 301)
 	return common.SimpleResponse(301, "")
 }
+
+func TwitchUnlinkPOST(md common.MethodData) common.CodeMessager {
+	err := md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND twitch_account_id IS NOT NULL", md.ID()).Scan(new(int))
+	switch {
+	case err == sql.ErrNoRows:
+		var r common.ResponseBase
+		r.Code = 400
+		r.Message = "You do not have a Twitch account linked!"
+		return r
+	case err != nil:
+		md.Err(err)
+		return Err500
+	}
+
+	_, err = md.DB.Exec("UPDATE users SET twitch_account_id = NULL, twitch_username = NULL, twitch_display_name = NULL WHERE id = ?", md.ID())
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	return common.SimpleResponse(200, "Twitch unlinked successfully")
+}
+
+func TwitchCallbackGET(md common.MethodData) common.CodeMessager {
+	code := md.Query("code")
+	if code == "" {
+		return ErrBadJSON
+	}
+
+	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND twitch_account_id IS NOT NULL", md.ID()).
+		Scan(new(int)) != sql.ErrNoRows {
+		var r common.ResponseBase
+		r.Code = 403
+		r.Message = "You already have a Twitch account linked!"
+		return r
+	}
+
+	settings := common.GetSettings()
+	if settings.TWITCH_CLIENT_ID == "" || settings.TWITCH_CLIENT_SECRET == "" || settings.TWITCH_REDIRECT_URI == "" {
+		return common.SimpleResponse(503, "Twitch account linking is not configured.")
+	}
+
+	client := resty.New()
+	resp, err := client.R().
+		SetFormData(map[string]string{
+			"client_id":     settings.TWITCH_CLIENT_ID,
+			"client_secret": settings.TWITCH_CLIENT_SECRET,
+			"grant_type":    "authorization_code",
+			"code":          code,
+			"redirect_uri":  settings.TWITCH_REDIRECT_URI,
+		}).
+		SetHeader("Content-Type", "application/x-www-form-urlencoded").
+		Post("https://id.twitch.tv/oauth2/token")
+
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	if resp.IsError() {
+		return common.SimpleResponse(resp.StatusCode(), "Failed to exchange Twitch OAuth code.")
+	}
+
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	if err := json.Unmarshal(resp.Body(), &tokenResp); err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	if tokenResp.AccessToken == "" {
+		return common.SimpleResponse(502, "Twitch OAuth response did not include an access token.")
+	}
+
+	userResp, err := client.R().
+		SetAuthToken(tokenResp.AccessToken).
+		SetHeader("Client-Id", settings.TWITCH_CLIENT_ID).
+		Get("https://api.twitch.tv/helix/users")
+
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	if userResp.IsError() {
+		return common.SimpleResponse(userResp.StatusCode(), "Failed to fetch Twitch user.")
+	}
+
+	var twitchUserResp struct {
+		Data []struct {
+			ID          string `json:"id"`
+			Login       string `json:"login"`
+			DisplayName string `json:"display_name"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(userResp.Body(), &twitchUserResp); err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	if len(twitchUserResp.Data) == 0 {
+		return common.SimpleResponse(502, "Twitch did not return a user for this OAuth token.")
+	}
+
+	twitchUser := twitchUserResp.Data[0]
+	var linkedUserID int
+	err = md.DB.QueryRow(
+		"SELECT id FROM users WHERE twitch_account_id = ? AND id != ? LIMIT 1",
+		twitchUser.ID,
+		md.ID(),
+	).Scan(&linkedUserID)
+	switch {
+	case err == nil:
+		return common.SimpleResponse(409, "That Twitch account is already linked to another Akatsuki account.")
+	case err != sql.ErrNoRows:
+		md.Err(err)
+		return Err500
+	}
+
+	_, err = md.DB.Exec(
+		"UPDATE users SET twitch_account_id = ?, twitch_username = ?, twitch_display_name = ? WHERE id = ?",
+		twitchUser.ID,
+		twitchUser.Login,
+		twitchUser.DisplayName,
+		md.ID(),
+	)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	md.Ctx.Redirect("https://akatsuki.gg/settings/connections", 301)
+	return common.SimpleResponse(301, "")
+}

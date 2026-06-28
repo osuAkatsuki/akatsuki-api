@@ -15,6 +15,10 @@ func getEnv(key string) string {
 	return val
 }
 
+func getEnvOptional(key string) string {
+	return os.Getenv(key)
+}
+
 func strToInt(s string) int {
 	val, _ := strconv.Atoi(s)
 	return val
@@ -50,6 +54,10 @@ type Settings struct {
 	DISCORD_CLIENT_ID     string
 	DISCORD_CLIENT_SECRET string
 	DISCORD_REDIRECT_URI  string
+
+	TWITCH_CLIENT_ID     string
+	TWITCH_CLIENT_SECRET string
+	TWITCH_REDIRECT_URI  string
 }
 
 var settings = Settings{}
@@ -81,6 +89,10 @@ func LoadSettings() Settings {
 	settings.DISCORD_CLIENT_ID = getEnv("DISCORD_CLIENT_ID")
 	settings.DISCORD_CLIENT_SECRET = getEnv("DISCORD_CLIENT_SECRET")
 	settings.DISCORD_REDIRECT_URI = getEnv("DISCORD_REDIRECT_URI")
+
+	settings.TWITCH_CLIENT_ID = getEnvOptional("TWITCH_CLIENT_ID")
+	settings.TWITCH_CLIENT_SECRET = getEnvOptional("TWITCH_CLIENT_SECRET")
+	settings.TWITCH_REDIRECT_URI = getEnvOptional("TWITCH_REDIRECT_URI")
 
 	return settings
 }

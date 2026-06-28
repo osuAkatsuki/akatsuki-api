@@ -15,10 +15,6 @@ func getEnv(key string) string {
 	return val
 }
 
-func getEnvOptional(key string) string {
-	return os.Getenv(key)
-}
-
 func strToInt(s string) int {
 	val, _ := strconv.Atoi(s)
 	return val
@@ -90,9 +86,9 @@ func LoadSettings() Settings {
 	settings.DISCORD_CLIENT_SECRET = getEnv("DISCORD_CLIENT_SECRET")
 	settings.DISCORD_REDIRECT_URI = getEnv("DISCORD_REDIRECT_URI")
 
-	settings.TWITCH_CLIENT_ID = getEnvOptional("TWITCH_CLIENT_ID")
-	settings.TWITCH_CLIENT_SECRET = getEnvOptional("TWITCH_CLIENT_SECRET")
-	settings.TWITCH_REDIRECT_URI = getEnvOptional("TWITCH_REDIRECT_URI")
+	settings.TWITCH_CLIENT_ID = getEnv("TWITCH_CLIENT_ID")
+	settings.TWITCH_CLIENT_SECRET = getEnv("TWITCH_CLIENT_SECRET")
+	settings.TWITCH_REDIRECT_URI = getEnv("TWITCH_REDIRECT_URI")
 
 	return settings
 }

@@ -105,7 +105,7 @@ func TwitchUnlinkPOST(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	_, err = md.DB.Exec("UPDATE users SET twitch_account_id = NULL, twitch_username = NULL, twitch_display_name = NULL WHERE id = ?", md.ID())
+	_, err = md.DB.Exec("UPDATE users SET twitch_account_id = NULL, twitch_username = NULL WHERE id = ?", md.ID())
 	if err != nil {
 		md.Err(err)
 		return Err500
@@ -183,9 +183,8 @@ func TwitchCallbackGET(md common.MethodData) common.CodeMessager {
 
 	var twitchUserResp struct {
 		Data []struct {
-			ID          string `json:"id"`
-			Login       string `json:"login"`
-			DisplayName string `json:"display_name"`
+			ID    string `json:"id"`
+			Login string `json:"login"`
 		} `json:"data"`
 	}
 
@@ -214,10 +213,9 @@ func TwitchCallbackGET(md common.MethodData) common.CodeMessager {
 	}
 
 	_, err = md.DB.Exec(
-		"UPDATE users SET twitch_account_id = ?, twitch_username = ?, twitch_display_name = ? WHERE id = ?",
+		"UPDATE users SET twitch_account_id = ?, twitch_username = ? WHERE id = ?",
 		twitchUser.ID,
 		twitchUser.Login,
-		twitchUser.DisplayName,
 		md.ID(),
 	)
 	if err != nil {

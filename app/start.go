@@ -106,6 +106,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 
 		r.Method("/api/v1/discord/callback", v1.DiscordCallbackGET, common.PrivilegeReadConfidential)
 		r.Method("/api/v1/twitch/callback", v1.TwitchCallbackGET, common.PrivilegeReadConfidential)
+		r.Method("/api/v1/osu/callback", v1.OfficialOsuCallbackGET, common.PrivilegeReadConfidential)
 
 		// ReadConfidential privilege required
 		r.Method("/api/v1/friends", v1.FriendsGET, common.PrivilegeReadConfidential)
@@ -122,6 +123,7 @@ func Start(dbO *sqlx.DB) *fhr.Router {
 		r.POSTMethod("/api/v1/users/scores/unpin", v1.ScoresPinDelPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/connections/unlink-discord", v1.DiscordUnlinkPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/connections/unlink-twitch", v1.TwitchUnlinkPOST, common.PrivilegeWrite)
+		r.POSTMethod("/api/v1/users/self/connections/unlink-osu", v1.OfficialOsuUnlinkPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/settings", v1.UsersSelfSettingsPOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/users/self/userpage", v1.UserSelfUserpagePOST, common.PrivilegeWrite)
 		r.POSTMethod("/api/v1/clans/join", v1.ClanJoinPOST, common.PrivilegeWrite)

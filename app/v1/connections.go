@@ -93,8 +93,8 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 
 	md.DB.Exec("UPDATE users SET discord_account_id = ? WHERE id = ?", discordUser.ID, md.ID())
 
-	md.Ctx.Redirect("https://akatsuki.gg", 301)
-	return common.SimpleResponse(301, "")
+	md.Ctx.Redirect("https://akatsuki.gg", 302)
+	return common.SimpleResponse(302, "")
 }
 
 func TwitchUnlinkPOST(md common.MethodData) common.CodeMessager {
@@ -232,8 +232,8 @@ func TwitchCallbackGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	md.Ctx.Redirect("https://akatsuki.gg/settings/connections", 301)
-	return common.SimpleResponse(301, "")
+	md.Ctx.Redirect("https://akatsuki.gg/settings/connections", 302)
+	return common.SimpleResponse(302, "")
 }
 
 func OfficialOsuUnlinkPOST(md common.MethodData) common.CodeMessager {
@@ -365,8 +365,8 @@ func OfficialOsuCallbackGET(md common.MethodData) common.CodeMessager {
 		return Err500
 	}
 
-	md.Ctx.Redirect("https://akatsuki.gg/settings/connections", 301)
-	return common.SimpleResponse(301, "")
+	md.Ctx.Redirect("https://akatsuki.gg/settings/connections", 302)
+	return common.SimpleResponse(302, "")
 }
 
 func validateOAuthState(md common.MethodData, provider string) common.CodeMessager {

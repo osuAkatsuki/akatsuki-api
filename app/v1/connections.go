@@ -3,6 +3,7 @@ package v1
 import (
 	"database/sql"
 	"encoding/json"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/osuAkatsuki/akatsuki-api/common"
@@ -30,6 +31,10 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 	code := md.Query("code")
 	if code == "" {
 		return ErrBadJSON
+	}
+
+	if r := validateOAuthState(md, "discord"); r != nil {
+		return r
 	}
 
 	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND discord_account_id IS NOT NULL", md.ID()).
@@ -118,6 +123,10 @@ func TwitchCallbackGET(md common.MethodData) common.CodeMessager {
 	code := md.Query("code")
 	if code == "" {
 		return ErrBadJSON
+	}
+
+	if r := validateOAuthState(md, "twitch"); r != nil {
+		return r
 	}
 
 	if md.DB.QueryRow("SELECT 1 FROM users WHERE id = ? AND twitch_account_id IS NOT NULL", md.ID()).
@@ -225,4 +234,23 @@ func TwitchCallbackGET(md common.MethodData) common.CodeMessager {
 
 	md.Ctx.Redirect("https://akatsuki.gg/settings/connections", 301)
 	return common.SimpleResponse(301, "")
+}
+
+func validateOAuthState(md common.MethodData, provider string) common.CodeMessager {
+	settings := common.GetSettings()
+	state := md.Query("state")
+	if state == "" {
+		return common.SimpleResponse(400, "Missing OAuth state. Please try linking your account again.")
+	}
+
+	userID, err := common.ValidateOAuthState(state, provider, settings.HANAYO_KEY, time.Now())
+	if err != nil {
+		return common.SimpleResponse(400, common.OAuthStateValidationMessage(err))
+	}
+
+	if userID != md.ID() {
+		return common.SimpleResponse(400, common.OAuthStateValidationMessage(common.ErrInvalidOAuthState))
+	}
+
+	return nil
 }

@@ -93,7 +93,7 @@ func DiscordCallbackGET(md common.MethodData) common.CodeMessager {
 
 	md.DB.Exec("UPDATE users SET discord_account_id = ? WHERE id = ?", discordUser.ID, md.ID())
 
-	md.Ctx.Redirect("https://akatsuki.gg", 302)
+	md.Ctx.Redirect("https://akatsuki.gg/settings/connections", 302)
 	return common.SimpleResponse(302, "")
 }
 

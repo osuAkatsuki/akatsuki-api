@@ -207,20 +207,6 @@ func TwitchCallbackGET(md common.MethodData) common.CodeMessager {
 	}
 
 	twitchUser := twitchUserResp.Data[0]
-	var linkedUserID int
-	err = md.DB.QueryRow(
-		"SELECT id FROM users WHERE twitch_account_id = ? AND id != ? LIMIT 1",
-		twitchUser.ID,
-		md.ID(),
-	).Scan(&linkedUserID)
-	switch {
-	case err == nil:
-		return common.SimpleResponse(409, "That Twitch account is already linked to another Akatsuki account.")
-	case err != sql.ErrNoRows:
-		md.Err(err)
-		return Err500
-	}
-
 	_, err = md.DB.Exec(
 		"UPDATE users SET twitch_account_id = ?, twitch_username = ? WHERE id = ?",
 		twitchUser.ID,
@@ -338,20 +324,6 @@ func OfficialOsuCallbackGET(md common.MethodData) common.CodeMessager {
 
 	if osuUser.ID <= 0 {
 		return common.SimpleResponse(502, "osu! did not return a user for this OAuth token.")
-	}
-
-	var linkedUserID int
-	err = md.DB.QueryRow(
-		"SELECT id FROM users WHERE official_osu_user_id = ? AND id != ? LIMIT 1",
-		osuUser.ID,
-		md.ID(),
-	).Scan(&linkedUserID)
-	switch {
-	case err == nil:
-		return common.SimpleResponse(409, "That official osu! account is already linked to another Akatsuki account.")
-	case err != sql.ErrNoRows:
-		md.Err(err)
-		return Err500
 	}
 
 	_, err = md.DB.Exec(

@@ -9,7 +9,7 @@ apps:
       targetCPUUtilizationPercentage: 80
     container:
       image:
-        repository: osuakatsuki/akatsuki-api
+        repository: ghcr.io/osuakatsuki/akatsuki-api
         tag: latest
       port: 80
       env:

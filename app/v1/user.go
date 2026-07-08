@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/osuAkatsuki/akatsuki-api/common"
 	"github.com/osuAkatsuki/akatsuki-api/externals"
+	redis "gopkg.in/redis.v5"
 
 	"zxq.co/ripple/ocl"
 )
@@ -58,7 +59,7 @@ func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 			ID:    udb.UserTitle.String,
 			Title: getUserTitleFromID(udb.UserTitle.String),
 		}
-	} else if len(eligibleTitles) > 0{
+	} else if len(eligibleTitles) > 0 {
 		u.UserTitle = userTitleResponse{
 			ID:    eligibleTitles[0].ID,
 			Title: eligibleTitles[0].Title,
@@ -262,9 +263,18 @@ type userStats struct {
 	Mania modeData `json:"mania"`
 }
 
-type userFullResponse struct {
-	common.ResponseBase
+type silenceInfo struct {
+	Reason string               `json:"reason"`
+	End    common.UnixTimestamp `json:"end"`
+}
+
+const maxUserFullBulkIDs = 50
+
+var userFullStatModes = []int{0, 1, 2, 3, 4, 5, 6, 8}
+
+type userFullData struct {
 	userData
+	CountryName   string                `json:"country_name"`
 	Stats         [3]userStats          `json:"stats"`
 	PlayStyle     int                   `json:"play_style"`
 	FavouriteMode int                   `json:"favourite_mode"`
@@ -278,249 +288,591 @@ type userFullResponse struct {
 	BanDate       *common.UnixTimestamp `json:"ban_date,omitempty"`
 	Email         string                `json:"email,omitempty"`
 }
-type silenceInfo struct {
-	Reason string               `json:"reason"`
-	End    common.UnixTimestamp `json:"end"`
+
+type userFullResponse struct {
+	common.ResponseBase
+	userFullData
 }
+
+type userFullMultiResponse struct {
+	common.ResponseBase
+	Users []userFullData `json:"users"`
+}
+
+type userFullDB struct {
+	userDataDB
+	PlayStyle       int                   `db:"play_style"`
+	FavouriteMode   int                   `db:"favourite_mode"`
+	CustomBadgeIcon string                `db:"custom_badge_icon"`
+	CustomBadgeName string                `db:"custom_badge_name"`
+	CanCustomBadge  bool                  `db:"can_custom_badge"`
+	ShowCustomBadge bool                  `db:"show_custom_badge"`
+	SilenceReason   string                `db:"silence_reason"`
+	SilenceEnd      common.UnixTimestamp  `db:"silence_end"`
+	CMNotes         *string               `db:"notes"`
+	BanDate         *common.UnixTimestamp `db:"ban_datetime"`
+	Email           string                `db:"email"`
+	ClanID          int                   `db:"clan_id"`
+}
+
+type userFullRankCommand struct {
+	cmd  *redis.IntCmd
+	dest **int
+}
+
+const userFullFields = `
+SELECT
+	users.id, users.username, users.register_datetime, users.privileges,
+	users.latest_activity, users.username_aka, users.country, users.user_title,
+	users.play_style, users.favourite_mode, users.custom_badge_icon,
+	users.custom_badge_name, users.can_custom_badge, users.show_custom_badge,
+	users.silence_reason, users.silence_end, users.notes, users.ban_datetime,
+	users.email, users.clan_id
+FROM users
+`
 
 // UserFullGET gets all of an user's information, with one exception: their userpage.
 func UserFullGET(md common.MethodData) common.CodeMessager {
+	if len(md.Ctx.QueryArgs().PeekMulti("ids")) > 0 {
+		return userFullPutsMulti(md)
+	}
+
 	shouldRet, whereClause, userIdParam := whereClauseUser(md, "users")
 	if shouldRet != nil {
 		return *shouldRet
 	}
 
-	r := userFullResponse{}
-	var (
-		b singleBadge
-
-		can  bool
-		show bool
-		userDB userDataDB
-	)
-	// Scan user information into response
-	err := md.DB.QueryRow(`
-		SELECT
-			id, username, register_datetime, privileges, latest_activity,
-			username_aka, country, play_style, favourite_mode, custom_badge_icon,
-			custom_badge_name, can_custom_badge, show_custom_badge, silence_reason,
-			silence_end, notes, ban_datetime, email, clan_id, user_title
-		FROM users
-		WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true),
-		userIdParam,
-	).Scan(
-		&userDB.ID, &userDB.Username, &userDB.RegisteredOn, &userDB.Privileges, &userDB.LatestActivity,
-		&userDB.UsernameAKA, &userDB.Country, &r.PlayStyle, &r.FavouriteMode, &b.Icon,
-		&b.Name, &can, &show, &r.SilenceInfo.Reason,
-		&r.SilenceInfo.End, &r.CMNotes, &r.BanDate, &r.Email, &r.Clan.ID, &userDB.UserTitle,
-	)
-	switch {
-	case err == sql.ErrNoRows:
+	query := userFullFields + `
+WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + `
+LIMIT 1`
+	users, errResp := getUserFullData(md, query, userIdParam)
+	if errResp != nil {
+		return errResp
+	}
+	if len(users) == 0 {
 		return common.SimpleResponse(404, "That user could not be found!")
-	case err != nil:
-		md.Err(err)
-		return Err500
 	}
 
-	eligibleTitles, err := getEligibleTitles(md, userDB.ID, userDB.Privileges)
+	return userFullResponse{
+		ResponseBase: common.ResponseBase{Code: 200},
+		userFullData: users[0],
+	}
+}
+
+func userFullPutsMulti(md common.MethodData) common.CodeMessager {
+	if md.Query("id") != "" || md.Query("name") != "" {
+		return common.SimpleResponse(400, "please pass either id/name or ids, not both")
+	}
+
+	ids, errResp := parseUserFullIDs(md.Ctx.QueryArgs().PeekMulti("ids"))
+	if errResp != nil {
+		return errResp
+	}
+
+	query, params, err := sqlx.In(
+		userFullFields+`WHERE users.id IN (?) AND `+md.User.OnlyUserPublic(true),
+		ids,
+	)
 	if err != nil {
 		md.Err(err)
 		return Err500
 	}
 
-	r.userData = userDB.toUserData(eligibleTitles)
+	users, errResp := getUserFullData(md, query, params...)
+	if errResp != nil {
+		return errResp
+	}
 
-	// Scan stats into response for all gamemodes, across vn/rx/ap
-	query := `
-		SELECT
-			user_stats.ranked_score, user_stats.total_score, user_stats.playcount, user_stats.playtime,
-			user_stats.replays_watched, user_stats.total_hits,
-			user_stats.avg_accuracy, user_stats.pp, user_stats.max_combo,
-			user_stats.xh_count, user_stats.x_count, user_stats.sh_count,
-			user_stats.s_count, user_stats.a_count, user_stats.b_count,
-			user_stats.c_count, user_stats.d_count
-		FROM user_stats
-		INNER JOIN users ON users.id = user_stats.user_id
-		WHERE ` + whereClause + ` AND ` + md.User.OnlyUserPublic(true) + ` AND user_stats.mode = ?
-`
-	for _, relaxMode := range []int{0, 1, 2} {
-		modeOffset := relaxMode * 4
-		// Scan vanilla gamemode information into response
-		err = md.DB.QueryRow(query, userIdParam, 0+modeOffset).Scan(
-			&r.Stats[relaxMode].STD.RankedScore, &r.Stats[relaxMode].STD.TotalScore, &r.Stats[relaxMode].STD.PlayCount, &r.Stats[relaxMode].STD.PlayTime,
-			&r.Stats[relaxMode].STD.ReplaysWatched, &r.Stats[relaxMode].STD.TotalHits,
-			&r.Stats[relaxMode].STD.Accuracy, &r.Stats[relaxMode].STD.PP, &r.Stats[relaxMode].STD.MaxCombo,
-			&r.Stats[relaxMode].STD.Grades.XHCount, &r.Stats[relaxMode].STD.Grades.XCount, &r.Stats[relaxMode].STD.Grades.SHCount,
-			&r.Stats[relaxMode].STD.Grades.SCount, &r.Stats[relaxMode].STD.Grades.ACount, &r.Stats[relaxMode].STD.Grades.BCount,
-			&r.Stats[relaxMode].STD.Grades.CCount, &r.Stats[relaxMode].STD.Grades.DCount,
-		)
-		switch {
-		case err == sql.ErrNoRows:
-			return common.SimpleResponse(404, "That user could not be found!")
-		case err != nil:
-			md.Err(err)
-			return Err500
-		}
+	usersByID := make(map[int]userFullData, len(users))
+	for _, user := range users {
+		usersByID[user.ID] = user
+	}
 
-		if relaxMode == 2 {
-			// AP only has osu! standard
-			continue
-		}
-
-		// Scan taiko gamemode information into response
-		err = md.DB.QueryRow(query, userIdParam, 1+modeOffset).Scan(
-			&r.Stats[relaxMode].Taiko.RankedScore, &r.Stats[relaxMode].Taiko.TotalScore, &r.Stats[relaxMode].Taiko.PlayCount, &r.Stats[relaxMode].Taiko.PlayTime,
-			&r.Stats[relaxMode].Taiko.ReplaysWatched, &r.Stats[relaxMode].Taiko.TotalHits,
-			&r.Stats[relaxMode].Taiko.Accuracy, &r.Stats[relaxMode].Taiko.PP, &r.Stats[relaxMode].Taiko.MaxCombo,
-			&r.Stats[relaxMode].Taiko.Grades.XHCount, &r.Stats[relaxMode].Taiko.Grades.XCount, &r.Stats[relaxMode].Taiko.Grades.SHCount,
-			&r.Stats[relaxMode].Taiko.Grades.SCount, &r.Stats[relaxMode].Taiko.Grades.ACount, &r.Stats[relaxMode].Taiko.Grades.BCount,
-			&r.Stats[relaxMode].Taiko.Grades.CCount, &r.Stats[relaxMode].Taiko.Grades.DCount,
-		)
-		switch {
-		case err == sql.ErrNoRows:
-			return common.SimpleResponse(404, "That user could not be found!")
-		case err != nil:
-			md.Err(err)
-			return Err500
-		}
-
-		// Scan ctb gamemode information into response
-		err = md.DB.QueryRow(query, userIdParam, 2+modeOffset).Scan(
-			&r.Stats[relaxMode].CTB.RankedScore, &r.Stats[relaxMode].CTB.TotalScore, &r.Stats[relaxMode].CTB.PlayCount, &r.Stats[relaxMode].CTB.PlayTime,
-			&r.Stats[relaxMode].CTB.ReplaysWatched, &r.Stats[relaxMode].CTB.TotalHits,
-			&r.Stats[relaxMode].CTB.Accuracy, &r.Stats[relaxMode].CTB.PP, &r.Stats[relaxMode].CTB.MaxCombo,
-			&r.Stats[relaxMode].CTB.Grades.XHCount, &r.Stats[relaxMode].CTB.Grades.XCount, &r.Stats[relaxMode].CTB.Grades.SHCount,
-			&r.Stats[relaxMode].CTB.Grades.SCount, &r.Stats[relaxMode].CTB.Grades.ACount, &r.Stats[relaxMode].CTB.Grades.BCount,
-			&r.Stats[relaxMode].CTB.Grades.CCount, &r.Stats[relaxMode].CTB.Grades.DCount,
-		)
-		switch {
-		case err == sql.ErrNoRows:
-			return common.SimpleResponse(404, "That user could not be found!")
-		case err != nil:
-			md.Err(err)
-			return Err500
-		}
-
-		if relaxMode == 1 {
-			// RX does not have mania
-			continue
-		}
-
-		// Scan mania gamemode information into response
-		err = md.DB.QueryRow(query, userIdParam, 3+modeOffset).Scan(
-			&r.Stats[relaxMode].Mania.RankedScore, &r.Stats[relaxMode].Mania.TotalScore, &r.Stats[relaxMode].Mania.PlayCount, &r.Stats[relaxMode].Mania.PlayTime,
-			&r.Stats[relaxMode].Mania.ReplaysWatched, &r.Stats[relaxMode].Mania.TotalHits,
-			&r.Stats[relaxMode].Mania.Accuracy, &r.Stats[relaxMode].Mania.PP, &r.Stats[relaxMode].Mania.MaxCombo,
-			&r.Stats[relaxMode].Mania.Grades.XHCount, &r.Stats[relaxMode].Mania.Grades.XCount, &r.Stats[relaxMode].Mania.Grades.SHCount,
-			&r.Stats[relaxMode].Mania.Grades.SCount, &r.Stats[relaxMode].Mania.Grades.ACount, &r.Stats[relaxMode].Mania.Grades.BCount,
-			&r.Stats[relaxMode].Mania.Grades.CCount, &r.Stats[relaxMode].Mania.Grades.DCount,
-		)
-		switch {
-		case err == sql.ErrNoRows:
-			return common.SimpleResponse(404, "That user could not be found!")
-		case err != nil:
-			md.Err(err)
-			return Err500
+	orderedUsers := make([]userFullData, 0, len(users))
+	for _, id := range ids {
+		if user, ok := usersByID[id]; ok {
+			orderedUsers = append(orderedUsers, user)
 		}
 	}
 
-	can = can && show && common.UserPrivileges(r.Privileges)&common.UserPrivilegeDonor > 0
-	if can && (b.Name != "" || b.Icon != "") {
-		r.CustomBadge = &b
+	return userFullMultiResponse{
+		ResponseBase: common.ResponseBase{Code: 200},
+		Users:        orderedUsers,
+	}
+}
+
+func parseUserFullIDs(rawIDs [][]byte) ([]int, common.CodeMessager) {
+	if len(rawIDs) > maxUserFullBulkIDs {
+		return nil, common.SimpleResponse(400, "a maximum of 50 user IDs can be requested")
 	}
 
-	for modeID, m := range [...]*modeData{&r.Stats[0].STD, &r.Stats[0].Taiko, &r.Stats[0].CTB, &r.Stats[0].Mania} {
-		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
+	ids := make([]int, 0, len(rawIDs))
+	seen := make(map[int]bool, len(rawIDs))
+	for _, rawID := range rawIDs {
+		id, err := strconv.Atoi(string(rawID))
+		if err != nil || id <= 0 {
+			return nil, common.SimpleResponse(400, "please pass valid user IDs")
+		}
 
-		if i := leaderboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
-			m.GlobalLeaderboardRank = i
-		}
-		if i := countryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
-			m.CountryLeaderboardRank = i
-		}
-	}
-	// I'm sorry for this horribleness but ripple and past mistakes have forced my hand
-	for modeID, m := range [...]*modeData{&r.Stats[1].STD, &r.Stats[1].Taiko, &r.Stats[1].CTB, &r.Stats[1].Mania} {
-		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
-
-		if i := relaxboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
-			m.GlobalLeaderboardRank = i
-		}
-		if i := rxcountryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
-			m.CountryLeaderboardRank = i
-		}
-	}
-
-	for modeID, m := range [...]*modeData{&r.Stats[2].STD} {
-		m.Level = ocl.GetLevelPrecise(int64(m.TotalScore))
-
-		if i := autoboardPosition(md.R, modesToReadable[modeID], r.ID); i != nil {
-			m.GlobalLeaderboardRank = i
-		}
-		if i := apcountryPosition(md.R, modesToReadable[modeID], r.ID, r.Country); i != nil {
-			m.CountryLeaderboardRank = i
+		if !seen[id] {
+			ids = append(ids, id)
+			seen[id] = true
 		}
 	}
 
-	var follower int
-	rows, err := md.DB.Query("SELECT COUNT(id) FROM `users_relationships` WHERE user2 = ?", r.ID)
+	return ids, nil
+}
+
+func getUserFullData(md common.MethodData, query string, params ...interface{}) ([]userFullData, common.CodeMessager) {
+	rows, err := md.DB.Queryx(query, params...)
 	if err != nil {
 		md.Err(err)
+		return nil, Err500
 	}
+	defer rows.Close()
+
+	baseUsers := make([]userFullDB, 0)
 	for rows.Next() {
-		err := rows.Scan(&follower)
-		if err != nil {
+		var user userFullDB
+		if err := rows.StructScan(&user); err != nil {
 			md.Err(err)
-			continue
+			return nil, Err500
+		}
+		baseUsers = append(baseUsers, user)
+	}
+	if err := rows.Err(); err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+
+	if len(baseUsers) == 0 {
+		return []userFullData{}, nil
+	}
+
+	return buildUserFullData(md, baseUsers)
+}
+
+func buildUserFullData(md common.MethodData, baseUsers []userFullDB) ([]userFullData, common.CodeMessager) {
+	ids := make([]int, 0, len(baseUsers))
+	clanIDs := make([]int, 0, len(baseUsers))
+	for _, user := range baseUsers {
+		ids = append(ids, user.ID)
+		if user.ClanID != 0 {
+			clanIDs = append(clanIDs, user.ClanID)
 		}
 	}
-	r.Followers = follower
 
-	rows, err = md.DB.Query("SELECT b.id, b.name, b.icon, b.colour FROM user_badges ub "+
-		"INNER JOIN badges b ON ub.badge = b.id WHERE user = ?", r.ID)
-	if err != nil {
-		md.Err(err)
+	badgesByUser, badgeIDsByUser, errResp := getUserFullBadges(md, ids)
+	if errResp != nil {
+		return nil, errResp
+	}
+	tbadgesByUser, errResp := getUserFullTBadges(md, ids)
+	if errResp != nil {
+		return nil, errResp
+	}
+	followersByUser, errResp := getUserFullFollowers(md, ids)
+	if errResp != nil {
+		return nil, errResp
+	}
+	clansByID, errResp := getUserFullClans(md, clanIDs)
+	if errResp != nil {
+		return nil, errResp
 	}
 
-	for rows.Next() {
-		var badge singleBadge
-		err := rows.Scan(&badge.ID, &badge.Name, &badge.Icon, &badge.Colour)
-		if err != nil {
-			md.Err(err)
-			continue
+	users := make([]userFullData, len(baseUsers))
+	usersByID := make(map[int]*userFullData, len(baseUsers))
+	for i, baseUser := range baseUsers {
+		eligibleTitles := getEligibleTitlesFromBadgeIDs(baseUser.ID, baseUser.Privileges, badgeIDsByUser)
+		user := baseUser.toUserFullData(eligibleTitles)
+		user.Badges = badgesByUser[baseUser.ID]
+		user.TBadges = tbadgesByUser[baseUser.ID]
+		user.Followers = followersByUser[baseUser.ID]
+		user.Clan = clansByID[baseUser.ClanID]
+
+		if md.User.TokenPrivileges&common.PrivilegeManageUser == 0 {
+			user.CMNotes = nil
+			user.BanDate = nil
+			user.Email = ""
 		}
-		r.Badges = append(r.Badges, badge)
+
+		users[i] = user
+		usersByID[user.ID] = &users[i]
 	}
 
-	if md.User.TokenPrivileges&common.PrivilegeManageUser == 0 {
-		r.CMNotes = nil
-		r.BanDate = nil
-		r.Email = ""
+	if errResp := loadUserFullStats(md, ids, usersByID); errResp != nil {
+		return nil, errResp
+	}
+	if errResp := loadUserFullRanks(md, users); errResp != nil {
+		return nil, errResp
 	}
 
-	rows, err = md.DB.Query("SELECT tb.id, tb.name, tb.icon FROM user_tourmnt_badges tub "+
-		"INNER JOIN tourmnt_badges tb ON tub.badge = tb.id WHERE user = ?", r.ID)
-	if err != nil {
-		md.Err(err)
+	return users, nil
+}
+
+func (user *userFullDB) toUserFullData(eligibleTitles []eligibleTitle) userFullData {
+	userData := user.userDataDB.toUserData(eligibleTitles)
+	r := userFullData{
+		userData:      userData,
+		CountryName:   countryName(user.Country),
+		PlayStyle:     user.PlayStyle,
+		FavouriteMode: user.FavouriteMode,
+		SilenceInfo: silenceInfo{
+			Reason: user.SilenceReason,
+			End:    user.SilenceEnd,
+		},
+		CMNotes: user.CMNotes,
+		BanDate: user.BanDate,
+		Email:   user.Email,
 	}
 
-	for rows.Next() {
-		var Tbadge TsingleBadge
-		err := rows.Scan(&Tbadge.ID, &Tbadge.Name, &Tbadge.Icon)
-		if err != nil {
-			md.Err(err)
-			continue
+	canCustomBadge := user.CanCustomBadge &&
+		user.ShowCustomBadge &&
+		common.UserPrivileges(user.Privileges)&common.UserPrivilegeDonor > 0
+	if canCustomBadge && (user.CustomBadgeName != "" || user.CustomBadgeIcon != "") {
+		r.CustomBadge = &singleBadge{
+			Name: user.CustomBadgeName,
+			Icon: user.CustomBadgeIcon,
 		}
-		r.TBadges = append(r.TBadges, Tbadge)
 	}
 
-	r.Clan, err = getClan(r.Clan.ID, md)
-	if err != nil {
-		md.Err(err)
-	}
-
-	r.Code = 200
 	return r
+}
+
+func getUserFullBadges(md common.MethodData, userIDs []int) (map[int][]singleBadge, map[int]map[int]bool, common.CodeMessager) {
+	query, params, err := sqlx.In(
+		`SELECT ub.user, b.id, b.name, b.icon, b.colour
+		FROM user_badges ub
+		INNER JOIN badges b ON ub.badge = b.id
+		WHERE ub.user IN (?)`,
+		userIDs,
+	)
+	if err != nil {
+		md.Err(err)
+		return nil, nil, Err500
+	}
+
+	rows, err := md.DB.Query(query, params...)
+	if err != nil {
+		md.Err(err)
+		return nil, nil, Err500
+	}
+	defer rows.Close()
+
+	badgesByUser := make(map[int][]singleBadge)
+	badgeIDsByUser := make(map[int]map[int]bool)
+	for rows.Next() {
+		var userID int
+		var badge singleBadge
+		if err := rows.Scan(&userID, &badge.ID, &badge.Name, &badge.Icon, &badge.Colour); err != nil {
+			md.Err(err)
+			return nil, nil, Err500
+		}
+		badgesByUser[userID] = append(badgesByUser[userID], badge)
+		if badgeIDsByUser[userID] == nil {
+			badgeIDsByUser[userID] = make(map[int]bool)
+		}
+		badgeIDsByUser[userID][badge.ID] = true
+	}
+	if err := rows.Err(); err != nil {
+		md.Err(err)
+		return nil, nil, Err500
+	}
+
+	return badgesByUser, badgeIDsByUser, nil
+}
+
+func getUserFullTBadges(md common.MethodData, userIDs []int) (map[int][]TsingleBadge, common.CodeMessager) {
+	query, params, err := sqlx.In(
+		`SELECT tub.user, tb.id, tb.name, tb.icon
+		FROM user_tourmnt_badges tub
+		INNER JOIN tourmnt_badges tb ON tub.badge = tb.id
+		WHERE tub.user IN (?)`,
+		userIDs,
+	)
+	if err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+
+	rows, err := md.DB.Query(query, params...)
+	if err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+	defer rows.Close()
+
+	tbadgesByUser := make(map[int][]TsingleBadge)
+	for rows.Next() {
+		var userID int
+		var badge TsingleBadge
+		if err := rows.Scan(&userID, &badge.ID, &badge.Name, &badge.Icon); err != nil {
+			md.Err(err)
+			return nil, Err500
+		}
+		tbadgesByUser[userID] = append(tbadgesByUser[userID], badge)
+	}
+	if err := rows.Err(); err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+
+	return tbadgesByUser, nil
+}
+
+func getUserFullFollowers(md common.MethodData, userIDs []int) (map[int]int, common.CodeMessager) {
+	query, params, err := sqlx.In(
+		`SELECT user2, COUNT(id)
+		FROM users_relationships
+		WHERE user2 IN (?)
+		GROUP BY user2`,
+		userIDs,
+	)
+	if err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+
+	rows, err := md.DB.Query(query, params...)
+	if err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+	defer rows.Close()
+
+	followersByUser := make(map[int]int)
+	for rows.Next() {
+		var userID int
+		var followers int
+		if err := rows.Scan(&userID, &followers); err != nil {
+			md.Err(err)
+			return nil, Err500
+		}
+		followersByUser[userID] = followers
+	}
+	if err := rows.Err(); err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+
+	return followersByUser, nil
+}
+
+func getUserFullClans(md common.MethodData, clanIDs []int) (map[int]Clan, common.CodeMessager) {
+	clanIDs = uniqueInts(clanIDs)
+	if len(clanIDs) == 0 {
+		return map[int]Clan{}, nil
+	}
+
+	query, params, err := sqlx.In(
+		`SELECT id, name, description, tag, icon, owner, status
+		FROM clans
+		WHERE id IN (?)`,
+		clanIDs,
+	)
+	if err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+
+	rows, err := md.DB.Query(query, params...)
+	if err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+	defer rows.Close()
+
+	clansByID := make(map[int]Clan)
+	for rows.Next() {
+		var clan Clan
+		if err := rows.Scan(&clan.ID, &clan.Name, &clan.Description, &clan.Tag, &clan.Icon, &clan.Owner, &clan.Status); err != nil {
+			md.Err(err)
+			return nil, Err500
+		}
+		clansByID[clan.ID] = clan
+	}
+	if err := rows.Err(); err != nil {
+		md.Err(err)
+		return nil, Err500
+	}
+
+	return clansByID, nil
+}
+
+func loadUserFullStats(md common.MethodData, userIDs []int, usersByID map[int]*userFullData) common.CodeMessager {
+	query, params, err := sqlx.In(
+		`SELECT
+			user_id, mode, ranked_score, total_score, playcount, playtime,
+			replays_watched, total_hits, avg_accuracy, pp, max_combo,
+			xh_count, x_count, sh_count, s_count, a_count, b_count, c_count, d_count
+		FROM user_stats
+		WHERE user_id IN (?) AND mode IN (?)`,
+		userIDs,
+		userFullStatModes,
+	)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	rows, err := md.DB.Query(query, params...)
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	defer rows.Close()
+
+	seenModesByUser := make(map[int]map[int]bool)
+	for rows.Next() {
+		var userID int
+		var mode int
+		var stats modeData
+		err := rows.Scan(
+			&userID, &mode, &stats.RankedScore, &stats.TotalScore, &stats.PlayCount, &stats.PlayTime,
+			&stats.ReplaysWatched, &stats.TotalHits, &stats.Accuracy, &stats.PP, &stats.MaxCombo,
+			&stats.Grades.XHCount, &stats.Grades.XCount, &stats.Grades.SHCount,
+			&stats.Grades.SCount, &stats.Grades.ACount, &stats.Grades.BCount,
+			&stats.Grades.CCount, &stats.Grades.DCount,
+		)
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+
+		user := usersByID[userID]
+		if user == nil {
+			continue
+		}
+		target := userFullModeData(&user.Stats, mode)
+		if target == nil {
+			continue
+		}
+		*target = stats
+		if seenModesByUser[userID] == nil {
+			seenModesByUser[userID] = make(map[int]bool)
+		}
+		seenModesByUser[userID][mode] = true
+	}
+	if err := rows.Err(); err != nil {
+		md.Err(err)
+		return Err500
+	}
+
+	for userID := range usersByID {
+		for _, mode := range userFullStatModes {
+			if !seenModesByUser[userID][mode] {
+				return common.SimpleResponse(404, "That user could not be found!")
+			}
+		}
+	}
+
+	return nil
+}
+
+func userFullModeData(stats *[3]userStats, mode int) *modeData {
+	switch mode {
+	case 0:
+		return &stats[0].STD
+	case 1:
+		return &stats[0].Taiko
+	case 2:
+		return &stats[0].CTB
+	case 3:
+		return &stats[0].Mania
+	case 4:
+		return &stats[1].STD
+	case 5:
+		return &stats[1].Taiko
+	case 6:
+		return &stats[1].CTB
+	case 8:
+		return &stats[2].STD
+	}
+	return nil
+}
+
+func loadUserFullRanks(md common.MethodData, users []userFullData) common.CodeMessager {
+	pipe := md.R.Pipeline()
+	defer pipe.Close()
+
+	commands := make([]userFullRankCommand, 0, len(users)*18)
+	for i := range users {
+		queueUserFullRanks(pipe, &commands, &users[i])
+	}
+	if len(commands) == 0 {
+		return nil
+	}
+
+	_, err := pipe.Exec()
+	if err != nil && err != redis.Nil {
+		md.Err(err)
+		return Err500
+	}
+
+	for _, command := range commands {
+		err := command.cmd.Err()
+		if err == redis.Nil {
+			continue
+		}
+		if err != nil {
+			md.Err(err)
+			return Err500
+		}
+		rank := int(command.cmd.Val()) + 1
+		*command.dest = &rank
+	}
+
+	return nil
+}
+
+func queueUserFullRanks(pipe *redis.Pipeline, commands *[]userFullRankCommand, user *userFullData) {
+	for modeID, stats := range [...]*modeData{&user.Stats[0].STD, &user.Stats[0].Taiko, &user.Stats[0].CTB, &user.Stats[0].Mania} {
+		stats.Level = ocl.GetLevelPrecise(int64(stats.TotalScore))
+		mode := modesToReadable[modeID]
+		queueUserFullRank(pipe, commands, "ripple:leaderboard:"+mode, user.ID, &stats.GlobalLeaderboardRank)
+		queueUserFullRank(pipe, commands, "ripple:leaderboard:"+mode+":"+strings.ToLower(user.Country), user.ID, &stats.CountryLeaderboardRank)
+	}
+	for modeID, stats := range [...]*modeData{&user.Stats[1].STD, &user.Stats[1].Taiko, &user.Stats[1].CTB, &user.Stats[1].Mania} {
+		stats.Level = ocl.GetLevelPrecise(int64(stats.TotalScore))
+		mode := modesToReadable[modeID]
+		queueUserFullRank(pipe, commands, "ripple:relaxboard:"+mode, user.ID, &stats.GlobalLeaderboardRank)
+		queueUserFullRank(pipe, commands, "ripple:relaxboard:"+mode+":"+strings.ToLower(user.Country), user.ID, &stats.CountryLeaderboardRank)
+	}
+	for modeID, stats := range [...]*modeData{&user.Stats[2].STD} {
+		stats.Level = ocl.GetLevelPrecise(int64(stats.TotalScore))
+		mode := modesToReadable[modeID]
+		queueUserFullRank(pipe, commands, "ripple:autoboard:"+mode, user.ID, &stats.GlobalLeaderboardRank)
+		queueUserFullRank(pipe, commands, "ripple:autoboard:"+mode+":"+strings.ToLower(user.Country), user.ID, &stats.CountryLeaderboardRank)
+	}
+}
+
+func queueUserFullRank(pipe *redis.Pipeline, commands *[]userFullRankCommand, key string, userID int, dest **int) {
+	*commands = append(*commands, userFullRankCommand{
+		cmd:  pipe.ZRevRank(key, strconv.Itoa(userID)),
+		dest: dest,
+	})
+}
+
+func getEligibleTitlesFromBadgeIDs(userID int, privileges uint64, badgeIDsByUser map[int]map[int]bool) []eligibleTitle {
+	userBadgeIDs := badgeIDsByUser[userID]
+	return getEligibleTitlesFromFlags(
+		privileges,
+		userBadgeIDs[34],
+		userBadgeIDs[101],
+		userBadgeIDs[86],
+		userBadgeIDs[67],
+	)
+}
+
+func uniqueInts(values []int) []int {
+	seen := make(map[int]bool, len(values))
+	uniqueValues := make([]int, 0, len(values))
+	for _, value := range values {
+		if !seen[value] {
+			seen[value] = true
+			uniqueValues = append(uniqueValues, value)
+		}
+	}
+	return uniqueValues
 }
 
 // getUserTitleFromID converts a machine-readable title ID to human-readable title

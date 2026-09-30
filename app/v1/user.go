@@ -561,7 +561,7 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		return *shouldRet
 	}
 	var r userpageResponse
-	err := md.DB.QueryRow("SELECT userpage_content FROM users WHERE "+whereClause, param).Scan(&r.Userpage)
+	err := md.DB.QueryRow("SELECT userpage_content FROM users WHERE "+whereClause+" AND "+md.User.OnlyUserPublic(true), param).Scan(&r.Userpage)
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user!")

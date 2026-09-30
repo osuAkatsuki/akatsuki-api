@@ -77,8 +77,12 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
-	// An empty title is an explicit choice to show no title.
-	if d.UserTitle != nil && *d.UserTitle != "" {
+	// Validate user title if provided
+	if d.UserTitle != nil && *d.UserTitle == "" {
+		// Preserve the stored selection when the settings form sends an empty value.
+		d.UserTitle = nil
+	} else if d.UserTitle != nil {
+		// Non-empty title - validate it's in the eligible titles
 		var privileges uint64
 		err := md.DB.QueryRow("SELECT privileges FROM users WHERE id = ?", md.ID()).Scan(&privileges)
 		if err != nil {
@@ -157,6 +161,8 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 	titles := make([]eligibleTitle, 0)
 
 	userPrivs := common.UserPrivileges(privileges)
+	// Staff title eligibility is independent of donor and premium entitlement.
+	staffTitlePrivileges := userPrivs | common.UserPrivilegeDonor | common.UserPrivilegePremium
 
 	// Check badges first (they have higher priority)
 	rows, err := md.DB.Query("SELECT b.id FROM user_badges ub "+
@@ -200,11 +206,11 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "bot", Title: "CHAT BOT"})
 	}
 
-	if userPrivs&9437183 == 9437183 {
+	if staffTitlePrivileges&9437183 == 9437183 {
 		titles = append(titles, eligibleTitle{ID: "product_manager", Title: "PRODUCT MANAGER"})
 	}
 
-	if userPrivs&10743327 == 10743327 {
+	if staffTitlePrivileges&10743327 == 10743327 {
 		titles = append(titles, eligibleTitle{ID: "developer", Title: "PRODUCT DEVELOPER"})
 	}
 
@@ -212,15 +218,15 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "designer", Title: "PRODUCT DESIGNER"})
 	}
 
-	if userPrivs&9425151 == 9425151 {
+	if staffTitlePrivileges&9425151 == 9425151 {
 		titles = append(titles, eligibleTitle{ID: "community_manager", Title: "COMMUNITY MANAGER"})
 	}
 
-	if userPrivs&9212159 == 9212159 || userPrivs&9175111 == 9175111 {
+	if staffTitlePrivileges&9212159 == 9212159 || staffTitlePrivileges&9175111 == 9175111 {
 		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
 	}
 
-	if userPrivs&10485767 == 10485767 {
+	if staffTitlePrivileges&10485767 == 10485767 {
 		titles = append(titles, eligibleTitle{ID: "event_manager", Title: "EVENT MANAGER"})
 	}
 
@@ -228,7 +234,7 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "nqa", Title: "NOMINATION QUALITY ASSURANCE"})
 	}
 
-	if userPrivs&8388871 == 8388871 {
+	if staffTitlePrivileges&8388871 == 8388871 {
 		titles = append(titles, eligibleTitle{ID: "nominator", Title: "BEATMAP NOMINATOR"})
 	}
 
@@ -251,14 +257,36 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 	return titles, nil
 }
 
+func lookupBuiltInTitle(titleID string) (string, bool) {
+	titleMap := map[string]string{
+		"bot":               "CHAT BOT",
+		"product_manager":   "PRODUCT MANAGER",
+		"developer":         "PRODUCT DEVELOPER",
+		"designer":          "PRODUCT DESIGNER",
+		"community_manager": "COMMUNITY MANAGER",
+		"community_support": "COMMUNITY SUPPORT",
+		"event_manager":     "EVENT MANAGER",
+		"nqa":               "NOMINATION QUALITY ASSURANCE",
+		"nominator":         "BEATMAP NOMINATOR",
+		"scorewatcher":      "SOCIAL MEDIA MANAGER",
+		"champion":          "AKATSUKI CHAMPION",
+		"premium":           "AKATSUKI+",
+		"donor":             "SUPPORTER",
+	}
+	title, known := titleMap[titleID]
+	return title, known
+}
+
 func resolveUserTitle(selected sql.NullString, eligible []eligibleTitle) userTitleResponse {
-	if selected.Valid {
-		if selected.String == "" {
-			return userTitleResponse{}
+	if selected.Valid && selected.String != "" {
+		displayTitle, known := lookupBuiltInTitle(selected.String)
+		if !known {
+			// Preserve literal custom titles assigned outside self-service settings.
+			return userTitleResponse{ID: selected.String, Title: selected.String}
 		}
 		for _, title := range eligible {
 			if title.ID == selected.String {
-				return userTitleResponse{ID: title.ID, Title: title.Title}
+				return userTitleResponse{ID: selected.String, Title: displayTitle}
 			}
 		}
 	}

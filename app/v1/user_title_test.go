@@ -20,7 +20,12 @@ func TestResolveUserTitle(t *testing.T) {
 		{"valid selection", sql.NullString{String: "donor", Valid: true}, eligible, userTitleResponse{ID: "donor", Title: "SUPPORTER"}},
 		{"expired selection", sql.NullString{String: "premium", Valid: true}, eligible, userTitleResponse{ID: "developer", Title: "PRODUCT DEVELOPER"}},
 		{"automatic default", sql.NullString{}, eligible, userTitleResponse{ID: "developer", Title: "PRODUCT DEVELOPER"}},
-		{"explicit no title", sql.NullString{String: "", Valid: true}, eligible, userTitleResponse{}},
+		{"empty selection uses default", sql.NullString{String: "", Valid: true}, eligible, userTitleResponse{ID: "developer", Title: "PRODUCT DEVELOPER"}},
+		{"custom title", sql.NullString{String: "BALLIN", Valid: true}, eligible, userTitleResponse{ID: "BALLIN", Title: "BALLIN"}},
+		{"custom title without eligible roles", sql.NullString{String: "custom title", Valid: true}, nil, userTitleResponse{ID: "custom title", Title: "custom title"}},
+		{"custom title is case sensitive", sql.NullString{String: "Premium", Valid: true}, nil, userTitleResponse{ID: "Premium", Title: "Premium"}},
+		{"custom title preserves trailing space", sql.NullString{String: "premium ", Valid: true}, nil, userTitleResponse{ID: "premium ", Title: "premium "}},
+		{"expired selection without eligible roles", sql.NullString{String: "premium", Valid: true}, nil, userTitleResponse{}},
 		{"no eligible title", sql.NullString{}, nil, userTitleResponse{}},
 	}
 

@@ -52,19 +52,7 @@ func (udb *userDataDB) toUserData(eligibleTitles []eligibleTitle) userData {
 		Country:        udb.Country,
 	}
 
-	// Convert UserTitle ID to structured response
-	if udb.UserTitle.Valid && udb.UserTitle.String != "" {
-		u.UserTitle = userTitleResponse{
-			ID:    udb.UserTitle.String,
-			Title: getUserTitleFromID(udb.UserTitle.String),
-		}
-	} else if len(eligibleTitles) > 0{
-		u.UserTitle = userTitleResponse{
-			ID:    eligibleTitles[0].ID,
-			Title: eligibleTitles[0].Title,
-		}
-
-	}
+	u.UserTitle = resolveUserTitle(udb.UserTitle, eligibleTitles)
 
 	return u
 }
@@ -521,30 +509,6 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 
 	r.Code = 200
 	return r
-}
-
-// getUserTitleFromID converts a machine-readable title ID to human-readable title
-func getUserTitleFromID(titleID string) string {
-	titleMap := map[string]string{
-		"bot":               "CHAT BOT",
-		"product_manager":   "PRODUCT MANAGER",
-		"developer":         "PRODUCT DEVELOPER",
-		"designer":          "PRODUCT DESIGNER",
-		"community_manager": "COMMUNITY MANAGER",
-		"community_support": "COMMUNITY SUPPORT",
-		"event_manager":     "EVENT MANAGER",
-		"nqa":               "NOMINATION QUALITY ASSURANCE",
-		"nominator":         "BEATMAP NOMINATOR",
-		"scorewatcher":      "SOCIAL MEDIA MANAGER",
-		"champion":          "AKATSUKI CHAMPION",
-		"premium":           "AKATSUKI+",
-		"donor":             "SUPPORTER",
-	}
-
-	if title, exists := titleMap[titleID]; exists {
-		return title
-	}
-	return titleID // Return ID if not found (fallback)
 }
 
 type userpageResponse struct {

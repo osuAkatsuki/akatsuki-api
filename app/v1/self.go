@@ -77,13 +77,8 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	}
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
-	// Validate user title if provided
-	// Frontend always sends this field, either as "" (no title) or a title ID
-	if d.UserTitle != nil && *d.UserTitle == "" {
-		// Empty string means "no title" - convert to NULL for database
-		d.UserTitle = nil
-	} else if d.UserTitle != nil {
-		// Non-empty title - validate it's in the eligible titles
+	// An empty title is an explicit choice to show no title.
+	if d.UserTitle != nil && *d.UserTitle != "" {
 		var privileges uint64
 		err := md.DB.QueryRow("SELECT privileges FROM users WHERE id = ?", md.ID()).Scan(&privileges)
 		if err != nil {
@@ -256,28 +251,21 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 	return titles, nil
 }
 
-// getTitleFromID converts a machine-readable title ID to human-readable title
-func getTitleFromID(titleID string) string {
-	titleMap := map[string]string{
-		"bot":               "CHAT BOT",
-		"product_manager":   "PRODUCT MANAGER",
-		"developer":         "PRODUCT DEVELOPER",
-		"designer":          "PRODUCT DESIGNER",
-		"community_manager": "COMMUNITY MANAGER",
-		"community_support": "COMMUNITY SUPPORT",
-		"event_manager":     "EVENT MANAGER",
-		"nqa":               "NOMINATION QUALITY ASSURANCE",
-		"nominator":         "BEATMAP NOMINATOR",
-		"scorewatcher":      "SOCIAL MEDIA MANAGER",
-		"champion":          "AKATSUKI CHAMPION",
-		"premium":           "AKATSUKI+",
-		"donor":             "SUPPORTER",
+func resolveUserTitle(selected sql.NullString, eligible []eligibleTitle) userTitleResponse {
+	if selected.Valid {
+		if selected.String == "" {
+			return userTitleResponse{}
+		}
+		for _, title := range eligible {
+			if title.ID == selected.String {
+				return userTitleResponse{ID: title.ID, Title: title.Title}
+			}
+		}
 	}
-
-	if title, exists := titleMap[titleID]; exists {
-		return title
+	if len(eligible) > 0 {
+		return userTitleResponse{ID: eligible[0].ID, Title: eligible[0].Title}
 	}
-	return titleID // Return ID if not found (fallback)
+	return userTitleResponse{}
 }
 
 // UsersSelfSettingsGET allows to get "sensitive" information about the current user.
@@ -325,21 +313,7 @@ WHERE id = ?`, md.ID()).Scan(
 		r.EligibleTitles = eligibleTitles
 	}
 
-	// Set the UserTitle struct from the stored ID
-	if userTitleID.Valid && userTitleID.String != "" {
-		r.UserTitle = userTitleResponse{
-			ID:    userTitleID.String,
-			Title: getTitleFromID(userTitleID.String),
-		}
-	} else if len(r.EligibleTitles) > 0 {
-		// If user_title is empty/null but user has eligible titles,
-		// default to the first one (e.g., newly promoted staff)
-		r.UserTitle = userTitleResponse{
-			ID:    r.EligibleTitles[0].ID,
-			Title: r.EligibleTitles[0].Title,
-		}
-	}
-	// Otherwise, leave r.UserTitle as empty struct (no title for users without eligible titles)
+	r.UserTitle = resolveUserTitle(userTitleID, r.EligibleTitles)
 
 	return r
 }

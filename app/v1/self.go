@@ -78,9 +78,8 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 	d.FavouriteMode = intPtrIn(0, d.FavouriteMode, 3)
 
 	// Validate user title if provided
-	// Frontend always sends this field, either as "" (no title) or a title ID
 	if d.UserTitle != nil && *d.UserTitle == "" {
-		// Empty string means "no title" - convert to NULL for database
+		// Preserve the stored selection when the settings form sends an empty value.
 		d.UserTitle = nil
 	} else if d.UserTitle != nil {
 		// Non-empty title - validate it's in the eligible titles
@@ -162,6 +161,8 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 	titles := make([]eligibleTitle, 0)
 
 	userPrivs := common.UserPrivileges(privileges)
+	// Staff title eligibility is independent of donor and premium entitlement.
+	staffTitlePrivileges := userPrivs | common.UserPrivilegeDonor | common.UserPrivilegePremium
 
 	// Check badges first (they have higher priority)
 	rows, err := md.DB.Query("SELECT b.id FROM user_badges ub "+
@@ -205,11 +206,11 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "bot", Title: "CHAT BOT"})
 	}
 
-	if userPrivs&9437183 == 9437183 {
+	if staffTitlePrivileges&9437183 == 9437183 {
 		titles = append(titles, eligibleTitle{ID: "product_manager", Title: "PRODUCT MANAGER"})
 	}
 
-	if userPrivs&10743327 == 10743327 {
+	if staffTitlePrivileges&10743327 == 10743327 {
 		titles = append(titles, eligibleTitle{ID: "developer", Title: "PRODUCT DEVELOPER"})
 	}
 
@@ -217,15 +218,15 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "designer", Title: "PRODUCT DESIGNER"})
 	}
 
-	if userPrivs&9425151 == 9425151 {
+	if staffTitlePrivileges&9425151 == 9425151 {
 		titles = append(titles, eligibleTitle{ID: "community_manager", Title: "COMMUNITY MANAGER"})
 	}
 
-	if userPrivs&9212159 == 9212159 || userPrivs&9175111 == 9175111 {
+	if staffTitlePrivileges&9212159 == 9212159 || staffTitlePrivileges&9175111 == 9175111 {
 		titles = append(titles, eligibleTitle{ID: "community_support", Title: "COMMUNITY SUPPORT"})
 	}
 
-	if userPrivs&10485767 == 10485767 {
+	if staffTitlePrivileges&10485767 == 10485767 {
 		titles = append(titles, eligibleTitle{ID: "event_manager", Title: "EVENT MANAGER"})
 	}
 
@@ -233,7 +234,7 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "nqa", Title: "NOMINATION QUALITY ASSURANCE"})
 	}
 
-	if userPrivs&8388871 == 8388871 {
+	if staffTitlePrivileges&8388871 == 8388871 {
 		titles = append(titles, eligibleTitle{ID: "nominator", Title: "BEATMAP NOMINATOR"})
 	}
 
@@ -256,8 +257,7 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 	return titles, nil
 }
 
-// getTitleFromID converts a machine-readable title ID to human-readable title
-func getTitleFromID(titleID string) string {
+func lookupBuiltInTitle(titleID string) (string, bool) {
 	titleMap := map[string]string{
 		"bot":               "CHAT BOT",
 		"product_manager":   "PRODUCT MANAGER",
@@ -273,11 +273,27 @@ func getTitleFromID(titleID string) string {
 		"premium":           "AKATSUKI+",
 		"donor":             "SUPPORTER",
 	}
+	title, known := titleMap[titleID]
+	return title, known
+}
 
-	if title, exists := titleMap[titleID]; exists {
-		return title
+func resolveUserTitle(selected sql.NullString, eligible []eligibleTitle) userTitleResponse {
+	if selected.Valid && selected.String != "" {
+		displayTitle, known := lookupBuiltInTitle(selected.String)
+		if !known {
+			// Preserve literal custom titles assigned outside self-service settings.
+			return userTitleResponse{ID: selected.String, Title: selected.String}
+		}
+		for _, title := range eligible {
+			if title.ID == selected.String {
+				return userTitleResponse{ID: selected.String, Title: displayTitle}
+			}
+		}
 	}
-	return titleID // Return ID if not found (fallback)
+	if len(eligible) > 0 {
+		return userTitleResponse{ID: eligible[0].ID, Title: eligible[0].Title}
+	}
+	return userTitleResponse{}
 }
 
 // UsersSelfSettingsGET allows to get "sensitive" information about the current user.
@@ -325,21 +341,7 @@ WHERE id = ?`, md.ID()).Scan(
 		r.EligibleTitles = eligibleTitles
 	}
 
-	// Set the UserTitle struct from the stored ID
-	if userTitleID.Valid && userTitleID.String != "" {
-		r.UserTitle = userTitleResponse{
-			ID:    userTitleID.String,
-			Title: getTitleFromID(userTitleID.String),
-		}
-	} else if len(r.EligibleTitles) > 0 {
-		// If user_title is empty/null but user has eligible titles,
-		// default to the first one (e.g., newly promoted staff)
-		r.UserTitle = userTitleResponse{
-			ID:    r.EligibleTitles[0].ID,
-			Title: r.EligibleTitles[0].Title,
-		}
-	}
-	// Otherwise, leave r.UserTitle as empty struct (no title for users without eligible titles)
+	r.UserTitle = resolveUserTitle(userTitleID, r.EligibleTitles)
 
 	return r
 }

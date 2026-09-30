@@ -630,18 +630,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 			Country:        userDB.Country,
 		}
 
-		// Handle user title conversion
-		if userDB.UserTitle.Valid && userDB.UserTitle.String != "" {
-			a.UserTitle = userTitleResponse{
-				ID:    userDB.UserTitle.String,
-				Title: getUserTitleFromID(userDB.UserTitle.String),
-			}
-		} else if len(eligibleTitles) > 0 {
-			a.UserTitle = userTitleResponse{
-				ID:    eligibleTitles[0].ID,
-				Title: eligibleTitles[0].Title,
-			}
-		}
+		a.UserTitle = resolveUserTitle(userDB.UserTitle, eligibleTitles)
 
 		cmd.Members = append(cmd.Members, a)
 	}

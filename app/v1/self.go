@@ -250,10 +250,6 @@ func getEligibleTitles(md common.MethodData, userID int, privileges uint64) ([]e
 		titles = append(titles, eligibleTitle{ID: "premium", Title: "AKATSUKI+"})
 	}
 
-	if userPrivs&common.UserPrivilegeDonor == common.UserPrivilegeDonor {
-		titles = append(titles, eligibleTitle{ID: "donor", Title: "SUPPORTER"})
-	}
-
 	return titles, nil
 }
 
@@ -271,7 +267,6 @@ func lookupBuiltInTitle(titleID string) (string, bool) {
 		"scorewatcher":      "SOCIAL MEDIA MANAGER",
 		"champion":          "AKATSUKI CHAMPION",
 		"premium":           "AKATSUKI+",
-		"donor":             "SUPPORTER",
 	}
 	title, known := titleMap[titleID]
 	return title, known

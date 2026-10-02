@@ -82,9 +82,6 @@ func UsersSelfSettingsPOST(md common.MethodData) common.CodeMessager {
 		// Preserve the stored selection when the settings form sends an empty value.
 		d.UserTitle = nil
 	} else if d.UserTitle != nil {
-		if *d.UserTitle == "donor" {
-			*d.UserTitle = "premium"
-		}
 		// Non-empty title - validate it's in the eligible titles
 		var privileges uint64
 		err := md.DB.QueryRow("SELECT privileges FROM users WHERE id = ?", md.ID()).Scan(&privileges)
@@ -277,9 +274,6 @@ func lookupBuiltInTitle(titleID string) (string, bool) {
 
 func resolveUserTitle(selected sql.NullString, eligible []eligibleTitle) userTitleResponse {
 	if selected.Valid && selected.String != "" {
-		if selected.String == "donor" {
-			selected.String = "premium"
-		}
 		displayTitle, known := lookupBuiltInTitle(selected.String)
 		if !known {
 			// Preserve literal custom titles assigned outside self-service settings.

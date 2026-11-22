@@ -282,8 +282,8 @@ func UserFullGET(md common.MethodData) common.CodeMessager {
 	var (
 		b singleBadge
 
-		can  bool
-		show bool
+		can    bool
+		show   bool
 		userDB userDataDB
 	)
 	// Scan user information into response
@@ -525,7 +525,7 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		return *shouldRet
 	}
 	var r userpageResponse
-	err := md.DB.QueryRow("SELECT userpage_content FROM users WHERE "+whereClause+" AND "+md.User.OnlyUserPublic(true), param).Scan(&r.Userpage)
+	err := md.DB.QueryRow("SELECT IF(userpage_allowed, userpage_content, NULL) FROM users WHERE "+whereClause+" AND "+md.User.OnlyUserPublic(true), param).Scan(&r.Userpage)
 	switch {
 	case err == sql.ErrNoRows:
 		return common.SimpleResponse(404, "No such user!")
@@ -539,10 +539,10 @@ func UserUserpageGET(md common.MethodData) common.CodeMessager {
 		r.UserpageCompiled = ""
 		return r
 	}
+	r.UserpageCompiled = externals.ConvertBBCodeToHTML(*r.Userpage)
 	if !dontEscape {
 		*r.Userpage = html.EscapeString(*r.Userpage)
 	}
-	r.UserpageCompiled = externals.ConvertBBCodeToHTML(*r.Userpage)
 	return r
 }
 
@@ -559,9 +559,27 @@ func UserSelfUserpagePOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(400, "Userpage content is too long, maximum is 65535 characters")
 	}
 	cont := common.SanitiseString(*d.Data)
-	_, err := md.DB.Exec("UPDATE users SET userpage_content = ? WHERE id = ?", cont, md.ID())
+	res, err := md.DB.Exec("UPDATE users SET userpage_content = ? WHERE id = ? AND userpage_allowed = 1", cont, md.ID())
 	if err != nil {
 		md.Err(err)
+		return Err500
+	}
+	changed, err := res.RowsAffected()
+	if err != nil {
+		md.Err(err)
+		return Err500
+	}
+	if changed == 0 {
+		// MySQL also reports zero changed rows if the content was unchanged.
+		var allowed bool
+		err := md.DB.QueryRow("SELECT userpage_allowed FROM users WHERE id = ?", md.ID()).Scan(&allowed)
+		if err != nil && err != sql.ErrNoRows {
+			md.Err(err)
+			return Err500
+		}
+		if !allowed {
+			return common.SimpleResponse(403, "Editing your userpage is disabled.")
+		}
 	}
 	md.Ctx.URI().SetQueryString("id=self")
 	return UserUserpageGET(md)

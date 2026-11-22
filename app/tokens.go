@@ -25,12 +25,14 @@ func GetTokenFull(token string, db *sqlx.DB) (common.Token, bool) {
 	t.id, t.user, t.privileges, t.private, u.privileges
 FROM tokens t
 INNER JOIN users u ON u.id = t.user
-WHERE token = ? LIMIT 1`,
+WHERE token = ?
+  AND u.privileges & 2 = 2
+  AND (t.private = 0 OR t.last_updated >= UNIX_TIMESTAMP() - 30 * 86400)
+LIMIT 1`,
 		fmt.Sprintf("%x", md5.Sum([]byte(token)))).
 		Scan(
 			&t.ID, &t.UserID, &tokenPrivsRaw, &priv8, &userPrivsRaw,
 		)
-	updateTokens <- t.ID
 	if priv8 {
 		// all privileges, they'll get removed by canOnly anyway.
 		tokenPrivsRaw = (common.PrivilegeBeatmap << 1) - 1
@@ -43,6 +45,7 @@ WHERE token = ? LIMIT 1`,
 	case err != nil:
 		panic(err)
 	default:
+		updateTokens <- t.ID
 		t.Value = token
 		return t, true
 	}

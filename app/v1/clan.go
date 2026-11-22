@@ -455,7 +455,15 @@ func ClanSettingsPOST(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(403, "Another Clan has already taken this Tag")
 	}
 
-	_, err = md.DB.Exec("UPDATE clans SET name = ?, tag = ?, description = ?, background = ?, status = ? WHERE id = ?", u.Name, u.Tag, u.Description, u.Background, u.Status, c.ID)
+	const subscriber = common.UserPrivilegeDonor | common.UserPrivilegePremium
+	if u.Background != "" && md.User.UserPrivileges&subscriber != subscriber {
+		return common.SimpleResponse(403, "An active subscription is required to set a clan background.")
+	}
+	if md.User.UserPrivileges&subscriber == subscriber {
+		_, err = md.DB.Exec("UPDATE clans SET name = ?, tag = ?, description = ?, background = ?, status = ? WHERE id = ?", u.Name, u.Tag, u.Description, u.Background, u.Status, c.ID)
+	} else {
+		_, err = md.DB.Exec("UPDATE clans SET name = ?, tag = ?, description = ?, status = ? WHERE id = ?", u.Name, u.Tag, u.Description, u.Status, c.ID)
+	}
 
 	if err != nil {
 		md.Err(err)

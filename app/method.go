@@ -2,8 +2,8 @@ package app
 
 import (
 	"encoding/json"
+	"mime"
 	"reflect"
-	"regexp"
 	"strings"
 	"unsafe"
 
@@ -21,6 +21,15 @@ func Method(f func(md common.MethodData) common.CodeMessager, privilegesNeeded .
 }
 
 func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) common.CodeMessager, privilegesNeeded ...int) {
+	c.Response.Header.Set("X-Content-Type-Options", "nosniff")
+	c.Response.Header.Set("X-Frame-Options", "DENY")
+	if c.IsPost() {
+		if code, message := validateWriteRequest(c, common.GetSettings().APP_DOMAIN); code != 0 {
+			c.SetStatusCode(code)
+			mkjson(c, common.SimpleResponse(code, message))
+			return
+		}
+	}
 	qa := c.Request.URI().QueryArgs()
 	var token string
 	var bearerToken bool
@@ -83,37 +92,33 @@ func initialCaretaker(c *fasthttp.RequestCtx, f func(md common.MethodData) commo
 	resp := f(md)
 	c.SetStatusCode(resp.GetCode())
 
-	if md.HasQuery("callback") {
-		c.Response.Header.Add("Content-Type", "application/javascript; charset=utf-8")
-	} else {
-		c.Response.Header.Add("Content-Type", "application/json; charset=utf-8")
-	}
-
 	mkjson(c, resp)
 }
 
-// Very restrictive, but this way it shouldn't completely fuck up.
-var callbackJSONP = regexp.MustCompile(`^[a-zA-Z_\$][a-zA-Z0-9_\$]*$`)
+func validateWriteRequest(c *fasthttp.RequestCtx, domain string) (int, string) {
+	// Non-browser clients omit Origin. Browsers include it on cross-origin POSTs.
+	if origin := string(c.Request.Header.Peek("Origin")); origin != "" {
+		if domain == "" || (origin != "https://"+domain && origin != "https://next."+domain) {
+			return fasthttp.StatusForbidden, "Origin is not allowed."
+		}
+	}
+	if len(c.PostBody()) != 0 {
+		mediaType, _, err := mime.ParseMediaType(string(c.Request.Header.ContentType()))
+		if err != nil || mediaType != "application/json" {
+			return fasthttp.StatusUnsupportedMediaType, "Expected application/json."
+		}
+	}
+	return 0, ""
+}
 
-// mkjson auto indents json, and wraps json into a jsonp callback if specified by the request.
-// then writes to the RequestCtx the data.
 func mkjson(c *fasthttp.RequestCtx, data interface{}) {
+	c.Response.Header.SetContentType("application/json; charset=utf-8")
 	exported, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		slog.Error("Error marshalling JSON", "error", err.Error())
 		exported = []byte(`{ "code": 500, "message": "An unexpected error occurred." }`)
 	}
-	cb := string(c.URI().QueryArgs().Peek("callback"))
-	willcb := cb != "" &&
-		len(cb) < 100 &&
-		callbackJSONP.MatchString(cb)
-	if willcb {
-		c.Write([]byte("/**/ typeof " + cb + " === 'function' && " + cb + "("))
-	}
-	c.Write(exported)
-	if willcb {
-		c.Write([]byte(");"))
-	}
+	c.SetBody(exported)
 }
 
 // b2s converts byte slice to a string without memory allocation.

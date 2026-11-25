@@ -55,6 +55,10 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 		return *shouldRet
 	}
 
+	if response := checkProfileVisibility(md, whereClause, param); response != nil {
+		return response
+	}
+
 	modeQuery := md.Query("mode")
 	var ids []int
 	var err error
@@ -69,7 +73,7 @@ func UserAchievementsGET(md common.MethodData) common.CodeMessager {
 			vanillaMode = &vm
 			err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
-WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, fullMode)
+WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true)+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, fullMode)
 		} else {
 			// Invalid mode, return empty
 			err = sql.ErrNoRows
@@ -77,7 +81,7 @@ WHERE `+whereClause+` AND ua.mode = ? ORDER BY ua.achievement_id ASC`, param, fu
 	} else {
 		err = md.DB.Select(&ids, `SELECT ua.achievement_id FROM users_achievements ua
 INNER JOIN users ON users.id = ua.user_id
-WHERE `+whereClause+` ORDER BY ua.achievement_id ASC`, param)
+WHERE `+whereClause+` AND `+md.User.OnlyUserPublic(true)+` ORDER BY ua.achievement_id ASC`, param)
 	}
 
 	switch {

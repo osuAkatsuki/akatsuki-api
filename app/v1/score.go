@@ -177,7 +177,7 @@ func ScoreGET(md common.MethodData) common.CodeMessager {
 		u userData
 		b beatmap
 	)
-	row := md.DB.QueryRow(query, scoreId)
+	row := md.DB.QueryRow(query+" AND "+md.User.OnlyUserPublic(false), scoreId)
 	err := row.Scan(
 		&s.ID, &s.BeatmapMD5, &s.Score.Score,
 		&s.MaxCombo, &s.FullCombo, &s.Mods,
@@ -194,8 +194,12 @@ func ScoreGET(md common.MethodData) common.CodeMessager {
 		&b.MaxCombo, &b.HitLength, &b.Ranked,
 		&b.RankedStatusFrozen, &b.LatestUpdate,
 	)
-	if err != nil {
+	switch {
+	case err == sql.ErrNoRows:
+		return common.SimpleResponse(404, "That score could not be found!")
+	case err != nil:
 		md.Err(err)
+		return Err500
 	}
 	s.User = u
 	s.Rank = strings.ToUpper(getrank.GetRank(

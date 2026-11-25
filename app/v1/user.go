@@ -603,6 +603,20 @@ func whereClauseUser(md common.MethodData, tableName string) (*common.CodeMessag
 	return &a, "", nil
 }
 
+func checkProfileVisibility(md common.MethodData, whereClause string, param interface{}) common.CodeMessager {
+	var userID int
+	err := md.DB.QueryRow("SELECT users.id FROM users WHERE "+whereClause+" AND "+md.User.OnlyUserPublic(true), param).Scan(&userID)
+	switch {
+	case err == sql.ErrNoRows:
+		return common.SimpleResponse(404, "That user could not be found!")
+	case err != nil:
+		md.Err(err)
+		return Err500
+	default:
+		return nil
+	}
+}
+
 type userLookupResponse struct {
 	common.ResponseBase
 	Users []lookupUser `json:"users"`
@@ -660,6 +674,10 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 		return common.SimpleResponse(401, "Invalid user id!")
 	}
 
+	if response := checkProfileVisibility(md, "users.id = ?", user); response != nil {
+		return response
+	}
+
 	relax := common.Int(md.Query("rx"))
 	mode := common.Int(md.Query("mode"))
 
@@ -680,7 +698,8 @@ func UserMostPlayedBeatmapsGET(md common.MethodData) common.CodeMessager {
 		beatmaps.beatmap_id, beatmaps.beatmapset_id, beatmaps.beatmap_md5,
 		beatmaps.song_name, beatmaps.ranked FROM user_beatmaps
 		INNER JOIN beatmaps ON beatmaps.beatmap_md5 = user_beatmaps.map
-		WHERE userid = ? AND rx = ? AND user_beatmaps.mode = ? ORDER BY count DESC %s`, common.Paginate(md.Query("p"), md.Query("l"), 100)),
+		INNER JOIN users ON users.id = user_beatmaps.userid
+		WHERE users.id = ? AND user_beatmaps.rx = ? AND user_beatmaps.mode = ? AND %s ORDER BY count DESC %s`, md.User.OnlyUserPublic(true), common.Paginate(md.Query("p"), md.Query("l"), 100)),
 		user, relax, mode)
 
 	if err != nil {

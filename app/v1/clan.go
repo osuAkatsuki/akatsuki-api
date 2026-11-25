@@ -599,7 +599,7 @@ func ClanMembersGET(md common.MethodData) common.CodeMessager {
 	}
 
 	cmd.Members = make([]userData, 0)
-	rows, err := md.DB.Query(userFields+" WHERE users.privileges & 3 AND clan_id = ?", i)
+	rows, err := md.DB.Query(userFields+" WHERE (users.privileges & 3) = 3 AND clan_id = ?", i)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return struct {

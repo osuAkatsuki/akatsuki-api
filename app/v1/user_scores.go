@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/osuAkatsuki/akatsuki-api/common"
-	"gopkg.in/thehowl/go-osuapi.v1"
-	"zxq.co/x/getrank"
 )
 
 type userScore struct {
@@ -274,37 +272,11 @@ func scoresPuts(md common.MethodData, query string, params ...interface{}) commo
 	}
 	var scores []userScore
 	for rows.Next() {
-		var (
-			us userScore
-			b  beatmap
-		)
-		err = rows.Scan(
-			&us.ID, &us.BeatmapMD5, &us.Score.Score,
-			&us.MaxCombo, &us.FullCombo, &us.Mods,
-			&us.Count300, &us.Count100, &us.Count50,
-			&us.CountGeki, &us.CountKatu, &us.CountMiss,
-			&us.Time, &us.PlayMode, &us.Accuracy, &us.PP,
-			&us.Completed, &us.Pinned, &us.UserID,
-
-			&b.BeatmapID, &b.BeatmapsetID, &b.BeatmapMD5,
-			&b.SongName, &b.AR, &b.OD,
-			&b.MaxCombo, &b.HitLength, &b.Ranked,
-			&b.RankedStatusFrozen, &b.LatestUpdate,
-		)
+		us, err := scanUserScore(rows)
 		if err != nil {
 			md.Err(err)
 			return Err500
 		}
-		us.Beatmap = b
-		us.Rank = strings.ToUpper(getrank.GetRank(
-			osuapi.Mode(us.PlayMode),
-			osuapi.Mods(us.Mods),
-			us.Accuracy,
-			us.Count300,
-			us.Count100,
-			us.Count50,
-			us.CountMiss,
-		))
 		scores = append(scores, us)
 	}
 	r := userScoresResponse{}
